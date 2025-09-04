@@ -1,0 +1,59 @@
+.megaMenuContainer {
+  position: absolute;
+  top: 100%; /* 👈 прилеплено прямо под Categories */
+  left: 0;   /* 👈 начинаем с той же точки */
+  display: flex;
+  width: 700px;
+  background-color: white;
+  border: 1px solid #ccc;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+  z-index: 1000;
+  padding: 20px;
+}
+
+.left {
+  flex: 1;
+  border-right: 1px solid #eee;
+  padding-right: 20px;
+}
+
+.left ul {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+}
+
+.left li {
+  padding: 8px 0;
+  cursor: pointer;
+  font-weight: 500;
+  color: #333;
+  transition: color 0.2s;
+}
+
+.left li:hover {
+  color: #ff88aa;
+}
+
+.right {
+  flex: 2;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 20px;
+  padding-left: 20px;
+}
+
+.subItem {
+  width: 100px;
+  text-align: center;
+  font-size: 14px;
+  padding: 10px;
+  background-color: #f9f9f9;
+  border-radius: 8px;
+  transition: background-color 0.2s;
+}
+
+.subItem:hover {
+  background-color: #ffe9f0;
+}

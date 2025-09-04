@@ -1,0 +1,8 @@
+flask==3.0.3
+flask-cors==4.0.1
+numpy==1.26.4
+onnxruntime-silicon==1.18.0  # для Mac M1/M2; на Intel можно onnxruntime==1.18.0
+opencv-python-headless==4.9.0.80
+Pillow==10.4.0
+mediapipe==0.10.14
+requests==2.32.3
