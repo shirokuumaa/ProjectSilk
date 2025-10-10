@@ -1,123 +1,186 @@
-import React, { useState } from 'react';
-const API = 'http://localhost:5000'; // единый API
+// client/src/pages/SellerPanel.jsx
+import React, { useEffect, useState } from "react";
+
+// если сервер на другом порту — укажи его здесь
+const API = "http://localhost:5050";
 
 export default function SellerPanel() {
-  const [processedImage, setProcessedImage] = useState(null);
-  const [processedImageBlob, setProcessedImageBlob] = useState(null);
-  const [model3dFile, setModel3dFile] = useState(null);     // ← 3D модель (опционально)
+  const [title, setTitle] = useState("");
+  const [price, setPrice] = useState("");
+
+  const [processedUrl, setProcessedUrl] = useState(null);   // превью PNG с альфой
+  const [processedBlob, setProcessedBlob] = useState(null); // PNG для отправки
+
+  const [model3dBlob, setModel3dBlob] = useState(null);     // GLB из AI
+  const [user3dFile, setUser3dFile] = useState(null);       // загруженный вручную GLB
+  const [glbUrl, setGlbUrl] = useState(null);
 
   const [loading, setLoading] = useState(false);
-  const [saving, setSaving]   = useState(false);
-  const [error, setError]     = useState('');
+  const [making3d, setMaking3d] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
-  // 1) Удаление фона у картинки
-  const handleImageUpload = async (file) => {
-    setProcessedImage(null);
-    setProcessedImageBlob(null);
-    setError('');
+  // чистим objectURL, чтобы не текла память
+  useEffect(() => () => { if (processedUrl) URL.revokeObjectURL(processedUrl); }, [processedUrl]);
+  useEffect(() => {
+    if (glbUrl) URL.revokeObjectURL(glbUrl);
+    if (model3dBlob) setGlbUrl(URL.createObjectURL(model3dBlob));
+    else setGlbUrl(null);
+  }, [model3dBlob]);
+
+  async function removeBg(file) {
+    const fd = new FormData();
+    fd.append("image", file);                      // ВАЖНО: имя поля — "image"
+    const r = await fetch(`${API}/api/ai/remove-background`, {
+      method: "POST",
+      body: fd,
+    });
+    if (!r.ok) throw new Error(`remove-background failed: ${r.status}`);
+    const buf = await r.arrayBuffer();
+    return new Blob([buf], { type: "image/png" }); // сервер отдаёт PNG с прозрачным фоном
+  }
+
+  async function handleImageUpload(file) {
+    // сбрасываем предыдущее
+    if (processedUrl) URL.revokeObjectURL(processedUrl);
+    setProcessedUrl(null);
+    setProcessedBlob(null);
+    setModel3dBlob(null);
+    setUser3dFile(null);
+    setError("");
     setLoading(true);
+
     try {
-      const formData = new FormData();
-      formData.append('image', file);
-
-      const resp = await fetch('http://localhost:5000/ai/remove-background', {
-        method: 'POST',
-        body: formData,
-      });
-      if (!resp.ok) throw new Error('Server error');
-
-      const blob = await resp.blob();
-      setProcessedImage(URL.createObjectURL(blob));
-      setProcessedImageBlob(blob);
+      const blob = await removeBg(file);
+      setProcessedBlob(blob);
+      setProcessedUrl(URL.createObjectURL(blob));
     } catch (e) {
       console.error(e);
-      setError('Не удалось обработать изображение. Попробуй ещё раз.');
+      setError("Не удалось вырезать фон. Попробуй другое изображение.");
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  // 2) Сохранение товара (картинка + опционально файл 3D)
-  const handleSave = async () => {
+  async function handleMake3D() {
+    if (!processedBlob) return alert("Сначала загрузите изображение и дождитесь удаления фона.");
+    setMaking3d(true);
+    setError("");
     try {
-      const title = document.getElementById('title').value.trim();
-      const price = Number(document.getElementById('price').value);
-      if (!title || !price || !processedImageBlob) {
-        alert('Заполни название, цену и картинку');
-        return;
-      }
-      setSaving(true);
-
       const fd = new FormData();
-      fd.append('title', title);
-      fd.append('price', String(price));
-      fd.append('image', processedImageBlob, 'product.png');   // картинка
-      if (model3dFile) {
-        fd.append('model3d', model3dFile, model3dFile.name);   // ← ВОТ ТУТ ДОБАВЛЯЕМ 3D-ФАЙЛ
-      }
-
-      const resp = await fetch(`${API}/api/products`, { method: 'POST', body: fd });
-      if (!resp.ok) throw new Error('API error');
-      await resp.json();
-      alert('✅ Товар сохранён! Открой вкладку All Products');
-
-      // очистка формы
-      document.getElementById('title').value = '';
-      document.getElementById('price').value = '';
-      setProcessedImage(null);
-      setProcessedImageBlob(null);
-      setModel3dFile(null);
+      fd.append("image", processedBlob, "product.png");
+      const r = await fetch(`${API}/api/ai/triposr`, { method: "POST", body: fd });
+      if (!r.ok) throw new Error(`triposr failed: ${r.status}`);
+      const ab = await r.arrayBuffer();
+      setModel3dBlob(new Blob([ab], { type: "model/gltf-binary" }));
     } catch (e) {
       console.error(e);
-      alert('Ошибка сохранения товара');
+      setError("3D-реконструкция не удалась.");
+    } finally {
+      setMaking3d(false);
+    }
+  }
+
+  async function handleSave() {
+    if (!title.trim() || !price || !processedBlob) {
+      return alert("Заполни название, цену и добавь изображение.");
+    }
+    setSaving(true);
+    setError("");
+    try {
+      const fd = new FormData();
+      fd.append("title", title.trim());
+      fd.append("price", String(Number(price)));
+      fd.append("image", processedBlob, "product.png");
+
+      // если пользователь выбрал свой GLB — он в приоритете
+      const modelToSend = user3dFile ?? model3dBlob;
+      if (modelToSend) {
+        fd.append("model3d", modelToSend, user3dFile ? (user3dFile.name || "model.glb") : "model.glb");
+      }
+
+      const r = await fetch(`${API}/api/products`, { method: "POST", body: fd });
+      if (!r.ok) throw new Error(`API error: ${r.status}`);
+      await r.json();
+
+      alert("✅ Товар сохранён! Открой вкладку All Products.");
+      // сброс формы
+      setTitle("");
+      setPrice("");
+      if (processedUrl) URL.revokeObjectURL(processedUrl);
+      setProcessedUrl(null);
+      setProcessedBlob(null);
+      setModel3dBlob(null);
+      setUser3dFile(null);
+    } catch (e) {
+      console.error(e);
+      setError("Ошибка сохранения товара.");
     } finally {
       setSaving(false);
     }
-  };
+  }
 
   return (
-    <div style={{ padding: '2rem' }}>
+    <div style={{ padding: 24, maxWidth: 560 }}>
       <h2>👕 Загрузка товара продавцом</h2>
 
-      {/* Картинка для удаления фона */}
-      <label style={{ display: 'block', marginBottom: 8 }}>Изображение товара</label>
-      <input
-        type="file"
-        accept="image/*"
-        onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0])}
-      />
-
-      {/* Опциональная 3D-модель */}
-      <div style={{ marginTop: 16 }}>
-        <label style={{ display: 'block', marginBottom: 8 }}>
-          3D-модель (опционально) — лучше .glb/.gltf
-        </label>
+      <div style={{ margin: "12px 0" }}>
+        <label style={{ display: "block", marginBottom: 6 }}>Изображение товара</label>
         <input
           type="file"
-          accept=".glb,.gltf,.obj,.fbx,.usdz"
-          onChange={(e) => setModel3dFile(e.target.files?.[0] || null)}
+          accept="image/*"
+          onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0])}
         />
-        {model3dFile && (
-          <small style={{ display: 'block', marginTop: 6 }}>
-            Файл: {model3dFile.name} ({(model3dFile.size / 1024 / 1024).toFixed(2)} MB)
-          </small>
-        )}
       </div>
 
-      {loading && <p style={{ marginTop: 16 }}>⏳ Обрабатываем…</p>}
-      {error && <p style={{ color: 'crimson' }}>{error}</p>}
+      {loading && <p>⏳ Обрабатываем изображение…</p>}
+      {error && <p style={{ color: "crimson" }}>{error}</p>}
 
-      {processedImage && (
-        <div style={{ marginTop: 20, maxWidth: 420 }}>
-          <img src={processedImage} alt="png без фона" style={{ width: '100%', borderRadius: 8 }} />
-          <div style={{ marginTop: 16, display: 'grid', gap: 8 }}>
-            <input id="title" placeholder="Название товара" />
-            <input id="price" placeholder="Цена" type="number" min="0" />
+      {processedUrl && (
+        <>
+          {/* серый фон помогает увидеть прозрачность PNG */}
+          <img
+            src={processedUrl}
+            alt="PNG без фона"
+            style={{ width: "100%", borderRadius: 8, marginTop: 8, background: "#eee" }}
+          />
+
+          <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
+            <input value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Название товара" />
+            <input value={price} onChange={(e) => setPrice(e.target.value)} type="number" min="0" placeholder="Цена" />
+
+            <div>
+              <button onClick={handleMake3D} disabled={making3d}>
+                {making3d ? "Генерирую 3D…" : "🧱 Сгенерировать 3D (GLB)"}
+              </button>
+              {glbUrl && (
+                <a href={glbUrl} download="model.glb" style={{ marginLeft: 10, fontSize: 14 }}>
+                  ⤓ Скачать GLB
+                </a>
+              )}
+            </div>
+
+            <div style={{ marginTop: 6 }}>
+              <label style={{ display: "block", marginBottom: 6 }}>
+                Или загрузить готовую 3D-модель (опционально)
+              </label>
+              <input
+                type="file"
+                accept=".glb,.gltf,.obj,.fbx,.usdz"
+                onChange={(e) => setUser3dFile(e.target.files?.[0] || null)}
+              />
+              {user3dFile && (
+                <small style={{ display: "block", marginTop: 6, color: "#555" }}>
+                  Выбрано: {user3dFile.name} ({(user3dFile.size / 1024 / 1024).toFixed(2)} MB)
+                </small>
+              )}
+            </div>
+
             <button onClick={handleSave} disabled={saving}>
-              {saving ? 'Сохраняю…' : '💾 Сохранить в БД'}
+              {saving ? "Сохраняю…" : "💾 Сохранить в БД"}
             </button>
           </div>
-        </div>
+        </>
       )}
     </div>
   );
