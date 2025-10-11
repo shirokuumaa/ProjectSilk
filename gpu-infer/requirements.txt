@@ -13,4 +13,3 @@ torch==2.3.0
 torchvision==0.18.0
 trimesh==4.4.9
 pygltflib==1.16.2
-tripoSR==0.0.6
