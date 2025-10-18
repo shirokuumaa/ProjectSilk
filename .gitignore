@@ -1,31 +1,4 @@
-# Python
-_pycache_/
-*.py[cod]
-*.egg-info/
-.mypy_cache/
-.pytest_cache/
-
-# Env
-venv/
-.venv/
-.env
-.env.*
-
-# Node (если есть)
-node_modules/
-
-# Build / cache / data
-build/
-dist/
-.cache/
-*.log
-.DS_Store
-
-# IDE
-.vscode/
-.idea/
-
-# Heavy data/models (если не нужны в Git)
-data/
-models/
-checkpoints/
+seller/
+server/uploads/
+server/.env
+client/.env
