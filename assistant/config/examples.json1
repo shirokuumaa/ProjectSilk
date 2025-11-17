@@ -1,0 +1,44 @@
+{"turns":[
+  {"role":"user","content":"Нужно миди платье на день рождения, бюджет до $120, лучше что-то розовое."},
+  {"role":"assistant","content":"Уточню пару деталей: какое место/сезон? Нужны рукава? Если ок, проверяю варианты до $120 в розовой гамме (миди)."},
+  {"role":"assistant_tool","name":"products.search","args":{"query":"","filters":{"length":"Midi","color":"pink","price_max":120},"sort":"relevance","limit":12}},
+  {"role":"tool_result","name":"products.search","content":"<список items>"},
+  {"role":"assistant","content":"Подобрала 4 варианта. 1) … — нежный оттенок, длина миди, ткань не просвечивает; 2) … — фасон А-силуэта, стройнит… Могу добавить первый в корзину или показать ещё более яркие варианты?"}
+]}
+{"turns":[
+  {"role":"user","content":"Рост 164, талия 64, бёдра 95. Какой размер брать у этого платья SEED-1080?"},
+  {"role":"assistant","content":"Смотрю размерную сетку бренда и отзывы по посадке."},
+  {"role":"assistant_tool","name":"products.search","args":{"query":"SEED-1080","filters":{},"limit":1}},
+  {"role":"tool_result","name":"products.search","content":"<item + sizes>"},
+  {"role":"assistant","content":"По сетке ближе всего S/36. Если хочешь посадку свободней — M/38. Могу положить в корзину S и M для примерки."}
+]}
+{"turns":[
+  {"role":"user","content":"Сравни SEED-1039 и SEED-1050."},
+  {"role":"assistant_tool","name":"compare","args":{"ids":["SEED-1039","SEED-1050"]}},
+  {"role":"tool_result","name":"compare","content":"<diff_keys ...>"},
+  {"role":"assistant","content":"Итог: 1039 — вискоза, силуэт shirt dress, чуть дешевле; 1050 — хлопок, bodycon, сидит плотнее. Для тёплой погоды и комфорта — 1039, для акцента на фигуру — 1050. Оставляем какой?"}
+]}
+{"turns":[
+  {"role":"user","content":"Собери образ под выпускной: платье + обувь + аксессуар."},
+  {"role":"assistant","content":"Ок! Уточни бюджет и желаемый цвет. Пока подберу 1–2 платья, а потом дособеру обувь и сумочку."}
+]}
+{"turns":[
+  {"role":"user","content":"Хочу чёрное макси до $80."},
+  {"role":"assistant_tool","name":"products.search","args":{"query":"","filters":{"length":"Maxi","color":"black","price_max":80},"limit":12}},
+  {"role":"tool_result","name":"products.search","content":"<items>"},
+  {"role":"assistant","content":"Есть 3 модели до $80: … У первой ткань менее мнущаяся, у третьей — открытая спина. Какую добавить в корзину? Или сравнить 1 и 3?"}
+]}                                                     
+
+{"turns":[
+  {"role":"user","content":"I need a pink midi dress for a birthday, under $120."},
+  {"role":"assistant","content":"Got it! Any sleeve preference or venue type? I’ll check pink midi options under $120 and show a few picks."},
+  {"role":"assistant_tool","name":"products.search","args":{"query":"","filters":{"length":"Midi","color":"pink","price_max":120},"sort":"relevance","limit":12}},
+  {"role":"tool_result","name":"products.search","content":"<items>"},
+  {"role":"assistant","content":"Here are 4 options. 1) … — soft shade, non-see-through; 2) … — A-line, flattering on hips… Want me to add #1 to cart or show brighter tones?"}
+]}
+{"turns":[
+  {"role":"user","content":"Compare SEED-1039 and SEED-1050."},
+  {"role":"assistant_tool","name":"compare","args":{"ids":["SEED-1039","SEED-1050"]}},
+  {"role":"tool_result","name":"compare","content":"<diff_keys>"},
+  {"role":"assistant","content":"Summary: 1039 — viscose, shirt dress, slightly cheaper; 1050 — cotton, bodycon, more fitted. For comfort in warm weather pick 1039; for a figure-accent look pick 1050. Which should I add?"}
+]}

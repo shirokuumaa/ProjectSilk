@@ -1,0 +1,47 @@
+{"ts": "2025-10-29T15:34:53.402503Z", "event": "search", "session_id": "dev", "meta": {"query": "test"}}
+{"ts": "2025-10-30T07:55:17.957899Z", "ab": "control", "event": "search", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"query": "", "filters": {"length": "Knee", "color": "Brown", "price_max": 120}, "use_semantic": false, "total": 0}}
+{"ts": "2025-10-30T07:55:29.533716Z", "ab": "control", "event": "search", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"query": "", "filters": {"price_max": 120}, "use_semantic": false, "total": 91}}
+{"ts": "2025-10-30T07:55:33.105869Z", "ab": "control", "event": "like_cheaper", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"product_id": "SEED-1000"}}
+{"ts": "2025-10-30T07:55:34.267614Z", "ab": "control", "event": "like_cheaper", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"product_id": "SEED-1085"}}
+{"ts": "2025-10-30T07:55:35.475475Z", "ab": "control", "event": "like_cheaper", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"product_id": "SEED-1011"}}
+{"ts": "2025-10-30T07:55:38.663841Z", "ab": "control", "event": "search", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"query": "", "filters": {"price_max": 120}, "use_semantic": false, "total": 91}}
+{"ts": "2025-10-30T07:55:50.251439Z", "ab": "control", "event": "compare", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"ids": ["SEED-1005", "SEED-1006"]}}
+{"ts": "2025-10-30T07:55:57.640287Z", "ab": "control", "event": "compare", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"ids": ["SEED-1005", "SEED-1006"]}}
+{"ts": "2025-10-30T08:05:27.295404Z", "ab": "control", "event": "search", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"query": "pink summer dress", "filters": {"price_max": 200}, "use_semantic": true, "total": 119}}
+{"ts": "2025-10-30T08:05:56.681742Z", "ab": "control", "event": "like_cheaper", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"product_id": "SEED-1094"}}
+{"ts": "2025-10-30T08:05:58.123219Z", "ab": "control", "event": "like_longer", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"product_id": "SEED-1090"}}
+{"ts": "2025-10-30T08:05:59.927189Z", "ab": "control", "event": "like_cheaper", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"product_id": "SEED-1042"}}
+{"ts": "2025-10-30T08:06:29.108310Z", "ab": "control", "event": "compare", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"ids": ["SEED-1095", "SEED-1085"]}}
+{"ts": "2025-10-30T08:28:47.829643Z", "ab": "control", "event": "search", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"query": "pink summer dress", "filters": {"price_max": 200}, "use_semantic": true, "total": 119}}
+{"ts": "2025-10-30T08:28:52.008000Z", "ab": "control", "event": "add_to_cart", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"product_id": "SEED-1094", "size": "40", "price": 61.43}}
+{"ts": "2025-10-31T13:58:31.375461Z", "ab": "control", "event": "add_to_cart", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"product_id": "SEED-1003", "size": "8", "price": 74.33}}
+{"ts": "2025-10-31T14:29:33.256561Z", "event": "add_to_cart", "session_id": "dev", "meta": {"product_id": "SEED-1001", "size": "", "qty": 1}}
+{"ts": "2025-10-31T14:29:51.149403Z", "event": "checkout", "session_id": "dev", "meta": {"order_id": "ORD-20251031-142951-07a435", "total_usd": 63.73, "count": 1}}
+{"ts": "2025-10-31T14:30:46.252864Z", "event": "add_to_cart", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"product_id": "SEED-1043", "size": "40", "qty": 1}}
+{"ts": "2025-10-31T14:30:46.258598Z", "ab": "control", "event": "add_to_cart", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"product_id": "SEED-1043", "size": "40", "price": 137.18}}
+{"ts": "2025-10-31T14:30:47.856971Z", "event": "checkout", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"order_id": "ORD-20251031-143047-c3534e", "total_usd": 137.18, "count": 1}}
+{"ts": "2025-10-31T14:31:16.037079Z", "event": "add_to_cart", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"product_id": "SEED-1043", "size": "40", "qty": 1}}
+{"ts": "2025-10-31T14:31:16.042350Z", "ab": "control", "event": "add_to_cart", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"product_id": "SEED-1043", "size": "40", "price": 137.18}}
+{"ts": "2025-10-31T14:31:17.958887Z", "event": "checkout", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"order_id": "ORD-20251031-143117-409471", "total_usd": 137.18, "count": 1}}
+{"ts": "2025-11-15T18:21:23.499072Z", "ab": "control", "event": "compare", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"ids": ["SEED-1003", "SEED-1009"]}}
+{"ts": "2025-11-15T18:21:49.693935Z", "ab": "control", "event": "similar", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"product_id": "SEED-1028", "returned": 12}}
+{"ts": "2025-11-15T18:21:51.495970Z", "ab": "control", "event": "similar", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"product_id": "SEED-1066", "returned": 12}}
+{"ts": "2025-11-15T18:21:52.505742Z", "event": "add_to_cart", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"product_id": "SEED-1069", "size": "12", "qty": 1}}
+{"ts": "2025-11-15T18:21:52.510866Z", "ab": "control", "event": "add_to_cart", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"product_id": "SEED-1069", "size": "12", "price": 124.12}}
+{"ts": "2025-11-15T18:21:53.897263Z", "event": "add_to_cart", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"product_id": "SEED-1003", "size": "8", "qty": 1}}
+{"ts": "2025-11-15T18:21:53.902014Z", "ab": "control", "event": "add_to_cart", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"product_id": "SEED-1003", "size": "8", "price": 74.33}}
+{"ts": "2025-11-15T18:21:56.024897Z", "ab": "control", "event": "like_longer", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"product_id": "SEED-1069"}}
+{"ts": "2025-11-15T18:21:56.710439Z", "ab": "control", "event": "like_cheaper", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"product_id": "SEED-1027"}}
+{"ts": "2025-11-15T18:22:03.223808Z", "event": "checkout", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"order_id": "ORD-20251115-182203-1540f0", "total_usd": 198.45, "count": 2}}
+{"ts": "2025-11-15T18:22:03.228964Z", "ab": "control", "event": "checkout_ok", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"order_id": "ORD-20251115-182203-1540f0", "total": 198.45}}
+{"ts": "2025-11-15T18:27:58.475045Z", "ab": "control", "event": "similar", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"product_id": "SEED-1003", "returned": 12}}
+{"ts": "2025-11-15T18:27:59.290636Z", "ab": "control", "event": "like_cheaper", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"product_id": "SEED-1099"}}
+{"ts": "2025-11-15T18:28:00.106681Z", "ab": "control", "event": "like_longer", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"product_id": "SEED-1003"}}
+{"ts": "2025-11-15T18:28:04.197496Z", "event": "add_to_cart", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"product_id": "SEED-1007", "size": "6", "qty": 1}}
+{"ts": "2025-11-15T18:28:04.203392Z", "ab": "control", "event": "add_to_cart", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"product_id": "SEED-1007", "size": "6", "price": 70.3}}
+{"ts": "2025-11-15T18:28:08.923828Z", "event": "add_to_cart", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"product_id": "SEED-1036", "size": "38", "qty": 1}}
+{"ts": "2025-11-15T18:28:08.928982Z", "ab": "control", "event": "add_to_cart", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"product_id": "SEED-1036", "size": "38", "price": 140.58}}
+{"ts": "2025-11-15T18:28:18.563819Z", "event": "checkout", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"order_id": "ORD-20251115-182818-39cd79", "total_usd": 210.88, "count": 2}}
+{"ts": "2025-11-15T18:28:18.567768Z", "ab": "control", "event": "checkout_ok", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"order_id": "ORD-20251115-182818-39cd79", "total": 210.88}}
+{"ts": "2025-11-15T18:30:57.180080Z", "ab": "control", "event": "search", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"query": "pink summer dress", "filters": {"price_max": 200}, "use_semantic": true, "total": 30}}
+{"ts": "2025-11-15T18:31:11.779582Z", "ab": "control", "event": "search", "session_id": "sess_1761644345269_yhzrw3s5s2s", "meta": {"query": "midi red dress", "filters": {"price_max": 200}, "use_semantic": true, "total": 119}}

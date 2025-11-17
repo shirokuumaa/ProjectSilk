@@ -1,4 +1,4 @@
-from fastapi import FastAPI, File, UploadFile
+from fastapi import FastAPI, File, UploadFile, HTTPException
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
@@ -24,12 +24,13 @@ from rembg import remove, new_session
 # модель «isnet-general-use» качественнее, чем u2net
 REM_SESSION = new_session("isnet-general-use")
 
+
 @app.post("/bg_url")
 async def bg_url(image: UploadFile = File(...)):
     raw = await image.read()
     out = remove(raw, session=REM_SESSION)  # bytes PNG с альфой
     # сохраняем и возвращаем URL файла
-    ts = int(time.time()*1000)
+    ts = int(time.time() * 1000)
     fname = f"{ts}_{image.filename or 'image'}.png"
     fpath = OUT / "bg" / fname
     with open(fpath, "wb") as f:
@@ -37,40 +38,65 @@ async def bg_url(image: UploadFile = File(...)):
     url = f"/static/bg/{fname}"
     return {"image_url": url}
 
+
 # ---------- RECON 3D (TripoSR) ----------
-# TripoSR ожидает RGB PIL.Image; вернём glb (с UV)
+
 from trisurf import export_trimesh_to_glb  # helper ниже мы реализуем
 import numpy as np
 import trimesh
 
-# TripoSR API
-from triposr.api import TripoSR
+# Пытаемся мягко импортировать TripoSR:
+try:
+    from triposr.api import TripoSR
 
-TRIPO = TripoSR.from_pretrained(
-    "stabilityai/TripoSR",
-    device=DEVICE,                 # "cuda" на GPU-VM
-    dtype="float32"
-)
+    HAS_TRIPOSR = True
+except ImportError:
+    TripoSR = None  # type: ignore
+    HAS_TRIPOSR = False
+
+# Инициализируем модель только если она реально есть
+if HAS_TRIPOSR:
+    TRIPO = TripoSR.from_pretrained(
+        "stabilityai/TripoSR",
+        device=DEVICE,  # "cuda" на GPU-VM
+        dtype="float32",
+    )
+else:
+    TRIPO = None
+
 
 @app.post("/recon3d")
 async def recon3d(image: UploadFile = File(...)):
+    #"""
+    #Изображение → 3D-модель (glb).
+    #ЛОКАЛЬНО: если TripoSR не установлен, возвращаем 503,
+    #чтобы не ломать весь сервис.
+    #В БУДУЩЕМ: на GPU-сервере HAS_TRIPOSR=True и эндпоинт будет реальным.
+    #"""
+    if not HAS_TRIPOSR or TRIPO is None:
+        raise HTTPException(
+            status_code=503,
+            detail="TripoSR backend is not available on this server (3D recon disabled).",
+        )
+
     # читаем картинку
     raw = await image.read()
     pil = Image.open(io.BytesIO(raw)).convert("RGB")
 
     # инференс
-    mesh = TRIPO(pil)            # получаем trimesh.Trimesh
+    mesh = TRIPO(pil)  # получаем trimesh.Trimesh
     # иногда TripoSR даёт лицо «задом наперёд» — нормализуем
     mesh.remove_unreferenced_vertices()
     mesh.remove_degenerate_faces()
 
     # экспорт glb
-    ts = int(time.time()*1000)
+    ts = int(time.time() * 1000)
     stem = Path(image.filename or "model").stem
     glb_path = OUT / "mesh" / f"{ts}_{stem}.glb"
     export_trimesh_to_glb(mesh, glb_path)
 
     return {"model_url": f"/static/mesh/{glb_path.name}"}
+
 
 @app.get("/health")
 def health():

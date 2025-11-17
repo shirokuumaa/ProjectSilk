@@ -1,4 +1,28 @@
-seller/
+# ───── Node / frontend / backend зависимости ─────
+node_modules/
+npm-debug.log*
+yarn.lock
+pnpm-lock.yaml
+
+# ───── Python ─────
+.venv/
+__pycache__/
+*.pyc
+
+# ───── Env / ключи / пароли ─────
+# Игнорируем любые .env файлы (в корне, в client, в server и т.д.)
+.env
+*.env
+
+# ───── Локальные загрузки и артефакты ─────
+# сюда сохраняются загруженные картинки, файлы, временные штуки
 server/uploads/
-server/.env
-client/.env
+
+# сборки (если будешь собирать прод-версии)
+client/build/
+seller/build/
+
+# ───── Системные файлы и настройки редактора ─────
+.DS_Store
+.vscode/
+.idea/

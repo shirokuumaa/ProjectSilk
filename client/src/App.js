@@ -1,3 +1,4 @@
+// client/src/App.js
 import React, { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
@@ -13,10 +14,14 @@ import TryOnAvatar from './pages/tryon/TryOnAvatar';
 import AllProductsPage from './pages/AllProductsPage';
 import SellerPanel from './pages/SellerPanel';
 import Product3DViewer from './pages/Product3DViewer';
+import AvatarCreate from './pages/AvatarCreate';
+import Metrics from "./pages/Metrics";
+import OrderPage from "./pages/OrderPage"; 
+import OrdersList from "./pages/OrdersList";
 
 
-
-
+// ⬇️ единый слой ассистента (панель + шарик + голос)
+import AssistantLayer from './components/AssistantLayer';
 
 function App() {
   const [search, setSearch] = useState('');
@@ -38,10 +43,10 @@ function App() {
       return;
     }
 
-    setCartItems(prev => {
-      const existing = prev.find(item => item.id === product.id);
+    setCartItems((prev) => {
+      const existing = prev.find((item) => item.id === product.id);
       if (existing) {
-        return prev.map(item =>
+        return prev.map((item) =>
           item.id === product.id
             ? { ...item, quantity: item.quantity + 1 }
             : item
@@ -53,19 +58,20 @@ function App() {
   };
 
   const handleRemoveFromCart = (id) => {
-    setCartItems(prev =>
+    setCartItems((prev) =>
       prev
-        .map(item =>
+        .map((item) =>
           item.id === id
             ? { ...item, quantity: item.quantity - 1 }
             : item
         )
-        .filter(item => item.quantity > 0)
+        .filter((item) => item.quantity > 0)
     );
   };
 
   return (
     <Router>
+      {/* Основной роутинг приложения */}
       <Routes>
         <Route
           path="/"
@@ -80,13 +86,15 @@ function App() {
             />
           }
         />
+
+        <Route
+          path="/all-products"
+          element={<AllProductsPage addToCart={handleAddToCart} />}
+        />
         <Route
           path="/cart"
           element={
-            <CartPage
-              cartItems={cartItems}
-              onRemove={handleRemoveFromCart}
-            />
+            <CartPage cartItems={cartItems} onRemove={handleRemoveFromCart} />
           }
         />
         <Route path="/login" element={<LoginPage />} />
@@ -98,14 +106,16 @@ function App() {
         <Route path="/tryon/avatar" element={<TryOnAvatar />} />
         <Route path="/seller" element={<SellerPanel />} />
         <Route path="/viewer" element={<Product3DViewer />} />
-      
-        <Route
-          path="/all-products"
-          element={
-            <AllProductsPage addToCart={handleAddToCart} />
-          }
-        />
+        <Route path="/avatar/create" element={<AvatarCreate />} />
+        <Route path="/metrics" element={<Metrics/>} />
+        <Route path="/orders/:id" element={<OrderPage />} />
+        <Route path="/orders" element={<OrdersList sessionId={window.__SESSION_ID__} />} />    
+
+        {/* Роут /assistant не нужен — ассистент как глобальный слой */}
       </Routes>
+
+      {/* Глобальный слой ассистента поверх всех страниц */}
+      <AssistantLayer />
     </Router>
   );
 }

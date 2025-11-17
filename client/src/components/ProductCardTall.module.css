@@ -1,0 +1,90 @@
+:root{
+    --card-shadow: 0 16px 48px rgba(0,0,0,.08);
+    --soft: #f3f5f9;
+  }
+  
+  .card{
+    width: 220px;             /* узкая */
+    min-height: 360px;        /* высокая */
+    background:#fff;
+    border-radius: 18px;
+    box-shadow: var(--card-shadow);
+    display:flex;
+    flex-direction: column;
+    overflow:hidden;
+    transition: transform .12s ease, box-shadow .12s ease;
+    cursor: pointer;
+  }
+  .card:hover{ transform: translateY(-2px); box-shadow: 0 20px 60px rgba(0,0,0,.10); }
+  
+  .media{
+    position:relative;
+    background: var(--soft);
+    aspect-ratio: 3 / 4;      /* вертикальная картинка */
+    display:flex; align-items:center; justify-content:center;
+  }
+  .image{
+    width:100%; height:100%; object-fit: cover;
+  }
+  
+  .heart{
+    position:absolute; top:8px; right:8px;
+    width:32px; height:32px; border:none; border-radius:999px;
+    background:#ffffffcc; backdrop-filter: blur(4px);
+    display:flex; align-items:center; justify-content:center;
+    font-size:16px; cursor:pointer; transition:transform .12s ease, background .12s ease;
+  }
+  .heart:hover{ transform: scale(1.06); }
+  .heartOn{ background:#ffeff3; color:#e11d48; }
+  
+  .body{
+    padding: 10px 12px 12px;
+    display:flex; flex-direction:column; gap:8px;
+  }
+  
+  .name{
+    font-size: 14px; font-weight: 600; color:#0f172a;
+    line-height: 1.25; max-height: 2.6em; overflow:hidden;
+  }
+  
+  .rating{ display:flex; align-items:center; gap:4px; }
+  .starOn{ color:#f59e0b; }
+  .starOff{ color:#e5e7eb; }
+  .ratingNum{ font-size:12px; color:#6b7280; margin-left:4px; }
+  
+  .footerRow{
+    margin-top: 2px;
+    display:flex; align-items:center; justify-content:space-between; gap:8px;
+  }
+  
+  .price{
+    font-weight:700; color:#0f172a;
+    font-size: 16px;
+  }
+  
+  .actions{ display:flex; align-items:center; gap:6px; }
+  .pillBtn{
+    border:none; background:#fff; color:#111827;
+    padding:6px 10px; border-radius: 999px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.10);
+    cursor:pointer; font-size:12px; white-space:nowrap;
+    transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
+  }
+  .pillBtn:hover{ transform: translateY(-1px); box-shadow: 0 12px 32px rgba(0,0,0,.12); background:#f9fafb; }
+  
+  .cartBtn{ font-weight:600; }
+  .tick{
+    margin-left:6px; font-size:12px; color:#10b981;
+  }
+
+  /* fade-in при смене кадра */
+.fadeIn{ animation: fade .35s ease; }
+@keyframes fade { from{opacity:0} to{opacity:1} }
+
+/* бейдж сверху слева */
+.badge{
+  position:absolute; top:10px; left:10px;
+  background:#111827; color:#fff;
+  font-size:12px; padding:4px 8px; border-radius:999px;
+  box-shadow: 0 8px 22px rgba(0,0,0,.18);
+}

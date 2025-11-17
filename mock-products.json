@@ -1,0 +1,14 @@
+[
+  { "_id":"p1", "title":"Oversize Hoodie", "price": 12990, "rating": 4.6,
+    "image":"https://dummyimage.com/600x800/dde3ea/111&text=Hoodie",
+    "images": [
+      "https://dummyimage.com/600x800/dde3ea/111&text=Hoodie",
+      "https://dummyimage.com/600x800/cfe8ff/111&text=Hoodie+2"
+    ],
+    "category":"Hoodies", "discount": 15
+  },
+  { "_id":"p2", "title":"Straight Jeans", "price": 15990, "rating": 4.3,
+    "image":"https://dummyimage.com/600x800/ece7ff/111&text=Jeans",
+    "category":"Jeans"
+  }
+]
