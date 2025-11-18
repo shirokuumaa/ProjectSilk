@@ -3,62 +3,80 @@ from fastapi.responses import FileResponse, JSONResponse
 from fastapi.staticfiles import StaticFiles
 from pathlib import Path
 from PIL import Image
-import io, time, os
+import io
+import time
+import os
 
-# --- ДИРЕКТОРИИ ---
-BASE = Path(__file__).parent.resolve()
+from rembg import remove, new_session
+import torch
+from trisurf import export_trimesh_to_glb  # helper for GLB export
+
+
+# ---------- paths / folders ----------
+BASE = Path(_file_).parent.resolve()
 OUT = BASE / "static"
 (OUT / "bg").mkdir(parents=True, exist_ok=True)
 (OUT / "mesh").mkdir(parents=True, exist_ok=True)
 
+
+# ---------- FastAPI app ----------
 app = FastAPI(title="Lunbee AI API")
+
+# статика (PNG и GLB будут лежать здесь)
 app.mount("/static", StaticFiles(directory=str(OUT)), name="static")
 
-# --- DEVICE INFO (для /health) ---
-import torch
+
+# ---------- healthcheck для Node-прокси ----------
+@app.get("/healthz")
+async def healthz():
+    return {"ok": True}
+
+
+# Дополнительный health для отладки (показывает, видит ли сервер CUDA)
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 
-# ---------- СЕГМЕНТАЦИЯ ФОНА (IS-NET / rembg) ----------
-from rembg import remove, new_session
 
-# модель «isnet-general-use» качественнее, чем u2net
+@app.get("/health")
+async def health():
+    return {"ok": True, "device": DEVICE}
+
+
+# ---------- rembg (фон) ----------
 REM_SESSION = new_session("isnet-general-use")
 
 
 @app.post("/bg_url")
 async def bg_url(image: UploadFile = File(...)):
+    """
+    Удаляем фон и сохраняем PNG в static/bg, возвращаем URL.
+    """
     raw = await image.read()
-    out = remove(raw, session=REM_SESSION)  # bytes PNG с альфой
-    # сохраняем и возвращаем URL файла
+    out = remove(raw, session=REM_SESSION)
+
     ts = int(time.time() * 1000)
     fname = f"{ts}_{image.filename or 'image'}.png"
     fpath = OUT / "bg" / fname
     with open(fpath, "wb") as f:
         f.write(out)
+
     url = f"/static/bg/{fname}"
     return {"image_url": url}
 
 
-# ---------- RECON 3D (TripoSR) ----------
-
-from trisurf import export_trimesh_to_glb  # helper ниже мы реализуем
-import numpy as np
-import trimesh
-
-# Пытаемся мягко импортировать TripoSR:
+# ---------- TripoSR (3D реконструкция) ----------
+HAS_TRIPOSR = False
 try:
     from triposr.api import TripoSR
-
     HAS_TRIPOSR = True
-except ImportError:
-    TripoSR = None  # type: ignore
+except Exception:
+    TripoSR = None
     HAS_TRIPOSR = False
 
-# Инициализируем модель только если она реально есть
+
 if HAS_TRIPOSR:
     TRIPO = TripoSR.from_pretrained(
         "stabilityai/TripoSR",
-        device=DEVICE,  # "cuda" на GPU-VM
+        device=DEVICE,   # "cuda" на GPU, "cpu" локально
         dtype="float32",
     )
 else:
@@ -67,37 +85,25 @@ else:
 
 @app.post("/recon3d")
 async def recon3d(image: UploadFile = File(...)):
-    #"""
-    #Изображение → 3D-модель (glb).
-    #ЛОКАЛЬНО: если TripoSR не установлен, возвращаем 503,
-    #чтобы не ломать весь сервис.
-    #В БУДУЩЕМ: на GPU-сервере HAS_TRIPOSR=True и эндпоинт будет реальным.
-    #"""
-    if not HAS_TRIPOSR or TRIPO is None:
+    """
+    Строим 3D-модель вещи и сохраняем GLB в static/mesh, возвращаем URL.
+    Если TripoSR не установлен (локально или на слабом сервере) — даём 503.
+    """
+    if TRIPO is None:
         raise HTTPException(
             status_code=503,
-            detail="TripoSR backend is not available on this server (3D recon disabled).",
+            detail="TripoSR not available on this server",
         )
 
-    # читаем картинку
     raw = await image.read()
-    pil = Image.open(io.BytesIO(raw)).convert("RGB")
+    img = Image.open(io.BytesIO(raw)).convert("RGB")
 
-    # инференс
-    mesh = TRIPO(pil)  # получаем trimesh.Trimesh
-    # иногда TripoSR даёт лицо «задом наперёд» — нормализуем
-    mesh.remove_unreferenced_vertices()
-    mesh.remove_degenerate_faces()
+    mesh = TRIPO(img)  # TripoSR возвращает trimesh
 
-    # экспорт glb
     ts = int(time.time() * 1000)
-    stem = Path(image.filename or "model").stem
-    glb_path = OUT / "mesh" / f"{ts}_{stem}.glb"
-    export_trimesh_to_glb(mesh, glb_path)
+    fname = f"{ts}_{image.filename or 'image'}.glb"
+    fpath = OUT / "mesh" / fname
+    export_trimesh_to_glb(mesh, fpath)
 
-    return {"model_url": f"/static/mesh/{glb_path.name}"}
-
-
-@app.get("/health")
-def health():
-    return {"ok": True, "device": DEVICE}
+    url = f"/static/mesh/{fname}"
+    return {"glb_url": url}
