@@ -1,25 +1,73 @@
+// client/src/pages/WardrobePage.jsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './Wardrobe.module.css';
+import GlbViewer from '../components/GlbViewer';
 
 import {
-  getWardrobe, saveWardrobe,
-  removeFromWardrobe, clearWardrobe, importFromFavorites,
-  addOutfit
+  getWardrobe,
+  saveWardrobe,
+  removeFromWardrobe,
+  clearWardrobe,
+  importFromFavorites,
+  addOutfit,
 } from '../utils/wardrobeStorage';
 
 // API base so /uploads/... become absolute
 const API_BASE = process.env.REACT_APP_API || 'http://localhost:5050';
-const toPublicUrl = (s = '') => (s?.startsWith('/uploads') ? `${API_BASE}${s}` : s);
+const toPublicUrl = (s = '') =>
+  s?.startsWith('/uploads') ? `${API_BASE}${s}` : s;
+
+// читаем инфу об аватаре из localStorage (avatarFinal + fallback на wardrobeAvatar)
+function loadAvatarInfo() {
+  try {
+    // 1) новый формат: avatarFinal (то, что сохраняет AvatarCreate)
+    const rawFinal = localStorage.getItem('avatarFinal');
+    if (rawFinal) {
+      const metaRaw = JSON.parse(rawFinal);
+      const glb = metaRaw.glb ? toPublicUrl(metaRaw.glb) : null;
+      const meta = { ...metaRaw, glb };
+      return { url: glb, meta };
+    }
+
+    // 2) старый формат: wardrobeAvatar
+    const rawWardrobe = localStorage.getItem('wardrobeAvatar');
+    if (rawWardrobe) {
+      const old = JSON.parse(rawWardrobe);
+      const glb = old.model3d ? toPublicUrl(old.model3d) : null;
+      const meta = {
+        id: old.id,
+        name: old.name,
+        preview: old.image ? toPublicUrl(old.image) : '',
+        glb,
+      };
+      return { url: glb, meta };
+    }
+
+    return { url: null, meta: null };
+  } catch {
+    return { url: null, meta: null };
+  }
+}
 
 // Colorways palette
-const PALETTE = ['#111827','#EF4444','#F59E0B','#10B981','#3B82F6','#8B5CF6','#F472B6','#6B7280','#F3F4F6'];
+const PALETTE = [
+  '#111827',
+  '#EF4444',
+  '#F59E0B',
+  '#10B981',
+  '#3B82F6',
+  '#8B5CF6',
+  '#F472B6',
+  '#6B7280',
+  '#F3F4F6',
+];
 
 export default function WardrobePage() {
   const navigate = useNavigate();
 
   /* ───────── Tabs ───────── */
-  const [tab, setTab] = useState('Items'); // Items | Outfits | Try-On
+  const [tab, setTab] = useState('Items'); // Items | Outfits | Try-On (пока визуальные)
 
   /* ───────── Filters ───────── */
   const [query, setQuery] = useState('');
@@ -28,27 +76,57 @@ export default function WardrobePage() {
 
   /* ───────── Wardrobe items (LocalStorage) ───────── */
   const [items, setItems] = useState(() =>
-    getWardrobe().map(i => ({ ...i, image: toPublicUrl(i.image) }))
+    getWardrobe().map((i) => ({ ...i, image: toPublicUrl(i.image) })),
   );
-  useEffect(() => { saveWardrobe(items); }, [items]);
+  useEffect(() => {
+    saveWardrobe(items);
+  }, [items]);
 
   const filtered = useMemo(() => {
     let arr = items;
-    if (cat !== 'All') arr = arr.filter(i => (i.category || '').toLowerCase() === cat.toLowerCase());
-    if (query.trim()) arr = arr.filter(i => (i.name || '').toLowerCase().includes(query.toLowerCase()));
-    if (colors.length) arr = arr.filter(i => (i.tint ? colors.includes(i.tint) : true));
+    if (cat !== 'All')
+      arr = arr.filter(
+        (i) => (i.category || '').toLowerCase() === cat.toLowerCase(),
+      );
+    if (query.trim())
+      arr = arr.filter((i) =>
+        (i.name || '').toLowerCase().includes(query.toLowerCase()),
+      );
+    if (colors.length)
+      arr = arr.filter((i) => (i.tint ? colors.includes(i.tint) : true));
     return arr;
   }, [items, cat, query, colors]);
+
+  /* ───────── Avatar preview ───────── */
+  const [avatarUrl, setAvatarUrl] = useState(null);
+  const [avatarMeta, setAvatarMeta] = useState(null);
+  useEffect(() => {
+    const { url, meta } = loadAvatarInfo();
+    setAvatarUrl(url);
+    setAvatarMeta(meta);
+  }, []);
+  const hasRealAvatar = !!avatarMeta?.glb;
 
   /* ───────── Quick actions ───────── */
   const fileRef = useRef(null);
   const onImportFav = () => {
     const added = importFromFavorites();
-    setItems(getWardrobe().map(i => ({ ...i, image: toPublicUrl(i.image) })));
-    alert(added > 0 ? `Imported ${added} item(s) from Favorites` : 'No new items found.');
+    setItems(
+      getWardrobe().map((i) => ({
+        ...i,
+        image: toPublicUrl(i.image),
+      })),
+    );
+    alert(
+      added > 0
+        ? `Imported ${added} item(s) from Favorites`
+        : 'No new items found.',
+    );
   };
-  const onUploadPhoto = e => {
-    const f = e.target.files?.[0]; if (!f) return;
+
+  const onUploadPhoto = (e) => {
+    const f = e.target.files?.[0];
+    if (!f) return;
     const r = new FileReader();
     r.onload = (ev) => setStageImg(ev.target.result);
     r.readAsDataURL(f);
@@ -56,7 +134,8 @@ export default function WardrobePage() {
 
   const onClearWardrobe = () => {
     if (!window.confirm('Clear all saved wardrobe items?')) return;
-    clearWardrobe(); setItems([]);
+    clearWardrobe();
+    setItems([]);
   };
 
   /* ───────── Stage (photo/avatar + layers) ───────── */
@@ -73,36 +152,55 @@ export default function WardrobePage() {
   const [redo, setRedo] = useState([]);
   const canUndo = history.length > 1;
   const canRedo = redo.length > 0;
+
   const commit = (next) => {
     setLayers(next);
-    setHistory(h => [...h, JSON.stringify(next)]);
+    setHistory((h) => [...h, JSON.stringify(next)]);
     setRedo([]);
   };
+
   const undo = () => {
-    setHistory(h => {
+    setHistory((h) => {
       if (h.length <= 1) return h;
       const prev = h[h.length - 2];
-      setRedo(r => [h[h.length - 1], ...r]);
+      setRedo((r) => [h[h.length - 1], ...r]);
       setLayers(JSON.parse(prev));
       return h.slice(0, -1);
     });
   };
+
   const redoStep = () => {
     if (!canRedo) return;
     const nx = redo[0];
-    setRedo(r => r.slice(1));
+    setRedo((r) => r.slice(1));
     setLayers(JSON.parse(nx));
-    setHistory(h => [...h, nx]);
+    setHistory((h) => [...h, nx]);
   };
 
   // Grid / Snap
   const [showGrid, setShowGrid] = useState(false);
   const [snap, setSnap] = useState(true);
   const SNAP = 10;
-  const snapXY = (x, y) => snap ? [Math.round(x / SNAP) * SNAP, Math.round(y / SNAP) * SNAP] : [x, y];
+  const snapXY = (x, y) =>
+    snap ? [Math.round(x / SNAP) * SNAP, Math.round(y / SNAP) * SNAP] : [x, y];
 
   const fitToScreen = () => setZoom(1);
-  const resetStage = () => { setSelected(null); setZoom(1); commit([]); };
+  const resetStage = () => {
+    // мягкий ресет: только слои + зум
+    setSelected(null);
+    setZoom(1);
+    commit([]);
+  };
+
+  // ЖЁСТКИЙ ресет: убираем и фото, и слои, и историю
+  const clearStageHard = () => {
+    setStageImg(null);
+    setSelected(null);
+    setZoom(1);
+    setLayers([]);
+    setHistory([JSON.stringify([])]);
+    setRedo([]);
+  };
 
   // Wear item centered
   const wearItem = (it) => {
@@ -120,9 +218,16 @@ export default function WardrobePage() {
           itemId: it.id,
           x: w / 2 - (img.width * s) / 2,
           y: h / 2 - (img.height * s) / 2,
-          scale: s, rotation: 0, z: (layers.length ? Math.max(...layers.map(l => l.z || 0)) + 1 : 1),
-          flipH: false, locked: false,
-          w0: img.width, h0: img.height
+          scale: s,
+          rotation: 0,
+          z:
+            layers.length > 0
+              ? Math.max(...layers.map((l) => l.z || 0)) + 1
+              : 1,
+          flipH: false,
+          locked: false,
+          w0: img.width,
+          h0: img.height,
         },
       ];
       commit(next);
@@ -144,54 +249,71 @@ export default function WardrobePage() {
       }
     } catch {}
   }, []);
+
   useEffect(() => {
-    localStorage.setItem('wardrobeLayers', JSON.stringify({ stageImg, layers }));
+    localStorage.setItem(
+      'wardrobeLayers',
+      JSON.stringify({ stageImg, layers }),
+    );
   }, [stageImg, layers]);
 
   /* ───────── Render stage ───────── */
   useEffect(() => {
-    const c = canvasRef.current; if (!c) return;
-    const ctx = c.getContext('2d'); if (!ctx) return;
+    const c = canvasRef.current;
+    if (!c) return;
+    const ctx = c.getContext('2d');
+    if (!ctx) return;
     const dpr = window.devicePixelRatio || 1;
-    const W = c.clientWidth, H = c.clientHeight;
-    c.width = W * dpr; c.height = H * dpr;
+    const W = c.clientWidth;
+    const H = c.clientHeight;
+    c.width = W * dpr;
+    c.height = H * dpr;
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
 
     // grid (background) when no photo
     if (!stageImg) {
-      ctx.fillStyle = '#fafafa'; ctx.fillRect(0, 0, W, H);
+      ctx.fillStyle = '#fafafa';
+      ctx.fillRect(0, 0, W, H);
       ctx.fillStyle = '#6b7280';
       ctx.font = '14px system-ui, -apple-system, Segoe UI, Roboto';
-      ctx.fillText('Upload a full-body photo or generate an avatar to start trying on.', 16, 28);
+      ctx.fillText(
+        'Upload a full-body photo or generate an avatar to start trying on.',
+        16,
+        28,
+      );
     }
 
     const drawLayers = () => {
-      [...layers].sort((a,b)=> (a.z||0) - (b.z||0)).forEach(l => {
-        const it = items.find(x => x.id === l.itemId);
-        if (!it) return;
-        const img = new Image();
-        img.crossOrigin = 'anonymous';
-        img.src = toPublicUrl(it.image);
-        const s = Math.abs(l.scale || 1);
-        const w = (l.w0 || 0) * s, h = (l.h0 || 0) * s;
+      [...layers]
+        .sort((a, b) => (a.z || 0) - (b.z || 0))
+        .forEach((l) => {
+          const it = items.find((x) => x.id === l.itemId);
+          if (!it) return;
+          const img = new Image();
+          img.crossOrigin = 'anonymous';
+          img.src = toPublicUrl(it.image);
+          const s = Math.abs(l.scale || 1);
+          const w = (l.w0 || 0) * s;
+          const h = (l.h0 || 0) * s;
 
-        img.onload = () => {
-          ctx.save();
-          ctx.translate(l.x + w / 2, l.y + h / 2);
-          ctx.rotate(((l.rotation || 0) * Math.PI) / 180);
-          ctx.scale(l.flipH ? -1 : 1, 1);
+          img.onload = () => {
+            ctx.save();
+            ctx.translate(l.x + w / 2, l.y + h / 2);
+            ctx.rotate(((l.rotation || 0) * Math.PI) / 180);
+            ctx.scale(l.flipH ? -1 : 1, 1);
 
-          if (l.tint) {
-            ctx.fillStyle = l.tint;
-            ctx.globalCompositeOperation = 'multiply';
-            ctx.fillRect(-w/2, -h/2, w, h);
-            ctx.globalCompositeOperation = 'destination-atop';
-          }
-          ctx.drawImage(img, -w / 2, -h / 2, w, h);
-          ctx.restore();
-        };
-      });
+            if (l.tint) {
+              ctx.fillStyle = l.tint;
+              ctx.globalCompositeOperation = 'multiply';
+              ctx.fillRect(-w / 2, -h / 2, w, h);
+              ctx.globalCompositeOperation = 'destination-atop';
+            }
+
+            ctx.drawImage(img, -w / 2, -h / 2, w, h);
+            ctx.restore();
+          };
+        });
     };
 
     if (stageImg) {
@@ -199,8 +321,10 @@ export default function WardrobePage() {
       bg.crossOrigin = 'anonymous';
       bg.src = toPublicUrl(stageImg);
       bg.onload = () => {
-        const scale = Math.min(W / bg.width, H / bg.height) * zoom;
-        const w = bg.width * scale, h = bg.height * scale;
+        const scale =
+          Math.min(W / bg.width, H / bg.height) * zoom;
+        const w = bg.width * scale;
+        const h = bg.height * scale;
         ctx.drawImage(bg, (W - w) / 2, (H - h) / 2, w, h);
         drawLayers();
       };
@@ -210,16 +334,19 @@ export default function WardrobePage() {
   }, [stageImg, layers, zoom, items]);
 
   /* ───────── Selection & drag ───────── */
-  const drag = useRef({ on:false, dx:0, dy:0 });
+  const drag = useRef({ on: false, dx: 0, dy: 0 });
+
   const handleDown = (e) => {
     const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left, y = e.clientY - rect.top;
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
 
     for (let i = layers.length - 1; i >= 0; i--) {
       const l = layers[i];
       if (l.locked) continue;
       const s = Math.abs(l.scale || 1);
-      const w = (l.w0 || 0) * s, h = (l.h0 || 0) * s;
+      const w = (l.w0 || 0) * s;
+      const h = (l.h0 || 0) * s;
       if (x >= l.x && x <= l.x + w && y >= l.y && y <= l.y + h) {
         setSelected(i);
         drag.current = { on: true, dx: x - l.x, dy: y - l.y };
@@ -228,13 +355,20 @@ export default function WardrobePage() {
     }
     setSelected(null);
   };
+
   const handleMove = (e) => {
     if (!drag.current.on || selected == null) return;
     const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left, y = e.clientY - rect.top;
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
     const [nx, ny] = snapXY(x - drag.current.dx, y - drag.current.dy);
-    setLayers(prev => prev.map((l, i) => i === selected ? { ...l, x: nx, y: ny } : l));
+    setLayers((prev) =>
+      prev.map((l, i) =>
+        i === selected ? { ...l, x: nx, y: ny } : l,
+      ),
+    );
   };
+
   const handleUp = () => {
     if (drag.current.on) {
       drag.current.on = false;
@@ -245,10 +379,23 @@ export default function WardrobePage() {
   // Wheel: zoom stage or scale selected layer
   const wheelCommitRef = useRef(null);
   const handleWheel = (e) => {
-    if (selected == null) { setZoom(z => Math.max(0.2, z + (e.deltaY > 0 ? -0.05 : 0.05))); return; }
+    if (selected == null) {
+      setZoom((z) =>
+        Math.max(0.2, z + (e.deltaY > 0 ? -0.05 : 0.05)),
+      );
+      return;
+    }
     e.preventDefault();
     const next = layers.map((l, i) =>
-      i === selected ? { ...l, scale: Math.max(0.1, (l.scale || 1) + (e.deltaY > 0 ? -0.05 : 0.05)) } : l
+      i === selected
+        ? {
+            ...l,
+            scale: Math.max(
+              0.1,
+              (l.scale || 1) + (e.deltaY > 0 ? -0.05 : 0.05),
+            ),
+          }
+        : l,
     );
     setLayers(next);
     clearTimeout(wheelCommitRef.current);
@@ -258,27 +405,48 @@ export default function WardrobePage() {
   /* ───────── Export / Save / Share ───────── */
   const exportPNG = () => {
     const url = canvasRef.current.toDataURL('image/png');
-    const a = document.createElement('a'); a.href = url; a.download = 'look.png'; a.click();
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'look.png';
+    a.click();
   };
+
   const saveLook = () => {
     const cover = canvasRef.current.toDataURL('image/png');
     const outfit = addOutfit({
       title: `Look ${new Date().toLocaleString()}`,
-      cover, layers, createdAt: Date.now()
+      cover,
+      layers,
+      createdAt: Date.now(),
     });
     alert(`Saved outfit: ${outfit.title}`);
   };
+
   const sharePNG = async () => {
     try {
       const dataUrl = canvasRef.current.toDataURL('image/png');
-      const res = await fetch(dataUrl); const blob = await res.blob();
-      const file = new File([blob],'look.png',{type:'image/png'});
-      if (navigator.share && navigator.canShare?.({ files: [file] })) {
-        await navigator.share({ files: [file], title: 'ProjectSilk Look' });
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const file = new File([blob], 'look.png', {
+        type: 'image/png',
+      });
+      if (
+        navigator.share &&
+        navigator.canShare?.({ files: [file] })
+      ) {
+        await navigator.share({
+          files: [file],
+          title: 'ProjectSilk Look',
+        });
       } else {
-        const a = document.createElement('a'); a.href = dataUrl; a.download = 'look.png'; a.click();
+        const a = document.createElement('a');
+        a.href = dataUrl;
+        a.download = 'look.png';
+        a.click();
       }
-    } catch (e) { console.error(e); }
+    } catch (e) {
+      console.error(e);
+    }
   };
 
   return (
@@ -286,17 +454,42 @@ export default function WardrobePage() {
       {/* ───── Header ───── */}
       <div className={styles.header}>
         <div className={styles.tabs}>
-          {['Items','Outfits','Try-On'].map(t => (
-            <button key={t} className={`${styles.tab} ${tab===t?styles.tabActive:''}`} onClick={()=>setTab(t)}>{t}</button>
+          {['Items', 'Outfits', 'Try-On'].map((t) => (
+            <button
+              key={t}
+              className={`${styles.tab} ${
+                tab === t ? styles.tabActive : ''
+              }`}
+              onClick={() => setTab(t)}
+            >
+              {t}
+            </button>
           ))}
         </div>
 
         <div className={styles.actions}>
-          <button className={styles.tab} onClick={onImportFav} title="Add items from Favorites">Import from Favorites</button>
-          <button className={styles.tab} disabled title="Coming soon">Import from Orders</button>
-          <label className={styles.tab} title="Upload a full-body photo">
+          <button
+            className={styles.tab}
+            onClick={onImportFav}
+            title="Add items from Favorites"
+          >
+            Import from Favorites
+          </button>
+          <button className={styles.tab} disabled title="Coming soon">
+            Import from Orders
+          </button>
+          <label
+            className={styles.tab}
+            title="Upload a full-body photo"
+          >
             Upload Photo
-            <input ref={fileRef} type="file" accept="image/*" onChange={onUploadPhoto} style={{ display: 'none' }} />
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/*"
+              onChange={onUploadPhoto}
+              style={{ display: 'none' }}
+            />
           </label>
 
           <button
@@ -307,14 +500,25 @@ export default function WardrobePage() {
             Generate Avatar
           </button>
 
-          <button className={styles.tab} onClick={onClearWardrobe} title="Clear saved wardrobe">Clear Wardrobe</button>
+          <button
+            className={styles.tab}
+            onClick={onClearWardrobe}
+            title="Clear saved wardrobe"
+          >
+            Clear Wardrobe
+          </button>
         </div>
       </div>
 
       {/* ───── Left filters ───── */}
       <aside className={styles.left}>
         <div className={styles.searchBox} role="search">
-          <span className={styles.searchIcon} aria-hidden>🔍</span>
+          <span
+            className={styles.searchIcon}
+            aria-hidden
+          >
+            🔍
+          </span>
           <input
             className={styles.searchInput}
             placeholder="Search items…"
@@ -336,23 +540,60 @@ export default function WardrobePage() {
         </div>
 
         <div>
-          <div style={{fontWeight:600, marginBottom:8}}>Categories</div>
+          <div
+            style={{
+              fontWeight: 600,
+              marginBottom: 8,
+            }}
+          >
+            Categories
+          </div>
           <div className={styles.chips}>
-            {['All','Tops','Bottoms','Dresses','Shoes','Accessories'].map(c =>
-              <button key={c} className={`${styles.chip} ${cat===c?styles.chipOn:''}`} onClick={()=>setCat(c)}>{c}</button>
-            )}
+            {[
+              'All',
+              'Tops',
+              'Bottoms',
+              'Dresses',
+              'Shoes',
+              'Accessories',
+            ].map((c) => (
+              <button
+                key={c}
+                className={`${styles.chip} ${
+                  cat === c ? styles.chipOn : ''
+                }`}
+                onClick={() => setCat(c)}
+              >
+                {c}
+              </button>
+            ))}
           </div>
         </div>
 
         <div>
-          <div style={{fontWeight:600, marginBottom:8}}>Colors</div>
+          <div
+            style={{
+              fontWeight: 600,
+              marginBottom: 8,
+            }}
+          >
+            Colors
+          </div>
           <div className={styles.swatches}>
-            {PALETTE.map(hex => (
+            {PALETTE.map((hex) => (
               <button
                 key={hex}
-                className={`${styles.swatch} ${colors.includes(hex)?'on':''}`}
+                className={`${styles.swatch} ${
+                  colors.includes(hex) ? 'on' : ''
+                }`}
                 style={{ background: hex }}
-                onClick={() => setColors(prev => prev.includes(hex) ? prev.filter(c=>c!==hex) : [...prev, hex])}
+                onClick={() =>
+                  setColors((prev) =>
+                    prev.includes(hex)
+                      ? prev.filter((c) => c !== hex)
+                      : [...prev, hex],
+                  )
+                }
                 aria-label={`filter ${hex}`}
               />
             ))}
@@ -363,27 +604,222 @@ export default function WardrobePage() {
       {/* ───── Stage ───── */}
       <main className={styles.stageWrap}>
         <div className={styles.toolbar}>
-          <button className={styles.toolBtn} onClick={()=>setZoom(z=>z+0.1)} title="Zoom in">＋</button>
-          <button className={styles.toolBtn} onClick={()=>setZoom(z=>Math.max(0.2,z-0.1))} title="Zoom out">－</button>
-          <button className={styles.toolBtn} onClick={fitToScreen} title="Fit to screen">Fit</button>
-          <button className={styles.toolBtn} onClick={resetStage} title="Reset stage">Reset</button>
+          <button
+            className={styles.toolBtn}
+            onClick={() => setZoom((z) => z + 0.1)}
+            title="Zoom in"
+          >
+            ＋
+          </button>
+          <button
+            className={styles.toolBtn}
+            onClick={() =>
+              setZoom((z) => Math.max(0.2, z - 0.1))
+            }
+            title="Zoom out"
+          >
+            －
+          </button>
+          <button
+            className={styles.toolBtn}
+            onClick={fitToScreen}
+            title="Fit to screen"
+          >
+            Fit
+          </button>
+          <button
+            className={styles.toolBtn}
+            onClick={resetStage}
+            title="Reset stage"
+          >
+            Reset
+          </button>
 
-          <button className={`${styles.toolBtn} ${showGrid?styles.on:''}`} onClick={()=>setShowGrid(v=>!v)} title="Toggle grid">Grid</button>
-          <button className={`${styles.toolBtn} ${snap?styles.on:''}`} onClick={()=>setSnap(v=>!v)} title="Snap to grid">Snap</button>
-          <button className={styles.toolBtn} onClick={undo} disabled={!canUndo} title="Undo">↶</button>
-          <button className={styles.toolBtn} onClick={redoStep} disabled={!canRedo} title="Redo">↷</button>
+          <button
+            className={`${styles.toolBtn} ${
+              showGrid ? styles.on : ''
+            }`}
+            onClick={() => setShowGrid((v) => !v)}
+            title="Toggle grid"
+          >
+            Grid
+          </button>
+          <button
+            className={`${styles.toolBtn} ${
+              snap ? styles.on : ''
+            }`}
+            onClick={() => setSnap((v) => !v)}
+            title="Snap to grid"
+          >
+            Snap
+          </button>
+          <button
+            className={styles.toolBtn}
+            onClick={undo}
+            disabled={!canUndo}
+            title="Undo"
+          >
+            ↶
+          </button>
+          <button
+            className={styles.toolBtn}
+            onClick={redoStep}
+            disabled={!canRedo}
+            title="Redo"
+          >
+            ↷
+          </button>
         </div>
 
-        <div className={styles.canvasBox}>
+        <div
+          className={styles.canvasBox}
+          style={{ position: 'relative' }}
+        >
           <canvas
             ref={canvasRef}
-            style={{ width:'100%', height:'100%', cursor: selected!=null ? 'move' : 'default' }}
+            style={{
+              width: '100%',
+              height: '100%',
+              cursor:
+                selected != null ? 'move' : 'default',
+            }}
             onMouseDown={handleDown}
             onMouseMove={handleMove}
             onMouseUp={handleUp}
             onWheel={handleWheel}
           />
-          {showGrid && <div className={styles.gridOverlay} />}
+          {showGrid && (
+            <div className={styles.gridOverlay} />
+          )}
+
+          {/* Avatar Preview поверх холста, только если нет фото */}
+          {!stageImg && (
+            <div
+              style={{
+                position: 'absolute',
+                inset: 16,
+                borderRadius: 20,
+                border: '1px dashed #d1d5db',
+                background: 'rgba(249,250,251,0.96)',
+                display: 'flex',
+                flexDirection: 'column',
+                alignItems: 'center',
+                justifyContent: 'center',
+                textAlign: 'center',
+                padding: 24,
+                boxShadow:
+                  '0 10px 40px rgba(15,23,42,0.08)',
+                pointerEvents: 'auto',
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 12,
+                  fontWeight: 600,
+                  letterSpacing: '0.08em',
+                  textTransform: 'uppercase',
+                  color: '#6b7280',
+                  marginBottom: 8,
+                }}
+              >
+                Avatar Preview
+              </div>
+
+              {avatarUrl ? (
+                <div
+                  style={{
+                    width: '100%',
+                    maxWidth: 360,
+                    borderRadius: 16,
+                    overflow: 'hidden',
+                    background: '#e5e7eb',
+                    marginBottom: 12,
+                  }}
+                >
+                  <GlbViewer
+                    url={avatarUrl}
+                    height={260}
+                    background="#e5e7eb"
+                  />
+                </div>
+              ) : (
+                <div
+                  style={{
+                    width: '100%',
+                    maxWidth: 360,
+                    height: 260,
+                    borderRadius: 16,
+                    border:
+                      '1px dashed #d1d5db',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    color: '#9ca3af',
+                    fontSize: 14,
+                    marginBottom: 12,
+                  }}
+                >
+                  No avatar yet
+                </div>
+              )}
+
+              <div
+                style={{
+                  fontSize: 13,
+                  color: '#6b7280',
+                  marginBottom: 16,
+                }}
+              >
+                {hasRealAvatar
+                  ? 'Your last generated avatar is ready. Use “Try-On Avatar” below to open full 3D mode.'
+                  : 'Generate your 3D avatar once, then you can try on outfits on it anytime.'}
+              </div>
+
+              <div
+                style={{
+                  display: 'flex',
+                  gap: 8,
+                  flexWrap: 'wrap',
+                  justifyContent: 'center',
+                }}
+              >
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate('/avatar/create')
+                  }
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 999,
+                    border: 'none',
+                    background: '#111827',
+                    color: '#fff',
+                    fontSize: 13,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Generate Avatar
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    navigate('/tryon/avatar')
+                  }
+                  style={{
+                    padding: '8px 16px',
+                    borderRadius: 999,
+                    border:
+                      '1px solid #d1d5db',
+                    background: '#fff',
+                    fontSize: 13,
+                    cursor: 'pointer',
+                  }}
+                >
+                  Open 3D Try-On
+                </button>
+              </div>
+            </div>
+          )}
         </div>
       </main>
 
@@ -394,11 +830,24 @@ export default function WardrobePage() {
           <div className={styles.chips}>
             <button
               className={styles.chip}
-              onClick={() => setItems(getWardrobe().map(i => ({ ...i, image: toPublicUrl(i.image) })))}
+              onClick={() =>
+                setItems(
+                  getWardrobe().map((i) => ({
+                    ...i,
+                    image: toPublicUrl(i.image),
+                  })),
+                )
+              }
             >
               Refresh
             </button>
-            <button className={styles.chip} onClick={() => { setItems([]); clearWardrobe(); }}>
+            <button
+              className={styles.chip}
+              onClick={() => {
+                setItems([]);
+                clearWardrobe();
+              }}
+            >
               Remove All
             </button>
           </div>
@@ -406,29 +855,86 @@ export default function WardrobePage() {
 
         {filtered.length === 0 ? (
           <>
-            <p style={{color:'#6b7280', marginBottom:8}}>
-              Your wardrobe is empty. Add items from Favorites or product cards.
+            <p
+              style={{
+                color: '#6b7280',
+                marginBottom: 8,
+              }}
+            >
+              Your wardrobe is empty. Add items from
+              Favorites or product cards.
             </p>
-            <button className={styles.chip} onClick={onImportFav}>Import from Favorites</button>
+            <button
+              className={styles.chip}
+              onClick={onImportFav}
+            >
+              Import from Favorites
+            </button>
           </>
         ) : (
-          filtered.map(it => (
-            <div key={it.id} className={styles.card}>
-              <img className={styles.thumb} src={toPublicUrl(it.image)} alt={it.name} />
+          filtered.map((it) => (
+            <div
+              key={it.id}
+              className={styles.card}
+            >
+              <img
+                className={styles.thumb}
+                src={toPublicUrl(it.image)}
+                alt={it.name}
+              />
               <div>
-                <div className={styles.cardTitle}>{it.name}</div>
-                <div style={{color:'#6b7280', fontSize:12}}>
-                  {it.category || '—'} {it.price ? `• ${Number(it.price).toLocaleString('en-US')} ₸` : ''}
+                <div className={styles.cardTitle}>
+                  {it.name}
                 </div>
-                <div className={styles.cardRow} style={{marginTop:8}}>
-                  <button className={styles.chip} onClick={()=>wearItem(it)}>Wear</button>
-                  <button className={styles.chip} onClick={()=>alert('Colorways: soon')}>Colorways</button>
-                  <button className={styles.chip} onClick={()=>navigate('/tryon/ar')}>AR</button>
+                <div
+                  style={{
+                    color: '#6b7280',
+                    fontSize: 12,
+                  }}
+                >
+                  {it.category || '—'}{' '}
+                  {it.price
+                    ? `• ${Number(
+                        it.price,
+                      ).toLocaleString('en-US')} ₸`
+                    : ''}
+                </div>
+                <div
+                  className={styles.cardRow}
+                  style={{ marginTop: 8 }}
+                >
                   <button
                     className={styles.chip}
-                    onClick={()=>{
+                    onClick={() => wearItem(it)}
+                  >
+                    Wear
+                  </button>
+                  <button
+                    className={styles.chip}
+                    onClick={() =>
+                      alert('Colorways: soon')
+                    }
+                  >
+                    Colorways
+                  </button>
+                  <button
+                    className={styles.chip}
+                    onClick={() =>
+                      navigate('/tryon/ar')
+                    }
+                  >
+                    AR
+                  </button>
+                  <button
+                    className={styles.chip}
+                    onClick={() => {
                       removeFromWardrobe(it.id);
-                      setItems(getWardrobe().map(i=>({ ...i, image: toPublicUrl(i.image) })));
+                      setItems(
+                        getWardrobe().map((i) => ({
+                          ...i,
+                          image: toPublicUrl(i.image),
+                        })),
+                      );
                     }}
                   >
                     Remove
@@ -442,13 +948,55 @@ export default function WardrobePage() {
 
       {/* ───── Bottom bar ───── */}
       <div className={styles.bottom}>
-        <button className={styles.btn} onClick={() => fileRef.current?.click()} title="Use a photo">Try-On Photo</button>
-        <button className={styles.btn} onClick={() => navigate('/tryon/ar')} title="Open AR">Try-On AR</button>
-        <button className={styles.btn} onClick={() => navigate('/tryon/avatar')} title="Use avatar">Try-On Avatar</button>
-        <button className={`${styles.btn} ${styles.primary}`} onClick={saveLook} title="Save to Outfits">Save Look</button>
-        <button className={styles.btn} onClick={sharePNG} title="Share/download">Share</button>
-        <button className={styles.btn} onClick={exportPNG} title="Export PNG">Export PNG</button>
-        <button className={styles.btn} onClick={() => commit([])} title="Remove layers">Clear Stage</button>
+        <button
+          className={styles.btn}
+          onClick={() => fileRef.current?.click()}
+          title="Use a photo"
+        >
+          Try-On Photo
+        </button>
+        <button
+          className={styles.btn}
+          onClick={() => navigate('/tryon/ar')}
+          title="Open AR"
+        >
+          Try-On AR
+        </button>
+        <button
+          className={styles.btn}
+          onClick={() => navigate('/tryon/avatar')}
+          title="Use avatar"
+        >
+          Try-On Avatar
+        </button>
+        <button
+          className={`${styles.btn} ${styles.primary}`}
+          onClick={saveLook}
+          title="Save to Outfits"
+        >
+          Save Look
+        </button>
+        <button
+          className={styles.btn}
+          onClick={sharePNG}
+          title="Share/download"
+        >
+          Share
+        </button>
+        <button
+          className={styles.btn}
+          onClick={exportPNG}
+          title="Export PNG"
+        >
+          Export PNG
+        </button>
+        <button
+          className={styles.btn}
+          onClick={clearStageHard}
+          title="Remove photo & layers"
+        >
+          Clear Stage
+        </button>
       </div>
     </div>
   );

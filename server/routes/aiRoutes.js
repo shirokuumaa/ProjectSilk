@@ -1,260 +1,129 @@
 // server/routes/aiRoutes.js
 import express from "express";
-import multer from "multer";   
-import FormData from "form-data";
 import fetch from "node-fetch";
 import "dotenv/config";
 
 const router = express.Router();
 
-// ───────────────── Multer (память)
-const upload = multer({ storage: multer.memoryStorage() });
+// Базовый адрес GPU-сервера (FastAPI в папке gpu-infer)
+// Важно: в server/.env должно быть GPU_URL=http://127.0.0.1:8000
+const RAW_GPU = process.env.GPU_URL || "http://127.0.0.1:8000";
 
-/* ───────── helpers ───────── */
-
-// убираем невидимые символы (ZWSP/ZWNJ/ZWJ/BOM/WORD JOINER)
-const scrub = (s) => String(s).replace(/[\u200B-\u200D\uFEFF\u2060]/g, "");
-
-// нормализуем GPU_URL (localhost → 127.0.0.1; без хвостовых /, без query/hash)
 function normalizeGpuBase(raw) {
-  const val = scrub(raw || "").trim();
+  const val = String(raw || "").trim();
   if (!val) return "";
   const u = new URL(val);
   if (u.hostname === "localhost") u.hostname = "127.0.0.1";
-  u.pathname = scrub(u.pathname).replace(/\/+$/, "");
+  // убираем лишние / в конце
+  u.pathname = u.pathname.replace(/\/+$/, "");
   u.search = "";
   u.hash = "";
-  return u.toString(); // "http://127.0.0.1:8000"
+  return u.toString(); // например "http://127.0.0.1:8000"
 }
-const RAW_GPU = process.env.GPU_URL || "";
+
 const GPU_BASE = normalizeGpuBase(RAW_GPU);
 
-// аккуратно склеиваем путь (ровно один ведущий /, без двойных //)
-const join = (path) => {
-  let p = scrub(path || "");
-  if (!p.startsWith("/")) p = "/" + p;
-  return (GPU_BASE + p).replace(/(?<!:)\/{2,}/g, "/");
-};
+// Маппинг путей Node → FastAPI
+//
+// Node (порт 5050):
+//   /api/ai/__target
+//   /api/ai/healthz
+//   /api/ai/avatar/start
+//   /api/ai/avatar/status/:id
+//   /api/ai/pose
+//   /api/ai/segm
+//   /api/ai/remove-background
+//   /api/ai/depth
+//   /api/ai/triposr
+//
+// FastAPI (порт 8000):
+//   /api/ai/__target
+//   /api/ai/healthz
+//   /api/ai/avatar/start
+//   /api/ai/avatar/status/:id
+//   /pose
+//   /segm
+//   /remove-background
+//   /depth
+//   /triposr
+function mapPath(originalUrl) {
+  let url = originalUrl; // уже содержит путь + query, например "/api/ai/pose?x=1"
 
-function withTimeout(ms) {
-  const ctrl = new AbortController();
-  const id = setTimeout(() => ctrl.abort(new Error("timeout")), ms);
-  return { signal: ctrl.signal, cancel: () => clearTimeout(id) };
-}
-
-// проверка файла
-function needFile(req, res, fieldName = "image") {
-  if (!req.file) {
-    res.status(400).json({ ok: false, error: `file required (field "${fieldName}")` });
-    return false;
+  if (url.startsWith("/api/ai/pose")) {
+    return url.replace("/api/ai/pose", "/pose");
   }
-  return true;
+  if (url.startsWith("/api/ai/segm")) {
+    return url.replace("/api/ai/segm", "/segm");
+  }
+  if (url.startsWith("/api/ai/remove-background")) {
+    return url.replace("/api/ai/remove-background", "/remove-background");
+  }
+  if (url.startsWith("/api/ai/depth")) {
+    return url.replace("/api/ai/depth", "/depth");
+  }
+  if (url.startsWith("/api/ai/triposr")) {
+    return url.replace("/api/ai/triposr", "/triposr");
+  }
+
+  // Остальные пути ( __target, healthz, avatar/* ) оставляем как есть
+  return url;
 }
 
-// POST multipart: один файл
-async function postMultipart(path, file, timeoutMs = 30000, fieldName = "image") {
-  const fd = new FormData();
-  fd.append(fieldName, file.buffer, {
-    filename: file.originalname || "file.bin",
-    contentType: file.mimetype || "application/octet-stream",
+// Для себя: быстрая диагностика конфигурации Node-прокси
+router.get("/__config", (_req, res) => {
+  res.json({
+    GPU_URL: GPU_BASE || null,
   });
-  const headers = fd.getHeaders?.();
-
-  const { signal, cancel } = withTimeout(timeoutMs);
-  try {
-    const url = join(path);
-    return await fetch(url, { method: "POST", body: fd, headers, signal });
-  } finally {
-    cancel();
-  }
-}
-
-// POST multipart: один файл + дополнительные поля формы
-async function postMultipartWithFields(path, file, fields = {}, timeoutMs = 30000, fieldName = "image") {
-  const fd = new FormData();
-  fd.append(fieldName, file.buffer, {
-    filename: file.originalname || "file.bin",
-    contentType: file.mimetype || "application/octet-stream",
-  });
-  for (const [k, v] of Object.entries(fields || {})) fd.append(k, String(v));
-  const headers = fd.getHeaders?.();
-
-  const { signal, cancel } = withTimeout(timeoutMs);
-  try {
-    const url = join(path);
-    return await fetch(url, { method: "POST", body: fd, headers, signal });
-  } finally {
-    cancel();
-  }
-}
-
-/* ───────── режимы ───────── */
-
-const AI_OFF = String(process.env.AI_MODE || "").toLowerCase() === "off" || !GPU_BASE;
-console.log(`[AI] Mode: ${AI_OFF ? "OFF (stubs)" : "PROXY"}${GPU_BASE ? ` → ${GPU_BASE}` : ""}`);
-
-/* ───────── routes ───────── */
-
-// healthz — всегда отвечает; в OFF режиме не трогаем GPU
-router.get("/healthz", async (_req, res) => {
-  if (AI_OFF) {
-    return res.json({ ok: true, mode: "off", gpu: false, target: null });
-  }
-  try {
-    const { signal, cancel } = withTimeout(4000);
-    const r = await fetch(join("/healthz"), { signal });
-    const text = await r.text().catch(() => "");
-    cancel();
-    res.status(200).json({
-      ok: true,
-      mode: "proxy",
-      gpu: true,
-      target: GPU_BASE,
-      upstream_status: r.status,
-      upstream: text.slice(0, 200),
-    });
-  } catch (e) {
-    res
-      .status(200)
-      .json({ ok: true, mode: "proxy", gpu: false, target: GPU_BASE, error: String(e?.message || e) });
-  }
 });
 
-if (AI_OFF) {
-  /* ───────── STUB MODE (AI выключен) ───────── */
+// Универсальный ПРОКСИ для всех запросов на /api/ai/*
+// (router.use срабатывает на любой метод и любой под-путь)
+router.use(async (req, res) => {
+  if (!GPU_BASE) {
+    return res
+      .status(503)
+      .json({ message: "GPU_URL is not configured on API server" });
+  }
 
-  // удалить фон → возвращаем исходный файл (чтобы не блокировать UX)
-  router.post("/remove-background", upload.single("image"), (req, res) => {
-    if (!needFile(req, res)) return;
-    res.status(200).type(req.file.mimetype || "application/octet-stream").send(req.file.buffer);
-  });
+  // Например: originalUrl = "/api/ai/pose?x=1"
+  const mappedPath = mapPath(req.originalUrl);
+  const targetUrl = new URL(mappedPath, GPU_BASE).toString();
 
-  // заглушки для остальных задач
-  const notImpl = (name) => (_req, res) =>
-    res.status(501).json({ ok: false, stub: true, error: `${name} unavailable (AI off)` });
+  const method = req.method;
+  const headers = { ...req.headers };
+  delete headers.host;           // host ставит сам fetch
+  delete headers["content-length"]; // на всякий случай, пусть fetch сам считает
 
-  router.post("/segm", upload.single("image"), notImpl("segm"));
-  router.post("/depth", upload.single("image"), notImpl("depth"));
-  router.post("/pose", upload.single("image"), notImpl("pose"));
-  router.post("/triposr", upload.single("image"), notImpl("triposr"));
+  try {
+    const options = { method, headers };
 
-  // ── Avatar (stub): создаём мок-задачу и помечаем её "done"
-  // Положи файлы по путям: server/uploads/stub/avatar.glb и preview.png — тогда фронт увидит результат.
-  const jobs = new Map();
-  router.post("/avatar/start", upload.single("photo"), (req, res) => {
-    if (!needFile(req, res, "photo")) return;
-    const id = Date.now().toString(36) + Math.random().toString(36).slice(2);
-    jobs.set(id, { status: "processing", progress: 0, preview: null, glb: null });
-    setTimeout(() => {
-      jobs.set(id, {
-        status: "done",
-        progress: 1,
-        preview: "/uploads/stub/preview.png",
-        glb: "/uploads/stub/avatar.glb",
-      });
-    }, 1500);
-    res.json({ ok: true, jobId: id });
-  });
-
-  router.get("/avatar/status/:id", (req, res) => {
-    const j = jobs.get(req.params.id);
-    if (!j) return res.status(404).json({ ok: false, error: "job not found" });
-    res.json({ ok: true, ...j });
-  });
-
-} else {
-  /* ───────── PROXY MODE (GPU включён) ───────── */
-
-  // удалить фон → PNG
-  router.post("/remove-background", upload.single("image"), async (req, res) => {
-    if (!needFile(req, res)) return;
-    try {
-      const r = await postMultipart("/remove-background", req.file);
-      res.status(r.status).type(r.headers.get("content-type") || "image/png");
-      r.body?.pipe(res);
-    } catch (e) {
-      res.status(500).json({ ok: false, error: "proxy failed", detail: String(e?.message || e) });
+    // GET/HEAD без тела; остальные — стримим тело (multipart, JSON, FormData)
+    if (!["GET", "HEAD"].includes(method)) {
+      options.body = req;
     }
-  });
 
-  // сегментация → PNG RGBA
-  router.post("/segm", upload.single("image"), async (req, res) => {
-    if (!needFile(req, res)) return;
-    try {
-      const r = await postMultipart("/segm", req.file);
-      res.status(r.status).type(r.headers.get("content-type") || "image/png");
-      r.body?.pipe(res);
-    } catch (e) {
-      res.status(500).json({ ok: false, error: "proxy failed", detail: String(e?.message || e) });
+    const upstream = await fetch(targetUrl, options);
+
+    // Пробрасываем статус и заголовки
+    res.status(upstream.status);
+    for (const [key, value] of upstream.headers.entries()) {
+      if (key.toLowerCase() === "transfer-encoding") continue;
+      res.setHeader(key, value);
     }
-  });
 
-  // карта глубины → серый PNG
-  router.post("/depth", upload.single("image"), async (req, res) => {
-    if (!needFile(req, res)) return;
-    try {
-      const r = await postMultipart("/depth", req.file);
-      res.status(r.status).type(r.headers.get("content-type") || "image/png");
-      r.body?.pipe(res);
-    } catch (e) {
-      res.status(500).json({ ok: false, error: "proxy failed", detail: String(e?.message || e) });
+    // Тело ответа просто прокидываем дальше
+    if (upstream.body) {
+      upstream.body.pipe(res);
+    } else {
+      res.end();
     }
-  });
-
-  // поза → JSON
-  router.post("/pose", upload.single("image"), async (req, res) => {
-    if (!needFile(req, res)) return;
-    try {
-      const r = await postMultipart("/pose", req.file);
-      res.status(r.status).type(r.headers.get("content-type") || "application/json");
-      res.send(await r.text());
-    } catch (e) {
-      res.status(500).json({ ok: false, error: "proxy failed", detail: String(e?.message || e) });
-    }
-  });
-
-  // TripoSR → GLB
-  router.post("/triposr", upload.single("image"), async (req, res) => {
-    if (!needFile(req, res)) return;
-    try {
-      const r = await postMultipart("/triposr", req.file, 120000);
-      res.status(r.status).type(r.headers.get("content-type") || "model/gltf-binary");
-      r.body?.pipe(res);
-    } catch (e) {
-      res.status(500).json({ ok: false, error: "proxy failed", detail: String(e?.message || e) });
-    }
-  });
-
-  // ── Avatar proxy
-  // POST /api/ai/avatar/start  (file field: "photo"; доп. поля формы — heightCm, bodyType, skinTone и т.п.)
-  router.post("/avatar/start", upload.single("photo"), async (req, res) => {
-    if (!needFile(req, res, "photo")) return;
-    try {
-      const r = await postMultipartWithFields("/avatar/start", req.file, req.body, 120000, "photo");
-      res.status(r.status).type(r.headers.get("content-type") || "application/json");
-      res.send(await r.text());
-    } catch (e) {
-      res.status(500).json({ ok: false, error: "proxy failed", detail: String(e?.message || e) });
-    }
-  });
-
-  // GET /api/ai/avatar/status/:id  → JSON (status/glb/preview/measurements…)
-  router.get("/avatar/status/:id", async (req, res) => {
-    try {
-      const { signal, cancel } = withTimeout(15000);
-      const r = await fetch(join(`/avatar/status/${encodeURIComponent(req.params.id)}`), { signal });
-      cancel();
-      res.status(r.status).type(r.headers.get("content-type") || "application/json");
-      res.send(await r.text());
-    } catch (e) {
-      res.status(500).json({ ok: false, error: "proxy failed", detail: String(e?.message || e) });
-    }
-  });
-}
-
-// диагностика конфигурации
-router.get("/__target", (_req, res) =>
-  res.json({ GPU_URL: GPU_BASE || null, AI_MODE: AI_OFF ? "off" : "proxy" })
-);
+  } catch (err) {
+    console.error("AI proxy error:", err);
+    res.status(502).json({
+      message: "AI upstream error",
+      error: String(err?.message || err),
+    });
+  }
+});
 
 export default router;
