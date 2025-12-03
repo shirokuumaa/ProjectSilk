@@ -44,7 +44,7 @@ export default function SellerPanel() {
     }
   }, [model3dBlob]);
 
-  // пингуем AI (heavy-only: смотрим на mode === "proxy" и gpu === true)
+  // 🔍 Проверка AI: адаптирована под наш healthz от gpu-infer
   useEffect(() => {
     let aborted = false;
     (async () => {
@@ -68,9 +68,30 @@ export default function SellerPanel() {
           info = null;
         }
 
-        const on = info && info.mode === "proxy" && info.gpu === true;
+        let on = false;
+
+        if (info) {
+          // 1) Если когда-нибудь будет обёртка с mode/gpu — поддержим и её
+          if (typeof info.mode !== "undefined" || typeof info.gpu !== "undefined") {
+            on = info.mode === "proxy" && info.gpu === true;
+          } else {
+            // 2) Наш текущий вариант из gpu-infer/app.py
+            const torchOk = info.torch_available === true;
+            const cudaOk =
+              info.cuda_available === true ||
+              info.device === "cuda" ||
+              (info.pipelines && info.pipelines.pose === true);
+
+            on = torchOk && cudaOk;
+          }
+        }
+
         setAiOnline(on);
-        setAiHint(on ? "" : "AI off: background kept as-is. 3D недоступно.");
+        setAiHint(
+          on
+            ? ""
+            : "AI off: background kept as-is. 3D недоступно."
+        );
       } catch {
         if (aborted) return;
         setAiOnline(false);
@@ -379,7 +400,7 @@ export default function SellerPanel() {
 
               {!glbUrl && (
                 <p style={{ fontSize: 13, color: "#6b7280" }}>
-                  Сгенерируй 3D или загрузись готовую модель, чтобы посмотреть её здесь.
+                  Сгенерируй 3D или загрузи готовую модель, чтобы посмотреть её здесь.
                 </p>
               )}
 
