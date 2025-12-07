@@ -107,29 +107,46 @@ try:
 except Exception:
     REMBG_OK = False
 
-# ───────────────────────── Optional deps: TripoSR (локальный клон)
+# ───────────────────────── Optional deps: TripoSR (локальный репозиторий ./TripoSR)
 TRIPOSR_OK = False
-TSR = None
-to_gradio_3d_orientation = None
-TRIPO = None
-TRIPO_DEVICE: Optional[str] = None
+TRIPOSR_DIR = os.path.join(os.path.dirname(__file__), "TripoSR")
+TSR_MODEL = None
+TRIPO_DEVICE = "cuda" if DEVICE == "cuda" else "cpu"  # MPS TripoSR не умеет
 
 try:
-    # Добавляем локальную папку /workspace/ProjectSilk/gpu-infer/TripoSR в sys.path
-    THIS_DIR = os.path.dirname(__file__)
-    TRIPOSR_DIR = os.path.join(THIS_DIR, "TripoSR")
+    # Добавляем ./TripoSR в sys.path, чтобы работал импорт tsr.*
     if os.path.isdir(TRIPOSR_DIR) and TRIPOSR_DIR not in sys.path:
         sys.path.insert(0, TRIPOSR_DIR)
 
-    # Теперь доступны tsr.system и tsr.utils (как в HF demo)
+    print("[TripoSR] TRIPOSR_DIR:", TRIPOSR_DIR, "exists:", os.path.isdir(TRIPOSR_DIR))
+
     from tsr.system import TSR  # type: ignore
     from tsr.utils import to_gradio_3d_orientation  # type: ignore
     import trimesh  # noqa: F401
 
+    if not TORCH:
+        raise RuntimeError("torch is not available, cannot init TripoSR")
+
+    # Загружаем веса с HuggingFace
+    TSR_MODEL = TSR.from_pretrained(
+        "stabilityai/TripoSR",
+        config_name="config.yaml",
+        weight_name="model.ckpt",
+    )
+    # Чуть уменьшаем нагрузку на память
+    if hasattr(TSR_MODEL, "renderer"):
+        try:
+            TSR_MODEL.renderer.set_chunk_size(8192)
+        except Exception as e:
+            print("[TripoSR] renderer.set_chunk_size error:", repr(e))
+
+    TSR_MODEL.to(TRIPO_DEVICE)
     TRIPOSR_OK = True
+    print("[TripoSR] model loaded on", TRIPO_DEVICE)
 except Exception as e:
-    print("[TripoSR] import error:", repr(e))
+    print("[TripoSR] init failed:", repr(e))
     TRIPOSR_OK = False
+    TSR_MODEL = None
 
 # ───────────────────────── YOLO Pose
 POSE_OK, _pose_model = False, None
@@ -208,35 +225,6 @@ if TORCH:
     except Exception:
         MIDAS_OK, _midas, _apply_midas_transform = False, None, None
 
-# ───────────────────────── TripoSR: инициализация модели
-if TRIPOSR_OK and TORCH and TSR is not None:
-    try:
-        TRIPO_DEVICE = "cuda" if DEVICE == "cuda" else "cpu"
-        print(f"[TripoSR] Initializing TSR on device={TRIPO_DEVICE} ...")
-
-        TRIPO = TSR.from_pretrained(
-            "stabilityai/TripoSR",
-            config_name="config.yaml",
-            weight_name="model.ckpt",
-        )
-
-        # Чуть уменьшаем нагрузку на память
-        if hasattr(TRIPO, "renderer"):
-            try:
-                TRIPO.renderer.set_chunk_size(131072)
-            except Exception as e:
-                print("[TripoSR] renderer.set_chunk_size error:", repr(e))
-
-        TRIPO.to(TRIPO_DEVICE)
-        print("[TripoSR] Model loaded successfully.")
-    except Exception as e:
-        print("[TripoSR] init error:", repr(e))
-        TRIPO = None
-        TRIPOSR_OK = False
-else:
-    if not TRIPOSR_OK:
-        print("[TripoSR] Disabled (import failed or no torch).")
-
 # ───────────────────────── In-memory avatar jobs (stub)
 AVATAR_JOBS: dict[str, dict] = {}
 
@@ -244,7 +232,7 @@ AVATAR_JOBS: dict[str, dict] = {}
 # ───────────────────────── Startup
 @app.on_event("startup")
 async def preload_models():
-    # Все модели уже лениво / при импорте инициализируются выше.
+    # Все модели уже инициализируются при импорте выше.
     pass
 
 
@@ -262,7 +250,7 @@ def healthz():
             "segm_rvm": RVM_OK,
             "rembg": REMBG_OK,
             "depth_midas": MIDAS_OK,
-            "triposr": bool(TRIPOSR_OK and TRIPO is not None),
+            "triposr": bool(TRIPOSR_OK and TSR_MODEL is not None),
         },
     }
     if TORCH:
@@ -568,7 +556,7 @@ async def depth(image: UploadFile = File(...)):
 
 
 # ───────────────────────── TripoSR endpoint
-if TRIPOSR_OK and TRIPO is not None and to_gradio_3d_orientation is not None:
+if TRIPOSR_OK and TSR_MODEL is not None:
 
     @app.post("/triposr")
     async def triposr(image: UploadFile = File(...), resolution: int = Query(256, ge=32, le=320)):
@@ -579,24 +567,30 @@ if TRIPOSR_OK and TRIPO is not None and to_gradio_3d_orientation is not None:
         if not TORCH:
             return JSONResponse(status_code=501, content={"error": "torch is not available"})
 
-        if TRIPO_DEVICE is None:
-            return JSONResponse(status_code=501, content={"error": "TripoSR device not configured"})
-
         try:
             pil = _ensure_image(image).convert("RGB")
 
-            # Как в HF demo: model(image, device=...)
+            # TripoSR ждёт примерно 512x512, подгоним
+            img = pil.resize((512, 512), Image.LANCZOS)
+            img_np = np.array(img).astype(np.float32) / 255.0
+
+            # Если вдруг есть альфа-канал — аккуратно композитим на серый фон
+            if img_np.shape[-1] == 4:
+                rgb = img_np[..., :3] * img_np[..., 3:4] + (1.0 - img_np[..., 3:4]) * 0.5
+            else:
+                rgb = img_np[..., :3]
+
+            img = Image.fromarray((rgb * 255.0).astype(np.uint8))
+
             with torch.no_grad():
-                scene_codes = TRIPO(pil, device=TRIPO_DEVICE)
-                mesh_list = TRIPO.extract_mesh(scene_codes, resolution=resolution)
-                mesh = mesh_list[0] if isinstance(mesh_list, (list, tuple)) else mesh_list
+                scene_codes = TSR_MODEL([img], device=TRIPO_DEVICE)
+                mesh = TSR_MODEL.extract_mesh(scene_codes, resolution=resolution)[0]
                 mesh = to_gradio_3d_orientation(mesh)
 
-                # Экспортируем в GLB в память
-                buf = io.BytesIO()
-                mesh.export(file_obj=buf, file_type="glb")
-                buf.seek(0)
-                glb_bytes = buf.read()
+            buf = io.BytesIO()
+            mesh.export(file_obj=buf, file_type="glb")
+            buf.seek(0)
+            glb_bytes = buf.read()
 
             return Response(content=glb_bytes, media_type="model/gltf-binary")
         except Exception as e:
