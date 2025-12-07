@@ -6,9 +6,8 @@ import platform
 import traceback
 import base64
 import uuid
+import sys
 from typing import List, Optional
-from pathlib import Path
-import subprocess
 
 import numpy as np
 from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Form
@@ -99,7 +98,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# ───────────────────────── Optional deps
+# ───────────────────────── Optional deps: rembg
 REMBG_OK = False
 try:
     from rembg import remove as rembg_remove, new_session as rembg_session
@@ -107,6 +106,30 @@ try:
     REMBG_OK = True
 except Exception:
     REMBG_OK = False
+
+# ───────────────────────── Optional deps: TripoSR (локальный клон)
+TRIPOSR_OK = False
+TSR = None
+to_gradio_3d_orientation = None
+TRIPO = None
+TRIPO_DEVICE: Optional[str] = None
+
+try:
+    # Добавляем локальную папку /workspace/ProjectSilk/gpu-infer/TripoSR в sys.path
+    THIS_DIR = os.path.dirname(__file__)
+    TRIPOSR_DIR = os.path.join(THIS_DIR, "TripoSR")
+    if os.path.isdir(TRIPOSR_DIR) and TRIPOSR_DIR not in sys.path:
+        sys.path.insert(0, TRIPOSR_DIR)
+
+    # Теперь доступны tsr.system и tsr.utils (как в HF demo)
+    from tsr.system import TSR  # type: ignore
+    from tsr.utils import to_gradio_3d_orientation  # type: ignore
+    import trimesh  # noqa: F401
+
+    TRIPOSR_OK = True
+except Exception as e:
+    print("[TripoSR] import error:", repr(e))
+    TRIPOSR_OK = False
 
 # ───────────────────────── YOLO Pose
 POSE_OK, _pose_model = False, None
@@ -185,10 +208,34 @@ if TORCH:
     except Exception:
         MIDAS_OK, _midas, _apply_midas_transform = False, None, None
 
-# ───────────────────────── TripoSR via local repo (CLI)
-TRIPOSR_ROOT = Path(__file__).resolve().parent / "TripoSR"
-TRIPOSR_RUN = TRIPOSR_ROOT / "run.py"
-TRIPOSR_OK = TRIPOSR_RUN.exists()
+# ───────────────────────── TripoSR: инициализация модели
+if TRIPOSR_OK and TORCH and TSR is not None:
+    try:
+        TRIPO_DEVICE = "cuda" if DEVICE == "cuda" else "cpu"
+        print(f"[TripoSR] Initializing TSR on device={TRIPO_DEVICE} ...")
+
+        TRIPO = TSR.from_pretrained(
+            "stabilityai/TripoSR",
+            config_name="config.yaml",
+            weight_name="model.ckpt",
+        )
+
+        # Чуть уменьшаем нагрузку на память
+        if hasattr(TRIPO, "renderer"):
+            try:
+                TRIPO.renderer.set_chunk_size(131072)
+            except Exception as e:
+                print("[TripoSR] renderer.set_chunk_size error:", repr(e))
+
+        TRIPO.to(TRIPO_DEVICE)
+        print("[TripoSR] Model loaded successfully.")
+    except Exception as e:
+        print("[TripoSR] init error:", repr(e))
+        TRIPO = None
+        TRIPOSR_OK = False
+else:
+    if not TRIPOSR_OK:
+        print("[TripoSR] Disabled (import failed or no torch).")
 
 # ───────────────────────── In-memory avatar jobs (stub)
 AVATAR_JOBS: dict[str, dict] = {}
@@ -197,7 +244,7 @@ AVATAR_JOBS: dict[str, dict] = {}
 # ───────────────────────── Startup
 @app.on_event("startup")
 async def preload_models():
-    # Пока ничего не подгружаем явно. Все модели lazy-load выше.
+    # Все модели уже лениво / при импорте инициализируются выше.
     pass
 
 
@@ -215,7 +262,7 @@ def healthz():
             "segm_rvm": RVM_OK,
             "rembg": REMBG_OK,
             "depth_midas": MIDAS_OK,
-            "triposr": TRIPOSR_OK,
+            "triposr": bool(TRIPOSR_OK and TRIPO is not None),
         },
     }
     if TORCH:
@@ -520,66 +567,43 @@ async def depth(image: UploadFile = File(...)):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
-# ───────────────────────── TripoSR endpoint (CLI call)
-@app.post("/triposr")
-async def triposr(image: UploadFile = File(...)):
-    if not TRIPOSR_OK:
-        return JSONResponse(
-            status_code=501,
-            content={"error": "TripoSR CLI is not available on this instance"},
-        )
+# ───────────────────────── TripoSR endpoint
+if TRIPOSR_OK and TRIPO is not None and to_gradio_3d_orientation is not None:
 
-    try:
-        # 1) сохраняем входное изображение во временный файл
-        pil = _ensure_image(image).convert("RGBA")
+    @app.post("/triposr")
+    async def triposr(image: UploadFile = File(...), resolution: int = Query(256, ge=32, le=320)):
+        """
+        Принимает картинку, прогоняет через TripoSR и возвращает GLB-модель.
+        resolution — Marching Cubes resolution (лучше качество -> больше память/время).
+        """
+        if not TORCH:
+            return JSONResponse(status_code=501, content={"error": "torch is not available"})
 
-        tmp_root = Path("/tmp/triposr")
-        job_id = uuid.uuid4().hex
-        job_dir = tmp_root / job_id
-        job_dir.mkdir(parents=True, exist_ok=True)
+        if TRIPO_DEVICE is None:
+            return JSONResponse(status_code=501, content={"error": "TripoSR device not configured"})
 
-        in_path = job_dir / "input.png"
-        pil.save(in_path)
+        try:
+            pil = _ensure_image(image).convert("RGB")
 
-        # 2) запускаем официальный run.py из репо TripoSR
-        dev_str = "cuda:0" if DEVICE == "cuda" else "cpu"
-        cmd = [
-            "python",
-            str(TRIPOSR_RUN),
-            str(in_path),
-            "--device",
-            dev_str,
-            "--output-dir",
-            str(job_dir),
-            "--model-save-format",
-            "glb",
-        ]
+            # Как в HF demo: model(image, device=...)
+            with torch.no_grad():
+                scene_codes = TRIPO(pil, device=TRIPO_DEVICE)
+                mesh_list = TRIPO.extract_mesh(scene_codes, resolution=resolution)
+                mesh = mesh_list[0] if isinstance(mesh_list, (list, tuple)) else mesh_list
+                mesh = to_gradio_3d_orientation(mesh)
 
-        proc = subprocess.run(
-            cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-            text=True,
-        )
+                # Экспортируем в GLB в память
+                buf = io.BytesIO()
+                mesh.export(file_obj=buf, file_type="glb")
+                buf.seek(0)
+                glb_bytes = buf.read()
 
-        if proc.returncode != 0:
-            print("[TripoSR] CMD:", " ".join(cmd))
-            print("[TripoSR] STDOUT:", proc.stdout)
-            print("[TripoSR] STDERR:", proc.stderr)
-            raise RuntimeError(f"TripoSR CLI failed with code {proc.returncode}")
+            return Response(content=glb_bytes, media_type="model/gltf-binary")
+        except Exception as e:
+            traceback.print_exc()
+            return JSONResponse(status_code=500, content={"error": str(e)})
+else:
 
-        # 3) run.py сохраняет mesh где-то внутри job_dir — сначала пробуем стандартный путь
-        out_path = job_dir / "0" / "mesh.glb"
-        if not out_path.exists():
-            candidates = list(job_dir.rglob("*.glb"))
-            if candidates:
-                out_path = candidates[0]
-            else:
-                raise RuntimeError(f"TripoSR output .glb not found in {job_dir}")
-
-        glb_bytes = out_path.read_bytes()
-        return Response(content=glb_bytes, media_type="model/gltf-binary")
-
-    except Exception as e:
-        traceback.print_exc()
-        return JSONResponse(status_code=500, content={"error": str(e)})
+    @app.post("/triposr")
+    async def triposr_unavailable(image: UploadFile = File(...), resolution: int = Query(256)):
+        return JSONResponse(status_code=501, content={"error": "TripoSR is not available on this instance"})
