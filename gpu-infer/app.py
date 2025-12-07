@@ -7,6 +7,8 @@ import traceback
 import base64
 import uuid
 from typing import List, Optional
+from pathlib import Path
+import subprocess
 
 import numpy as np
 from fastapi import FastAPI, UploadFile, File, HTTPException, Query, Form
@@ -106,15 +108,6 @@ try:
 except Exception:
     REMBG_OK = False
 
-TRIPOSR_OK = False
-try:
-    from triposr.api import TripoSR
-    import trimesh
-
-    TRIPOSR_OK = True
-except Exception:
-    TRIPOSR_OK = False
-
 # ───────────────────────── YOLO Pose
 POSE_OK, _pose_model = False, None
 try:
@@ -192,15 +185,10 @@ if TORCH:
     except Exception:
         MIDAS_OK, _midas, _apply_midas_transform = False, None, None
 
-# ───────────────────────── TripoSR
-TRIPO = None
-if TRIPOSR_OK:
-    try:
-        TRIPO_DEVICE = "cuda" if DEVICE == "cuda" else "cpu"  # MPS не поддерживается
-        TRIPO = TripoSR.from_pretrained("stabilityai/TripoSR", device=TRIPO_DEVICE)
-    except Exception:
-        TRIPO = None
-        TRIPOSR_OK = False
+# ───────────────────────── TripoSR via local repo (CLI)
+TRIPOSR_ROOT = Path(__file__).resolve().parent / "TripoSR"
+TRIPOSR_RUN = TRIPOSR_ROOT / "run.py"
+TRIPOSR_OK = TRIPOSR_RUN.exists()
 
 # ───────────────────────── In-memory avatar jobs (stub)
 AVATAR_JOBS: dict[str, dict] = {}
@@ -532,37 +520,66 @@ async def depth(image: UploadFile = File(...)):
         return JSONResponse(status_code=500, content={"error": str(e)})
 
 
-if TRIPOSR_OK and TRIPO is not None:
+# ───────────────────────── TripoSR endpoint (CLI call)
+@app.post("/triposr")
+async def triposr(image: UploadFile = File(...)):
+    if not TRIPOSR_OK:
+        return JSONResponse(
+            status_code=501,
+            content={"error": "TripoSR CLI is not available on this instance"},
+        )
 
-    @app.post("/triposr")
-    async def triposr(image: UploadFile = File(...)):
-        try:
-            pil = _ensure_image(image).convert("RGB")
-            with torch.no_grad():
-                mesh_obj = None
-                for method_name in ("reconstruct", "infer_pil", "call"):
-                    m = getattr(TRIPO, method_name, None)
-                    if m:
-                        mesh_obj = (TRIPO(pil) if method_name == "call" else m(pil))
-                        break
-                if mesh_obj is None:
-                    raise RuntimeError("Unsupported TripoSR API version")
-            mesh = mesh_obj.get("mesh") if isinstance(mesh_obj, dict) else mesh_obj
-            if hasattr(mesh, "export"):
-                glb_bytes = mesh.export(file_type="glb")
+    try:
+        # 1) сохраняем входное изображение во временный файл
+        pil = _ensure_image(image).convert("RGBA")
+
+        tmp_root = Path("/tmp/triposr")
+        job_id = uuid.uuid4().hex
+        job_dir = tmp_root / job_id
+        job_dir.mkdir(parents=True, exist_ok=True)
+
+        in_path = job_dir / "input.png"
+        pil.save(in_path)
+
+        # 2) запускаем официальный run.py из репо TripoSR
+        dev_str = "cuda:0" if DEVICE == "cuda" else "cpu"
+        cmd = [
+            "python",
+            str(TRIPOSR_RUN),
+            str(in_path),
+            "--device",
+            dev_str,
+            "--output-dir",
+            str(job_dir),
+            "--model-save-format",
+            "glb",
+        ]
+
+        proc = subprocess.run(
+            cmd,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
+            text=True,
+        )
+
+        if proc.returncode != 0:
+            print("[TripoSR] CMD:", " ".join(cmd))
+            print("[TripoSR] STDOUT:", proc.stdout)
+            print("[TripoSR] STDERR:", proc.stderr)
+            raise RuntimeError(f"TripoSR CLI failed with code {proc.returncode}")
+
+        # 3) run.py сохраняет mesh где-то внутри job_dir — сначала пробуем стандартный путь
+        out_path = job_dir / "0" / "mesh.glb"
+        if not out_path.exists():
+            candidates = list(job_dir.rglob("*.glb"))
+            if candidates:
+                out_path = candidates[0]
             else:
-                verts = getattr(mesh, "vertices", None) or mesh["vertices"]
-                faces = getattr(mesh, "faces", None) or mesh["faces"]
-                import trimesh as _tm
+                raise RuntimeError(f"TripoSR output .glb not found in {job_dir}")
 
-                tm = _tm.Trimesh(vertices=np.asarray(verts), faces=np.asarray(faces), process=False)
-                glb_bytes = tm.export(file_type="glb")
-            return Response(content=glb_bytes, media_type="model/gltf-binary")
-        except Exception as e:
-            traceback.print_exc()
-            return JSONResponse(status_code=500, content={"error": str(e)})
-else:
+        glb_bytes = out_path.read_bytes()
+        return Response(content=glb_bytes, media_type="model/gltf-binary")
 
-    @app.post("/triposr")
-    async def triposr_unavailable(image: UploadFile = File(...)):
-        return JSONResponse(status_code=501, content={"error": "TripoSR is not available on this instance"})
+    except Exception as e:
+        traceback.print_exc()
+        return JSONResponse(status_code=500, content={"error": str(e)})
