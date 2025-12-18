@@ -1,0 +1,27 @@
+# --- Core web server ---
+fastapi==0.121.2
+uvicorn[standard]==0.38.0
+python-multipart
+
+# --- Image processing / background removal ---
+pillow
+rembg==2.0.61
+numpy<2
+
+# ВАЖНО:
+# На GPU-подах rembg может работать и через CPU onnxruntime — ок.
+# Если хочешь ускорение onnx на GPU, отдельно ставят onnxruntime-gpu,
+# но на многих окружениях проще оставить CPU-onnxruntime.
+onnxruntime==1.19.2
+
+# --- 3D / TripoSR dependencies ---
+trimesh==4.9.0
+
+# TripoSR + PyTorch:
+# 1) torch ставится под конкретную CUDA.
+# 2) TripoSR чаще ставят из репозитория.
+#
+# Поэтому: эти строки ОСТАВЛЯЕМ КАК КОМАНДЫ, а не как requirements,
+# чтобы ты могла гибко выбрать CUDA на RunPod.
+#
+# См. команды ниже в разделе "GPU install".

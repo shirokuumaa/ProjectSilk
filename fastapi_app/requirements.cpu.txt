@@ -1,0 +1,19 @@
+# --- Core web server ---
+fastapi==0.121.2
+uvicorn[standard]==0.38.0
+
+# --- Uploads (multipart/form-data) ---
+python-multipart
+
+# --- Image processing / background removal ---
+pillow
+rembg==2.0.61
+
+# rembg пока может конфликтовать с numpy 2.x в некоторых окружениях
+numpy<2
+
+# onnxruntime нужен rembg на CPU
+onnxruntime==1.19.2
+
+# (опционально) пригодится для трёхмерки/файлов, но TripoSR тут НЕ ставим
+trimesh==4.9.0

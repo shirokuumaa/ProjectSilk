@@ -18,7 +18,7 @@
     <link rel="preconnect" href="https://unpkg.com" crossorigin />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
 
-    <!-- Model Viewer: enables <model-viewer> for GLB/AR preview (SellerPanel, TryOnAvatar, etc.) -->
+    <!-- Model Viewer: enables <model-viewer> for GLB/AR preview (debug page, seller, avatar, etc.) -->
     <script
       type="module"
       src="https://unpkg.com/@google/model-viewer@latest/dist/model-viewer.min.js">
@@ -35,9 +35,11 @@
       src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.6/vision_bundle.js">
     </script>
 
-    <!-- Baseline styles so React pages (canvas, 3D, AR) могут занимать весь экран -->
+    <!-- Baseline styles: React pages (canvas, 3D, AR) can take full viewport -->
     <style>
-      html, body, #root {
+      html,
+      body,
+      #root {
         height: 100%;
       }
       body {
