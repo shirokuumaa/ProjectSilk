@@ -1,4 +1,4 @@
-# gpu-infer/gpu_app.py
+# gpu-infer/app.py
 
 import io
 import os
@@ -107,75 +107,46 @@ try:
 except Exception:
     REMBG_OK = False
 
-
-# ───────────────────────── Optional deps: TripoSR (локальный клон)
-TRIPOSR_OK: bool = False
-TRIPO_DEVICE: Optional[str] = None
+# ───────────────────────── Optional deps: TripoSR (локальный репозиторий ./TripoSR)
+TRIPOSR_OK = False
+TRIPOSR_DIR = os.path.join(os.path.dirname(__file__), "TripoSR")
 TSR_MODEL = None
-to_gradio_3d_orientation = None
-
-print("========== [TripoSR] INIT BLOCK START ==========")
-
-THIS_DIR = os.path.dirname(os.path.abspath(__file__))
-LOCAL_TRIPOSR_DIR = os.path.join(THIS_DIR, "TripoSR")
-
-print(f"[TripoSR] THIS_DIR={THIS_DIR}")
-print(f"[TripoSR] LOCAL_TRIPOSR_DIR={LOCAL_TRIPOSR_DIR}, exists={os.path.isdir(LOCAL_TRIPOSR_DIR)}")
-
-if os.path.isdir(LOCAL_TRIPOSR_DIR) and LOCAL_TRIPOSR_DIR not in sys.path:
-    sys.path.insert(0, LOCAL_TRIPOSR_DIR)
-    print(f"[TripoSR] Added to sys.path: {LOCAL_TRIPOSR_DIR}")
-else:
-    print("[TripoSR] WARNING: TripoSR folder not found or already in sys.path")
+TRIPO_DEVICE = "cuda" if DEVICE == "cuda" else "cpu"  # MPS TripoSR не умеет
 
 try:
-    # tsr/ лежит внутри локального репо TripoSR
+    # Добавляем ./TripoSR в sys.path, чтобы работал импорт tsr.*
+    if os.path.isdir(TRIPOSR_DIR) and TRIPOSR_DIR not in sys.path:
+        sys.path.insert(0, TRIPOSR_DIR)
+
+    print("[TripoSR] TRIPOSR_DIR:", TRIPOSR_DIR, "exists:", os.path.isdir(TRIPOSR_DIR))
+
     from tsr.system import TSR  # type: ignore
-    from tsr.utils import to_gradio_3d_orientation as _to_gradio_3d_orientation  # type: ignore
+    from tsr.utils import to_gradio_3d_orientation  # type: ignore
     import trimesh  # noqa: F401
 
-    to_gradio_3d_orientation = _to_gradio_3d_orientation
+    if not TORCH:
+        raise RuntimeError("torch is not available, cannot init TripoSR")
+
+    # Загружаем веса с HuggingFace
+    TSR_MODEL = TSR.from_pretrained(
+        "stabilityai/TripoSR",
+        config_name="config.yaml",
+        weight_name="model.ckpt",
+    )
+    # Чуть уменьшаем нагрузку на память
+    if hasattr(TSR_MODEL, "renderer"):
+        try:
+            TSR_MODEL.renderer.set_chunk_size(8192)
+        except Exception as e:
+            print("[TripoSR] renderer.set_chunk_size error:", repr(e))
+
+    TSR_MODEL.to(TRIPO_DEVICE)
     TRIPOSR_OK = True
-    print("[TripoSR] tsr imported OK.")
+    print("[TripoSR] model loaded on", TRIPO_DEVICE)
 except Exception as e:
-    print("[TripoSR] tsr import failed:", repr(e))
+    print("[TripoSR] init failed:", repr(e))
     TRIPOSR_OK = False
     TSR_MODEL = None
-
-# ───────────────────────── TripoSR: инициализация модели
-if TRIPOSR_OK and TORCH:
-    try:
-        TRIPO_DEVICE = "cuda" if DEVICE == "cuda" else "cpu"
-        print(f"[TripoSR] Initializing TSR model on device={TRIPO_DEVICE} ...")
-
-        TSR_MODEL = TSR.from_pretrained(
-            "stabilityai/TripoSR",
-            config_name="config.yaml",
-            weight_name="model.ckpt",
-        )
-
-        if hasattr(TSR_MODEL, "renderer"):
-            try:
-                TSR_MODEL.renderer.set_chunk_size(131072)
-            except Exception as e:
-                print("[TripoSR] renderer.set_chunk_size error:", repr(e))
-
-        TSR_MODEL.to(TRIPO_DEVICE)
-        print("[TripoSR] Model loaded successfully.")
-    except Exception as e:
-        print("[TripoSR] init failed:", repr(e))
-        TRIPOSR_OK = False
-        TSR_MODEL = None
-else:
-    print(f"[TripoSR] Disabled or torch unavailable: TRIPOSR_OK={TRIPOSR_OK}, TORCH={TORCH}")
-
-print(
-    f"[TripoSR] FINAL FLAGS: TRIPOSR_OK={TRIPOSR_OK}, "
-    f"TSR_MODEL is None={TSR_MODEL is None if 'TSR_MODEL' in globals() else 'N/A'}, "
-    f"TRIPO_DEVICE={TRIPO_DEVICE}"
-)
-print("========== [TripoSR] INIT BLOCK END ==========")
-
 
 # ───────────────────────── YOLO Pose
 POSE_OK, _pose_model = False, None
@@ -261,7 +232,7 @@ AVATAR_JOBS: dict[str, dict] = {}
 # ───────────────────────── Startup
 @app.on_event("startup")
 async def preload_models():
-    # Все модели уже лениво / при импорте инициализируются выше.
+    # Все модели уже инициализируются при импорте выше.
     pass
 
 
@@ -349,8 +320,13 @@ async def avatar_start(
 ):
     """
     STUB: запуск «генерации» аватара.
+
+    - Пытаемся взять первый кадр (photos[] или photo) и сделать превью.
+    - Если файлов нет или они битые — рисуем картинку "STUB AVATAR".
+    - ВСЕГДА создаём задачу со статусом "done" и возвращаем jobId.
     """
 
+    # Собираем файлы в один список
     files: List[UploadFile] = []
     if photos:
         files.extend([f for f in photos if f is not None])
@@ -359,6 +335,7 @@ async def avatar_start(
 
     img: Optional[Image.Image] = None
 
+    # Пробуем прочитать первый файл
     if files:
         first = files[0]
         try:
@@ -368,6 +345,7 @@ async def avatar_start(
         except Exception as e:
             print("[avatar_start] _ensure_image unexpected error:", repr(e))
 
+    # Если нет нормального кадра — рисуем заглушку
     if img is None:
         w, h = 512, 640
         img = Image.new("RGB", (w, h), (40, 40, 40))
@@ -378,6 +356,7 @@ async def avatar_start(
         except Exception:
             font = None
 
+        # Центрируем текст через textbbox, если есть
         x = w // 2
         y = h // 2
         try:
@@ -430,7 +409,7 @@ async def avatar_status(job_id: str):
     return JSONResponse(job)
 
 
-# ───────────────────────── Endpoints: pose / segm / remove-background / depth
+# ───────────────────────── Endpoints: pose / segm / remove-background / depth / triposr
 @app.post("/pose")
 async def pose(image: UploadFile = File(...)):
     if not POSE_OK or _pose_model is None:
@@ -439,6 +418,7 @@ async def pose(image: UploadFile = File(...)):
         pil = _ensure_image(image)
         np_img = _pil_to_numpy_rgb(pil)
 
+        # выбор девайса для ultralytics
         dev_arg = 0 if DEVICE == "cuda" else (None if DEVICE != "cpu" else "cpu")
 
         res = _pose_model.predict(
@@ -454,8 +434,9 @@ async def pose(image: UploadFile = File(...)):
             r0 = res[0]
             kp = getattr(r0, "keypoints", None)
 
+            # если модель никого не нашла → keypoints пустые/None
             if kp is not None and getattr(kp, "xy", None) is not None and len(kp.xy):
-                xy_t = kp.xy[0]
+                xy_t = kp.xy[0]  # (num_keypoints, 2)
                 xy = xy_t.cpu().numpy().tolist()
 
                 conf_t = getattr(kp, "conf", None)
@@ -463,6 +444,7 @@ async def pose(image: UploadFile = File(...)):
                     conf_t = conf_t[0]
                     cf = conf_t.cpu().numpy().tolist()
                 else:
+                    # если у модели нет conf, ставим score = 1.0
                     cf = [1.0] * len(xy)
 
                 for i, (x, y) in enumerate(xy):
@@ -557,10 +539,10 @@ async def depth(image: UploadFile = File(...)):
         inp = inp.to(DEVICE)
 
         with torch.no_grad():
-            pred = _midas(inp.unsqueeze(0))
+            pred = _midas(inp.unsqueeze(0))  # B=1 × C × H' × W'
             pred = torch.nn.functional.interpolate(
                 pred.unsqueeze(1),
-                size=pil.size[::-1],
+                size=pil.size[::-1],  # (H, W)
                 mode="bicubic",
                 align_corners=False,
             ).squeeze().cpu().numpy()
@@ -574,7 +556,7 @@ async def depth(image: UploadFile = File(...)):
 
 
 # ───────────────────────── TripoSR endpoint
-if TRIPOSR_OK and TSR_MODEL is not None and TRIPO_DEVICE is not None and to_gradio_3d_orientation is not None:
+if TRIPOSR_OK and TSR_MODEL is not None:
 
     @app.post("/triposr")
     async def triposr(image: UploadFile = File(...), resolution: int = Query(256, ge=32, le=320)):
@@ -588,16 +570,27 @@ if TRIPOSR_OK and TSR_MODEL is not None and TRIPO_DEVICE is not None and to_grad
         try:
             pil = _ensure_image(image).convert("RGB")
 
+            # TripoSR ждёт примерно 512x512, подгоним
+            img = pil.resize((512, 512), Image.LANCZOS)
+            img_np = np.array(img).astype(np.float32) / 255.0
+
+            # Если вдруг есть альфа-канал — аккуратно композитим на серый фон
+            if img_np.shape[-1] == 4:
+                rgb = img_np[..., :3] * img_np[..., 3:4] + (1.0 - img_np[..., 3:4]) * 0.5
+            else:
+                rgb = img_np[..., :3]
+
+            img = Image.fromarray((rgb * 255.0).astype(np.uint8))
+
             with torch.no_grad():
-                scene_codes = TSR_MODEL(pil, device=TRIPO_DEVICE)
-                mesh_list = TSR_MODEL.extract_mesh(scene_codes, resolution=resolution)
-                mesh = mesh_list[0] if isinstance(mesh_list, (list, tuple)) else mesh_list
+                scene_codes = TSR_MODEL([img], device=TRIPO_DEVICE)
+                mesh = TSR_MODEL.extract_mesh(scene_codes, resolution=resolution)[0]
                 mesh = to_gradio_3d_orientation(mesh)
 
-                buf = io.BytesIO()
-                mesh.export(file_obj=buf, file_type="glb")
-                buf.seek(0)
-                glb_bytes = buf.read()
+            buf = io.BytesIO()
+            mesh.export(file_obj=buf, file_type="glb")
+            buf.seek(0)
+            glb_bytes = buf.read()
 
             return Response(content=glb_bytes, media_type="model/gltf-binary")
         except Exception as e:
