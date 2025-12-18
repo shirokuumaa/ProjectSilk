@@ -25,4 +25,5 @@ seller/build/
 # ───── Системные файлы и настройки редактора ─────
 .DS_Store
 .vscode/
-.idea/
+.idea/fastapi_app/static/bg/
+fastapi_app/static/mesh/
