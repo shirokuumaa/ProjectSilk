@@ -18,6 +18,7 @@ import AvatarCreate from './pages/AvatarCreate';
 import Metrics from "./pages/Metrics";
 import OrderPage from "./pages/OrderPage"; 
 import OrdersList from "./pages/OrdersList";
+import TripoSRDebug from "./pages/TripoSRDebug";
 
 
 // ⬇️ единый слой ассистента (панель + шарик + голос)
@@ -109,7 +110,9 @@ function App() {
         <Route path="/avatar/create" element={<AvatarCreate />} />
         <Route path="/metrics" element={<Metrics/>} />
         <Route path="/orders/:id" element={<OrderPage />} />
-        <Route path="/orders" element={<OrdersList sessionId={window.__SESSION_ID__} />} />    
+        <Route path="/orders" element={<OrdersList sessionId={window.__SESSION_ID__} />} /> 
+        <Route path="/triposr-debug" element={<TripoSRDebug />} />  
+        
 
         {/* Роут /assistant не нужен — ассистент как глобальный слой */}
       </Routes>

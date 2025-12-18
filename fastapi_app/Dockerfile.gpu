@@ -1,0 +1,24 @@
+# База под GPU (RunPod обычно ок)
+FROM nvidia/cuda:12.1.1-cudnn8-runtime-ubuntu22.04
+
+# Python
+RUN apt-get update && apt-get install -y python3 python3-pip && rm -rf /var/lib/apt/lists/*
+RUN python3 -m pip install -U pip
+
+WORKDIR /app
+COPY requirements.gpu.txt /app/
+RUN pip install --no-cache-dir -r requirements.gpu.txt
+
+# Torch ставим отдельно под CUDA 12.1
+RUN pip install --no-cache-dir --index-url https://download.pytorch.org/whl/cu121 torch torchvision torchaudio
+
+# TripoSR из репо (если будем включать)
+# (Если потом решим “TripoSR всё ещё на паузе” — просто закомментим)
+RUN pip install --no-cache-dir "git+https://github.com/stability-ai/TripoSR.git"
+
+COPY prewarm.py /app/prewarm.py
+RUN python3 /app/prewarm.py || true
+
+COPY . /app
+EXPOSE 8000
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000"]

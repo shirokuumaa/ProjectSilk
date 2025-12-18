@@ -2,27 +2,18 @@
 fastapi==0.121.2
 uvicorn[standard]==0.38.0
 
-# --- Image processing / background removal ---
-pillow
-rembg==2.0.61
-# rembg пока ещё не дружит с numpy 2.x
-numpy<2
-
-# rembg подтянет нужные зависимости (scikit-image, opencv-python-headless и др.)
-# ВАЖНО: в коде мы используем ТЯЖЁЛУЮ модель isnet-general-use.
-# Никаких лёгких u2netp / fallback-режимов.
-
 # --- Uploads (multipart/form-data) ---
 python-multipart
 
-# --- 3D / mesh export (для TripoSR-ветки) ---
-trimesh==4.9.0
+# --- Image processing / background removal ---
+pillow
+rembg==2.0.61
 
-# ВАЖНО:
-# 1) torch и triposr СЮДА не добавляем — их будем ставить
-#    только в GPU-образ (на Runpod / другой GPU-машине),
-#    чтобы не ломать Mac и не тянуть тяжёлые CUDA-билды локально.
-#
-# 2) Все тяжёлые штуки для ассистента (sentence-transformers,
-#    transformers, lightgbm и т.п.) живут в отдельном сервисе
-#    assistant/, а не в fastapi_app. Для них будет свой requirements.
+# rembg пока ещё не дружит с numpy 2.x
+numpy<2
+
+# rembg использует onnxruntime (обязательно!)
+onnxruntime==1.19.2
+
+# --- 3D / mesh utils (для наших OBJ/GLB файлов) ---
+trimesh==4.9.0
