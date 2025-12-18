@@ -25,5 +25,6 @@ seller/build/
 # ───── Системные файлы и настройки редактора ─────
 .DS_Store
 .vscode/
-.idea/fastapi_app/static/bg/
+.idea/
+fastapi_app/static/bg/
 fastapi_app/static/mesh/
