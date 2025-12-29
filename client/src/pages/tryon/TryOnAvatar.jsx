@@ -2,17 +2,29 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 
-import GlbViewer from '../../components/GlbViewer';
+// ✅ viewer (умеет OBJ + GLB)
+import MeshViewer from '../../components/MeshViewer';
+
 import { getWardrobe } from '../../utils/wardrobeStorage';
 
 const API_BASE = process.env.REACT_APP_API || 'http://localhost:5050';
-const toPublicUrl = (s = '') =>
-  s?.startsWith('/uploads') ? `${API_BASE}${s}` : s;
 
-// где храним выбор слотов (черновик наряда для аватара)
+// ✅ публичные URL:
+// - /uploads/... (Node)
+// - /static/...  (FastAPI через Node proxy: /api/ai/static/...)
+const toPublicUrl = (s = '') => {
+  if (!s) return '';
+  const str = String(s);
+
+  if (str.startsWith('http://') || str.startsWith('https://')) return str;
+  if (str.startsWith('/uploads')) return `${API_BASE}${str}`;
+  if (str.startsWith('/static')) return `${API_BASE}/api/ai${str}`;
+
+  return str;
+};
+
 const SLOTS_KEY = 'avatarOutfitDraft';
 
-// храним **только id** вещей
 const EMPTY_SLOT_IDS = {
   topId: null,
   bottomId: null,
@@ -20,21 +32,23 @@ const EMPTY_SLOT_IDS = {
   accessoryId: null,
 };
 
-// читаем данные аватара
 function loadAvatarMeta() {
   try {
-    // 1) новый формат: avatarFinal (то, что сохраняет AvatarCreate)
     const rawFinal = localStorage.getItem('avatarFinal');
     if (rawFinal) {
       const a = JSON.parse(rawFinal);
+
+      // поддержка разных вариантов полей
+      const modelUrl =
+        a.glb || a.obj || a.export_url || a.exportUrl || a.model || a.model_url || '';
+
       return {
         ...a,
         preview: a.preview ? toPublicUrl(a.preview) : '',
-        glb: a.glb ? toPublicUrl(a.glb) : '',
+        model: modelUrl ? toPublicUrl(modelUrl) : '',
       };
     }
 
-    // 2) fallback для старых версий: wardrobeAvatar
     const rawWardrobe = localStorage.getItem('wardrobeAvatar');
     if (rawWardrobe) {
       const b = JSON.parse(rawWardrobe);
@@ -42,16 +56,15 @@ function loadAvatarMeta() {
         id: b.id,
         name: b.name,
         preview: b.image ? toPublicUrl(b.image) : '',
-        glb: b.model3d ? toPublicUrl(b.model3d) : '',
+        model: b.model3d ? toPublicUrl(b.model3d) : '',
       };
     }
   } catch {
-    // ignore parse errors
+    // ignore
   }
   return null;
 }
 
-// читаем слоты из localStorage
 function loadSlotIds() {
   try {
     const raw = localStorage.getItem(SLOTS_KEY);
@@ -68,7 +81,6 @@ function loadSlotIds() {
   }
 }
 
-// пишем слоты в localStorage
 function saveSlotIds(slots) {
   localStorage.setItem(
     SLOTS_KEY,
@@ -84,12 +96,16 @@ function saveSlotIds(slots) {
 export default function TryOnAvatar() {
   const nav = useNavigate();
 
-  const [avatar, setAvatar] = useState(null);     // {preview, glb, ...}
-  const [wardrobe, setWardrobe] = useState([]);   // вещи из гардероба
+  const [avatar, setAvatar] = useState(null);     // { preview, model, ... }
+  const [wardrobe, setWardrobe] = useState([]);   // items from wardrobe
   const [slotIds, setSlotIds] = useState(() => loadSlotIds());
-  const [selectedId, setSelectedId] = useState(null); // для подсветки карточки
+  const [selectedId, setSelectedId] = useState(null);
 
-  // один общий refresh: перечитать avatar + wardrobe + слоты
+  // AI status
+  const [aiOnline, setAiOnline] = useState(null);   // null | true | false
+  const [aiFeatures, setAiFeatures] = useState(null);
+  const [aiHint, setAiHint] = useState('');
+
   const refreshAll = () => {
     setAvatar(loadAvatarMeta());
     setWardrobe(
@@ -101,19 +117,85 @@ export default function TryOnAvatar() {
     setSlotIds(loadSlotIds());
   };
 
+  // initial load
   useEffect(() => {
     refreshAll();
   }, []);
 
-  // сохраняем слоты при каждом изменении (страховка)
+  // ✅ авто-refresh когда меняется localStorage (avatarFinal) или когда вкладку снова открыли
+  useEffect(() => {
+    const onStorage = (e) => {
+      if (!e) return;
+      if (e.key === 'avatarFinal' || e.key === 'wardrobeAvatar' || e.key === SLOTS_KEY) {
+        refreshAll();
+      }
+    };
+
+    const onVisible = () => {
+      if (document.visibilityState === 'visible') refreshAll();
+    };
+
+    window.addEventListener('storage', onStorage);
+    document.addEventListener('visibilitychange', onVisible);
+
+    return () => {
+      window.removeEventListener('storage', onStorage);
+      document.removeEventListener('visibilitychange', onVisible);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
+  // save slots on change
   useEffect(() => {
     saveSlotIds(slotIds);
   }, [slotIds]);
 
-  const resolveItem = (id) =>
-    wardrobe.find((x) => x.id === id) || null;
+  // AI features check
+  useEffect(() => {
+    let aborted = false;
 
-  // превращаем id → сами вещи
+    (async () => {
+      try {
+        const ctl = new AbortController();
+        const t = setTimeout(() => ctl.abort(), 4000);
+        const r = await fetch(`${API_BASE}/api/ai/features`, { signal: ctl.signal });
+        clearTimeout(t);
+
+        if (aborted) return;
+
+        if (!r.ok) {
+          setAiOnline(false);
+          setAiFeatures(null);
+          setAiHint('AI offline');
+          return;
+        }
+
+        const f = await r.json();
+        setAiFeatures(f);
+        setAiOnline(true);
+
+        if (f?.tryon_avatar !== true) {
+          setAiHint('TryOnAvatar pipeline выключен на GPU (tryon_avatar:false).');
+        } else if (f?.avatar_mode1?.export !== true) {
+          setAiHint('Avatar export сейчас выключен (avatar_mode1.export:false).');
+        } else {
+          setAiHint('');
+        }
+      } catch {
+        if (aborted) return;
+        setAiOnline(false);
+        setAiFeatures(null);
+        setAiHint('AI offline');
+      }
+    })();
+
+    return () => {
+      aborted = true;
+    };
+  }, []);
+
+  const resolveItem = (id) => wardrobe.find((x) => x.id === id) || null;
+
   const slots = useMemo(
     () => ({
       top: resolveItem(slotIds.topId),
@@ -124,10 +206,8 @@ export default function TryOnAvatar() {
     [slotIds, wardrobe],
   );
 
-  const hasOutfit =
-    slots.top || slots.bottom || slots.shoes || slots.accessory;
+  const hasOutfit = slots.top || slots.bottom || slots.shoes || slots.accessory;
 
-  // обновить один слот
   const updateSlot = (slotKey, item) => {
     setSlotIds((prev) => {
       const next = { ...prev, [slotKey]: item ? item.id : null };
@@ -143,10 +223,8 @@ export default function TryOnAvatar() {
     setSelectedId(null);
   };
 
-  // берём glb из avatarFinal (или wardrobeAvatar), иначе — stub
-  const avatarGlb = avatar?.glb
-    ? avatar.glb
-    : toPublicUrl('/uploads/stub/avatar.glb');
+  // model can be OBJ or GLB
+  const avatarModelUrl = avatar?.model ? avatar.model : toPublicUrl('/uploads/stub/avatar.glb');
 
   const SLOT_LABELS = {
     topId: 'Top',
@@ -164,7 +242,7 @@ export default function TryOnAvatar() {
         background: '#f3f4f6',
       }}
     >
-      {/* ───────── Left: Avatar viewer ───────── */}
+      {/* Left: Avatar viewer */}
       <main
         style={{
           padding: 24,
@@ -195,16 +273,75 @@ export default function TryOnAvatar() {
           >
             ← Wardrobe
           </button>
-          <div>
+
+          <div style={{ flex: 1 }}>
             <h2 style={{ margin: 0, fontSize: 20 }}>Avatar Try-On (3D)</h2>
             <div style={{ fontSize: 12, color: '#6b7280' }}>
-              Крути аватар, приближай, смотри со всех сторон. Позже сюда
-              прилетит 3D-одежда с GPU.
+              Сейчас это “черновик” (выбор слотов). Позже GPU будет собирать одетого 3D-аватара.
+            </div>
+
+            <div style={{ marginTop: 6, fontSize: 12 }}>
+              {aiOnline === null && <span>Проверяем AI…</span>}
+              {aiOnline === true && (
+                <span style={{ color: '#059669' }}>
+                  🟢 AI online
+                  {aiFeatures?.tryon_avatar === true ? ' • tryon_avatar:on' : ' • tryon_avatar:off'}
+                </span>
+              )}
+              {aiOnline === false && <span style={{ color: '#b45309' }}>🟠 AI offline</span>}
+              {aiHint && <span style={{ color: '#6b7280' }}> — {aiHint}</span>}
             </div>
           </div>
+
+          <button
+            onClick={refreshAll}
+            style={{
+              padding: '6px 10px',
+              borderRadius: 999,
+              border: '1px solid #e5e7eb',
+              background: '#fff',
+              cursor: 'pointer',
+              fontSize: 12,
+              whiteSpace: 'nowrap',
+            }}
+          >
+            Refresh
+          </button>
         </div>
 
-        {/* 3D viewer */}
+        {/* no avatar */}
+        {!avatar && (
+          <div
+            style={{
+              padding: 12,
+              borderRadius: 12,
+              border: '1px solid #e5e7eb',
+              background: '#fff',
+              fontSize: 13,
+              color: '#374151',
+            }}
+          >
+            <b>Аватар не найден.</b> Создай аватар, чтобы тут показывался твой 3D (OBJ/GLB).
+            <div style={{ marginTop: 8 }}>
+              <button
+                // ✅ FIX: правильный route
+                onClick={() => nav('/avatar/create')}
+                style={{
+                  padding: '6px 10px',
+                  borderRadius: 999,
+                  border: '1px solid #e5e7eb',
+                  background: '#f9fafb',
+                  cursor: 'pointer',
+                  fontSize: 12,
+                }}
+              >
+                Go to Avatar Create
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* viewer */}
         <div
           style={{
             borderRadius: 16,
@@ -213,7 +350,14 @@ export default function TryOnAvatar() {
             background: '#e5e7eb',
           }}
         >
-          <GlbViewer url={avatarGlb} height={520} background="#e5e7eb" />
+          <MeshViewer url={avatarModelUrl} height={520} background="#e5e7eb" />
+        </div>
+
+        <div style={{ fontSize: 12, color: '#6b7280' }}>
+          Model URL:{' '}
+          <a href={avatarModelUrl} target="_blank" rel="noreferrer">
+            open
+          </a>
         </div>
 
         {/* outfit summary */}
@@ -233,13 +377,10 @@ export default function TryOnAvatar() {
           }}
         >
           <div>
-            <div style={{ fontWeight: 600, marginBottom: 4 }}>
-              Outfit draft (avatar)
-            </div>
+            <div style={{ fontWeight: 600, marginBottom: 4 }}>Outfit draft (avatar)</div>
             {!hasOutfit ? (
               <div style={{ color: '#6b7280' }}>
-                Выбери вещи на правой панели и назначь их в слоты Top/Bottom /
-                Shoes / Accessory — черновик наряда сохранится локально.
+                Выбери вещи справа и назначь их в слоты Top/Bottom/Shoes/Accessory — черновик сохранится локально.
               </div>
             ) : (
               <div style={{ color: '#4b5563' }}>
@@ -266,6 +407,7 @@ export default function TryOnAvatar() {
               </div>
             )}
           </div>
+
           <button
             onClick={clearSlots}
             style={{
@@ -283,7 +425,7 @@ export default function TryOnAvatar() {
         </div>
       </main>
 
-      {/* ───────── Right: Wardrobe + slots ───────── */}
+      {/* Right: wardrobe */}
       <aside
         style={{
           padding: 20,
@@ -294,7 +436,6 @@ export default function TryOnAvatar() {
           gap: 12,
         }}
       >
-        {/* panel header */}
         <div
           style={{
             display: 'flex',
@@ -319,7 +460,7 @@ export default function TryOnAvatar() {
           </button>
         </div>
 
-        {/* slots (Top / Bottom / Shoes / Accessory) */}
+        {/* slots */}
         <div
           style={{
             borderRadius: 12,
@@ -330,16 +471,10 @@ export default function TryOnAvatar() {
             marginBottom: 8,
           }}
         >
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 600,
-              color: '#4b5563',
-              marginBottom: 4,
-            }}
-          >
+          <div style={{ fontSize: 12, fontWeight: 600, color: '#4b5563', marginBottom: 4 }}>
             Outfit slots
           </div>
+
           {Object.entries(SLOT_LABELS).map(([slotKey, label]) => {
             const item =
               slotKey === 'topId'
@@ -377,20 +512,12 @@ export default function TryOnAvatar() {
                 >
                   {label[0]}
                 </div>
+
                 <div style={{ flex: 1, minWidth: 0 }}>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 600,
-                      marginBottom: 2,
-                    }}
-                  >
-                    {label}
-                  </div>
-                  <div style={{ fontSize: 11, color: '#6b7280' }}>
-                    {item ? item.name : 'Не выбрано'}
-                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 2 }}>{label}</div>
+                  <div style={{ fontSize: 11, color: '#6b7280' }}>{item ? item.name : 'Не выбрано'}</div>
                 </div>
+
                 {item && (
                   <button
                     onClick={() => updateSlot(slotKey, null)}
@@ -412,14 +539,7 @@ export default function TryOnAvatar() {
         </div>
 
         {/* wardrobe list */}
-        <div
-          style={{
-            fontSize: 12,
-            fontWeight: 600,
-            color: '#4b5563',
-            margin: '4px 0',
-          }}
-        >
+        <div style={{ fontSize: 12, fontWeight: 600, color: '#4b5563', margin: '4px 0' }}>
           Your Wardrobe
         </div>
 
@@ -447,10 +567,7 @@ export default function TryOnAvatar() {
                   gap: 8,
                   padding: 8,
                   borderRadius: 10,
-                  border:
-                    selectedId === it.id
-                      ? '2px solid #111827'
-                      : '1px solid #e5e7eb',
+                  border: selectedId === it.id ? '2px solid #111827' : '1px solid #e5e7eb',
                   background: '#fff',
                 }}
               >
@@ -465,47 +582,22 @@ export default function TryOnAvatar() {
                     background: '#e5e7eb',
                   }}
                 />
-                <div
-                  style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: 4,
-                    minWidth: 0,
-                  }}
-                >
-                  <div
-                    style={{
-                      fontSize: 13,
-                      fontWeight: 600,
-                      marginBottom: 2,
-                    }}
-                  >
-                    {it.name}
-                  </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: 4, minWidth: 0 }}>
+                  <div style={{ fontSize: 13, fontWeight: 600, marginBottom: 2 }}>{it.name}</div>
                   <div style={{ fontSize: 12, color: '#6b7280' }}>
                     {it.category || '—'}
-                    {it.price
-                      ? ` • ${Number(it.price).toLocaleString('en-US')} ₸`
-                      : ''}
+                    {it.price ? ` • ${Number(it.price).toLocaleString('en-US')} ₸` : ''}
                   </div>
-                  <div
-                    style={{
-                      display: 'flex',
-                      flexWrap: 'wrap',
-                      gap: 4,
-                      marginTop: 4,
-                    }}
-                  >
+
+                  <div style={{ display: 'flex', flexWrap: 'wrap', gap: 4, marginTop: 4 }}>
                     <button
                       onClick={() => updateSlot('topId', it)}
                       style={{
                         padding: '3px 7px',
                         borderRadius: 999,
                         border: '1px solid #e5e7eb',
-                        background:
-                          slotIds.topId === it.id ? '#111827' : '#f9fafb',
-                        color:
-                          slotIds.topId === it.id ? '#fff' : '#111827',
+                        background: slotIds.topId === it.id ? '#111827' : '#f9fafb',
+                        color: slotIds.topId === it.id ? '#fff' : '#111827',
                         fontSize: 11,
                         cursor: 'pointer',
                       }}
@@ -518,10 +610,8 @@ export default function TryOnAvatar() {
                         padding: '3px 7px',
                         borderRadius: 999,
                         border: '1px solid #e5e7eb',
-                        background:
-                          slotIds.bottomId === it.id ? '#111827' : '#f9fafb',
-                        color:
-                          slotIds.bottomId === it.id ? '#fff' : '#111827',
+                        background: slotIds.bottomId === it.id ? '#111827' : '#f9fafb',
+                        color: slotIds.bottomId === it.id ? '#fff' : '#111827',
                         fontSize: 11,
                         cursor: 'pointer',
                       }}
@@ -534,10 +624,8 @@ export default function TryOnAvatar() {
                         padding: '3px 7px',
                         borderRadius: 999,
                         border: '1px solid #e5e7eb',
-                        background:
-                          slotIds.shoesId === it.id ? '#111827' : '#f9fafb',
-                        color:
-                          slotIds.shoesId === it.id ? '#fff' : '#111827',
+                        background: slotIds.shoesId === it.id ? '#111827' : '#f9fafb',
+                        color: slotIds.shoesId === it.id ? '#fff' : '#111827',
                         fontSize: 11,
                         cursor: 'pointer',
                       }}
@@ -550,14 +638,8 @@ export default function TryOnAvatar() {
                         padding: '3px 7px',
                         borderRadius: 999,
                         border: '1px solid #e5e7eb',
-                        background:
-                          slotIds.accessoryId === it.id
-                            ? '#111827'
-                            : '#f9fafb',
-                        color:
-                          slotIds.accessoryId === it.id
-                            ? '#fff'
-                            : '#111827',
+                        background: slotIds.accessoryId === it.id ? '#111827' : '#f9fafb',
+                        color: slotIds.accessoryId === it.id ? '#fff' : '#111827',
                         fontSize: 11,
                         cursor: 'pointer',
                       }}
@@ -571,17 +653,9 @@ export default function TryOnAvatar() {
           </div>
         )}
 
-        {/* footer hint */}
-        <div
-          style={{
-            marginTop: 'auto',
-            fontSize: 11,
-            color: '#9ca3af',
-          }}
-        >
+        <div style={{ marginTop: 'auto', fontSize: 11, color: '#9ca3af' }}>
           Черновик наряда хранится только на этом устройстве.
-          Позже GPU-сервер будет брать выбранные слоты и создавать
-          «одетый» 3D-аватар.
+          Позже GPU-сервер будет брать выбранные слоты и создавать «одетый» 3D-аватар.
         </div>
       </aside>
     </div>

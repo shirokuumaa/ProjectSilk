@@ -9,30 +9,39 @@ export default function SellerPanel() {
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState("Clothes");
 
-  const [processedUrl, setProcessedUrl]   = useState(null); // превью (PNG/JPG — как есть или после AI)
-  const [processedBlob, setProcessedBlob] = useState(null); // файл для отправки
+  const [processedUrl, setProcessedUrl] = useState(null);   // превью (blob URL)
+  const [processedBlob, setProcessedBlob] = useState(null); // файл для отправки (Blob/File)
 
   const [model3dBlob, setModel3dBlob] = useState(null);     // GLB из AI
-  const [user3dFile, setUser3dFile]   = useState(null);     // загруженный вручную GLB
-  const [glbUrl, setGlbUrl]           = useState(null);     // objectURL для 3D-просмотра
+  const [user3dFile, setUser3dFile] = useState(null);       // загруженный вручную GLB
+  const [glbUrl, setGlbUrl] = useState(null);               // objectURL для 3D-просмотра
 
-  const [loading, setLoading]   = useState(false);
+  const [loading, setLoading] = useState(false);
   const [making3d, setMaking3d] = useState(false);
-  const [saving, setSaving]     = useState(false);
-  const [error, setError]       = useState("");
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
 
   // статус AI
-  const [aiOnline, setAiOnline] = useState(null);  // null | true | false
-  const [aiHint, setAiHint]     = useState("");
+  const [aiOnline, setAiOnline] = useState(null); // null | true | false
+  const [aiHint, setAiHint] = useState("");
+  const [aiFeatures, setAiFeatures] = useState(null); // { rembg, triposr, ... } или null
 
-  // чистка objectURL превью
+  // чистка objectURL превью (только blob:)
   useEffect(() => {
-    return () => { if (processedUrl) URL.revokeObjectURL(processedUrl); };
+    return () => {
+      if (processedUrl && String(processedUrl).startsWith("blob:")) {
+        URL.revokeObjectURL(processedUrl);
+      }
+    };
   }, [processedUrl]);
 
   // отдельная чистка GLB objectURL — по смене/размонту
   useEffect(() => {
-    return () => { if (glbUrl) URL.revokeObjectURL(glbUrl); };
+    return () => {
+      if (glbUrl && String(glbUrl).startsWith("blob:")) {
+        URL.revokeObjectURL(glbUrl);
+      }
+    };
   }, [glbUrl]);
 
   // создаём/сбрасываем glbUrl при смене model3dBlob
@@ -44,108 +53,84 @@ export default function SellerPanel() {
     }
   }, [model3dBlob]);
 
-  // 🔍 Проверка AI: адаптирована под наш healthz от gpu-infer
+  // 🔍 Проверка AI через /features (самый честный статус)
   useEffect(() => {
     let aborted = false;
     (async () => {
       try {
         const ctl = new AbortController();
         const t = setTimeout(() => ctl.abort(), 4000);
-        const r = await fetch(`${API}/api/ai/healthz`, { signal: ctl.signal });
+
+        const r = await fetch(`${API}/api/ai/features`, { signal: ctl.signal });
         clearTimeout(t);
         if (aborted) return;
 
         if (!r.ok) {
           setAiOnline(false);
-          setAiHint("AI off: background kept as-is. 3D недоступно.");
+          setAiFeatures(null);
+          setAiHint("AI offline — фон не вырезаем, 3D недоступно.");
           return;
         }
 
-        let info = null;
-        try {
-          info = await r.json();
-        } catch {
-          info = null;
-        }
+        const f = await r.json(); // {rembg:true/false, triposr:true/false, ...}
+        setAiFeatures(f);
 
-        let on = false;
-
-        if (info) {
-          // 1) Если когда-нибудь будет обёртка с mode/gpu — поддержим и её
-          if (typeof info.mode !== "undefined" || typeof info.gpu !== "undefined") {
-            on = info.mode === "proxy" && info.gpu === true;
-          } else {
-            // 2) Наш текущий вариант из gpu-infer/app.py
-            const torchOk = info.torch_available === true;
-            const cudaOk =
-              info.cuda_available === true ||
-              info.device === "cuda" ||
-              (info.pipelines && info.pipelines.pose === true);
-
-            on = torchOk && cudaOk;
-          }
-        }
-
+        // heavy-only: считаем “online” только если rembg реально доступен
+        const on = f?.rembg === true;
         setAiOnline(on);
-        setAiHint(
-          on
-            ? ""
-            : "AI off: background kept as-is. 3D недоступно."
-        );
-      } catch {
+        setAiHint(on ? "" : "AI offline — фон не вырезаем, 3D недоступно.");
+      } catch (e) {
         if (aborted) return;
         setAiOnline(false);
-        setAiHint("AI off: background kept as-is. 3D недоступно.");
+        setAiFeatures(null);
+        setAiHint("AI offline — фон не вырезаем, 3D недоступно.");
       }
     })();
-    return () => { aborted = true; };
+    return () => {
+      aborted = true;
+    };
   }, []);
 
-  // безопасное удаление фона (heavy-only: если AI off — просто возвращаем оригинал, без лёгких моделей)
+  // ✅ remove-background: POST -> {image_url} -> GET png
+  // heavy-only: если AI off — возвращаем оригинал, без лёгких моделей
   async function tryRemoveBg(file) {
     if (!aiOnline) {
       setAiHint("AI off: background kept as-is.");
       return file;
     }
-    try {
-      const fd = new FormData();
-      fd.append("image", file); // поле обязательно "image"
 
-      const r = await fetch(`${API}/api/ai/remove-background`, {
-        method: "POST",
-        body: fd,
-      });
+    const fd = new FormData();
+    fd.append("image", file); // поле обязательно "image"
 
-      // heavy-only: если сервер вернул 503 — считаем, что GPU/модель недоступны
-      if (r.status === 503) {
-        setAiOnline(false);
-        setAiHint("AI temporarily disabled (no GPU); using original background.");
-        return file;
-      }
+    const r = await fetch(`${API}/api/ai/remove-background`, {
+      method: "POST",
+      body: fd,
+    });
 
-      if (!r.ok) throw new Error(`remove-background failed: ${r.status}`);
-
-      const ct  = r.headers.get("content-type") || "";
-      const buf = await r.arrayBuffer();
-
-      if (ct.startsWith("image/")) {
-        return new Blob([buf], { type: ct });
-      } else {
-        setAiHint("AI returned non-image; using original.");
-        return file;
-      }
-    } catch (e) {
-      console.warn("remove-bg fallback:", e);
-      // heavy-only: не переходим на лёгкую модель, просто считаем AI offline
+    if (r.status === 503) {
       setAiOnline(false);
-      setAiHint("AI unavailable; using original.");
+      setAiHint("AI temporarily disabled (no GPU); using original background.");
       return file;
     }
+    if (!r.ok) throw new Error(`remove-background failed: ${r.status}`);
+
+    const j = await r.json(); // {"image_url":"/static/bg/...png"}
+    const imageUrl = j?.image_url;
+    if (!imageUrl) throw new Error("No image_url returned from AI");
+
+    // качаем png через Node-прокси: /api/ai + image_url
+    const imgResp = await fetch(`${API}/api/ai${imageUrl}`);
+    if (!imgResp.ok) throw new Error(`failed to fetch processed image: ${imgResp.status}`);
+
+    const blob = await imgResp.blob(); // image/png
+    return blob;
   }
 
   async function handleImageUpload(file) {
     // сбрасываем всё по новой загрузке
-    if (processedUrl) URL.revokeObjectURL(processedUrl);
+    if (processedUrl && String(processedUrl).startsWith("blob:")) {
+      URL.revokeObjectURL(processedUrl);
+    }
     setProcessedUrl(null);
     setProcessedBlob(null);
     setModel3dBlob(null);
@@ -155,6 +140,8 @@ export default function SellerPanel() {
 
     try {
       const blob = await tryRemoveBg(file);
+
+      // blob может быть File (оригинал) или Blob (после AI)
       setProcessedBlob(blob);
       setProcessedUrl(URL.createObjectURL(blob));
     } catch (e) {
@@ -167,7 +154,12 @@ export default function SellerPanel() {
 
   async function handleMake3D() {
     if (!processedBlob) return alert("Сначала загрузите изображение и дождитесь обработки.");
+
+    // heavy-only: если AI off или TripoSR off — 3D нельзя
     if (!aiOnline) return alert("AI сейчас выключен, 3D-реконструкция недоступна.");
+    if (!(aiFeatures?.triposr === true)) {
+      return alert("TripoSR сейчас выключен (triposr:false). 3D пока недоступно.");
+    }
 
     setMaking3d(true);
     setError("");
@@ -221,7 +213,11 @@ export default function SellerPanel() {
 
       const r = await fetch(`${API}/api/products`, { method: "POST", body: fd });
       let payload = null;
-      try { payload = await r.json(); } catch { /* может вернуть пусто */ }
+      try {
+        payload = await r.json();
+      } catch {
+        payload = null;
+      }
 
       if (!r.ok) {
         const msg = (payload && (payload.error || payload.message)) || `HTTP ${r.status}`;
@@ -233,9 +229,13 @@ export default function SellerPanel() {
       // сброс формы
       setTitle("");
       setPrice("");
-      if (processedUrl) URL.revokeObjectURL(processedUrl);
+
+      if (processedUrl && String(processedUrl).startsWith("blob:")) {
+        URL.revokeObjectURL(processedUrl);
+      }
       setProcessedUrl(null);
       setProcessedBlob(null);
+
       setModel3dBlob(null);
       setUser3dFile(null);
       setGlbUrl(null);
@@ -248,6 +248,8 @@ export default function SellerPanel() {
     }
   }
 
+  const canMake3D = aiOnline === true && aiFeatures?.triposr === true;
+
   return (
     <div style={{ padding: 24 }}>
       <h2 style={{ marginBottom: 8 }}>👕 Загрузка товара продавцом</h2>
@@ -255,13 +257,11 @@ export default function SellerPanel() {
       {/* индикатор AI */}
       <div style={{ margin: "8px 0 16px", fontSize: 13 }}>
         {aiOnline === null && <span>Проверяем AI…</span>}
-        {aiOnline === true  && (
+        {aiOnline === true && (
           <span style={{ color: "#059669" }}>🟢 AI online (heavy models, GPU)</span>
         )}
         {aiOnline === false && (
-          <span style={{ color: "#b45309" }}>
-            🟠 AI offline — фон не вырезаем, 3D недоступно
-          </span>
+          <span style={{ color: "#b45309" }}>🟠 AI offline — фон не вырезаем, 3D недоступно</span>
         )}
       </div>
 
@@ -272,15 +272,13 @@ export default function SellerPanel() {
           gridTemplateColumns: "minmax(0, 380px) minmax(0, 380px)",
           gap: 24,
           alignItems: "flex-start",
-          maxWidth: 800
+          maxWidth: 800,
         }}
       >
         {/* Левая колонка — форма */}
         <div>
           <div style={{ margin: "12px 0" }}>
-            <label style={{ display: "block", marginBottom: 6 }}>
-              Изображение товара
-            </label>
+            <label style={{ display: "block", marginBottom: 6 }}>Изображение товара</label>
             <input
               type="file"
               accept="image/*"
@@ -320,12 +318,12 @@ export default function SellerPanel() {
               <div style={{ marginTop: 4 }}>
                 <button
                   onClick={handleMake3D}
-                  disabled={making3d || !aiOnline}
+                  disabled={making3d || !canMake3D}
                   style={{ padding: "8px 12px" }}
                 >
-                  {aiOnline
+                  {canMake3D
                     ? (making3d ? "Генерирую 3D…" : "🧱 Сгенерировать 3D (GLB)")
-                    : "🧱 3D недоступно (AI off)"}
+                    : "🧱 3D недоступно (TripoSR off)"}
                 </button>
               </div>
 
@@ -360,16 +358,10 @@ export default function SellerPanel() {
         <div>
           {processedUrl ? (
             <>
-              <div
-                style={{
-                  marginBottom: 12,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "#111827"
-                }}
-              >
+              <div style={{ marginBottom: 12, fontSize: 13, fontWeight: 600, color: "#111827" }}>
                 2D-превью товара
               </div>
+
               {/* серый фон помогает увидеть прозрачность PNG */}
               <div
                 style={{
@@ -377,7 +369,7 @@ export default function SellerPanel() {
                   borderRadius: 8,
                   overflow: "hidden",
                   background: "#e5e7eb",
-                  marginBottom: 16
+                  marginBottom: 16,
                 }}
               >
                 <img
@@ -387,14 +379,7 @@ export default function SellerPanel() {
                 />
               </div>
 
-              <div
-                style={{
-                  marginBottom: 8,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "#111827"
-                }}
-              >
+              <div style={{ marginBottom: 8, fontSize: 13, fontWeight: 600, color: "#111827" }}>
                 3D-превью (GLB)
               </div>
 
@@ -406,7 +391,6 @@ export default function SellerPanel() {
 
               {glbUrl && (
                 <>
-                  {/* 3D viewer: вращение, зум, авто-вращение */}
                   <div
                     style={{
                       width: "100%",
@@ -415,7 +399,7 @@ export default function SellerPanel() {
                       overflow: "hidden",
                       background: "#1118270d",
                       border: "1px solid #e5e7eb",
-                      marginBottom: 8
+                      marginBottom: 8,
                     }}
                   >
                     <model-viewer

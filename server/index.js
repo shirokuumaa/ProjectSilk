@@ -10,6 +10,9 @@ import { fileURLToPath } from 'url';
 import productRoutes from './routes/productRoutes.js';
 import wardrobeRoutes from './routes/wardrobeRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
+import avatarRoutes from './routes/avatarRoutes.js';
+import avatarPersistRoutes from "./routes/avatarPersistRoutes.js";
+
 
 dotenv.config();
 
@@ -62,6 +65,11 @@ app.use((err, _req, res, _next) => {
   console.error('API error:', err);
   res.status(500).json({ message: 'Server error', error: String(err?.message || err) });
 });
+
+//test front avatar
+app.use('/api/avatar', avatarRoutes);
+
+app.use("/api/avatar", avatarPersistRoutes);
 
 /* 5) Подключаем Mongo и стартуем HTTP */
 (async () => {
