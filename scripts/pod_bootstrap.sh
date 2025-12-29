@@ -3,7 +3,6 @@ set -euo pipefail
 
 PROJECT_DIR="${PROJECT_DIR:-/workspace/ProjectSilk}"
 APP_DIR="${APP_DIR:-fastapi_app}"
-UVICORN_APP="${UVICORN_APP:-app:app}"
 PORT="${PORT:-8000}"
 
 echo "== APT tools =="
@@ -16,14 +15,13 @@ python3 -m venv .venv
 source .venv/bin/activate
 python -m pip install --upgrade pip wheel setuptools
 
-echo "== Find requirements.txt =="
+echo "== Install requirements =="
 REQ=""
 if [ -f "${APP_DIR}/requirements.txt" ]; then
   REQ="${APP_DIR}/requirements.txt"
 elif [ -f "requirements.txt" ]; then
   REQ="requirements.txt"
 fi
-
 if [ "${REQ_PATH:-}" != "" ]; then
   REQ="$REQ_PATH"
 fi
@@ -35,6 +33,24 @@ else
   echo "Installing: $REQ"
   pip install -r "$REQ"
 fi
+
+echo "== Detect uvicorn app entrypoint =="
+UVICORN_APP="${UVICORN_APP:-}"
+if [ -z "$UVICORN_APP" ]; then
+  # Prefer app.py if it defines app = FastAPI(...)
+  if grep -qE '^\s*app\s*=\s*FastAPI' "$PROJECT_DIR/$APP_DIR/app.py" 2>/dev/null; then
+    UVICORN_APP="app:app"
+  elif grep -qE '^\s*app\s*=\s*FastAPI' "$PROJECT_DIR/$APP_DIR/main.py" 2>/dev/null; then
+    UVICORN_APP="main:app"
+  else
+    # fallback (most common)
+    UVICORN_APP="app:app"
+    echo "⚠️ Could not detect 'app = FastAPI(...)' reliably. Using app:app by default."
+    echo "If it fails, run: UVICORN_APP=main:app bash scripts/pod_bootstrap.sh"
+  fi
+fi
+
+echo "Using APP_DIR=$APP_DIR, UVICORN_APP=$UVICORN_APP, PORT=$PORT"
 
 echo "== Create /workspace/run_gpu_api.sh =="
 cat > /workspace/run_gpu_api.sh <<RUN
