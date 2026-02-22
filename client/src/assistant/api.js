@@ -2,9 +2,12 @@
 // Единая точка доступа к API ассистента/каталога
 
 const KEY_BASE = "psilk_api_base";
+
 export function getBaseURL() {
-  return localStorage.getItem(KEY_BASE) || "http://127.0.0.1:8000";
+  // ✅ ТВОЯ НОВАЯ ССЫЛКА (ТУННЕЛЬ):
+  return "https://7b426d44d09f83.lhr.life";
 }
+
 export function setBaseURL(u) {
   if (typeof u === "string" && u.trim()) localStorage.setItem(KEY_BASE, u.trim());
 }
@@ -102,4 +105,57 @@ export async function setPrefs(session_id, json) {
 export async function health() {
   const r = await fetch(`${getBaseURL()}/healthz`);
   return toJSON(r);
+}
+
+// ==========================================
+// 🔥 НОВАЯ ФУНКЦИЯ ДЛЯ ВИРТУАЛЬНОЙ ПРИМЕРКИ
+// ==========================================
+export async function tryOn({ human, garment }) {
+  // 1. Создаем форму, как для отправки файлов
+  const formData = new FormData();
+
+  // 2. Добавляем фото человека (React Native формат)
+  formData.append("human", {
+    uri: human.uri,       // путь к файлу на телефоне
+    name: "human.jpg",    // имя файла
+    type: "image/jpeg",   // тип файла
+  });
+
+  // 3. Добавляем фото одежды
+  formData.append("garment", {
+    uri: garment.uri,
+    name: "garment.jpg",
+    type: "image/jpeg",
+  });
+
+  console.log("🚀 Sending TryOn request to:", `${getBaseURL()}/tryon`);
+
+  // 4. Отправляем запрос на Python сервер
+  const response = await fetch(`${getBaseURL()}/tryon`, {
+    method: "POST",
+    body: formData,
+    headers: {
+      // Важно: Content-Type здесь НЕ указываем, React Native сам подставит multipart/form-data
+      "Accept": "application/json",
+    },
+  });
+
+  // 5. Проверяем ошибки
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("❌ TryOn Error:", errorText);
+    throw new Error(`TryOn Failed: ${response.status} ${errorText}`);
+  }
+
+  // 6. Получаем картинку (Blob) и превращаем в Base64 для отображения
+  const blob = await response.blob();
+  
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      resolve(reader.result); // Вернет строку "data:image/png;base64,..."
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }

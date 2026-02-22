@@ -1,148 +1,148 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useState } from "react";
+import axios from "axios";
+import { getBaseURL } from "../../assistant/api"; // Берем адрес из нашего api.js
 
 function TryOnPhoto() {
-  const canvasRef = useRef(null);
-  const [photo, setPhoto] = useState(null);
-  const [items, setItems] = useState([]);
-  const [draggedIndex, setDraggedIndex] = useState(null);
+  const [humanImg, setHumanImg] = useState(null); // Фото человека
+  const [garmentImg, setGarmentImg] = useState(null); // Фото одежды
+  const [resultImg, setResultImg] = useState(null); // Результат от ИИ
+  const [loading, setLoading] = useState(false); // Статус загрузки
+  
+  // 🔥 НОВОЕ: Состояние для категории
+  const [category, setCategory] = useState("upper_body"); 
 
-  // Загружаем гардероб из localStorage
-  useEffect(() => {
-    const wardrobe = JSON.parse(localStorage.getItem("wardrobeItems")) || [];
-    const positioned = wardrobe.map((item, index) => ({
-      ...item,
-      x: 50 + index * 60,
-      y: 100,
-      scale: 1,
-    }));
-    setItems(positioned);
-  }, []);
-
-  // Обработка загрузки фото
-  const handlePhotoUpload = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setPhoto(ev.target.result);
-    reader.readAsDataURL(file);
-  };
-
-  // Отрисовка одежды на фото
-  useEffect(() => {
-    const canvas = canvasRef.current;
-    const ctx = canvas?.getContext("2d");
-    if (!canvas || !ctx || !photo) return;
-
-    const bg = new Image();
-    bg.src = photo;
-    bg.onload = () => {
-      canvas.width = bg.width;
-      canvas.height = bg.height;
-      ctx.drawImage(bg, 0, 0);
-
-      items.forEach((item) => {
-        const img = new Image();
-        img.src = item.image;
-        img.onload = () => {
-          ctx.drawImage(
-            img,
-            item.x,
-            item.y,
-            img.width * item.scale,
-            img.height * item.scale
-          );
-        };
-      });
-    };
-  }, [photo, items]);
-
-  // Масштабирование
-  const handleWheel = (e) => {
-    const rect = canvasRef.current.getBoundingClientRect();
-    const mouseX = e.clientX - rect.left;
-    const mouseY = e.clientY - rect.top;
-
-    const updated = items.map((item) => {
-      const img = new Image();
-      img.src = item.image;
-      const w = img.width * item.scale;
-      const h = img.height * item.scale;
-
-      if (
-        mouseX >= item.x &&
-        mouseX <= item.x + w &&
-        mouseY >= item.y &&
-        mouseY <= item.y + h
-      ) {
-        const newScale = Math.max(0.2, item.scale + (e.deltaY > 0 ? -0.05 : 0.05));
-        return { ...item, scale: newScale };
-      }
-      return item;
-    });
-
-    setItems(updated);
-  };
-
-  // Перетаскивание
-  const handleMouseDown = (e) => {
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
-
-    const index = items.findIndex((item) => {
-      const img = new Image();
-      img.src = item.image;
-      const w = img.width * item.scale;
-      const h = img.height * item.scale;
-      return x >= item.x && x <= item.x + w && y >= item.y && y <= item.y + h;
-    });
-
-    if (index !== -1) {
-      setDraggedIndex(index);
+  // Обработчик выбора файла
+  const handleFileChange = (e, setFile) => {
+    if (e.target.files && e.target.files[0]) {
+      setFile(e.target.files[0]);
     }
   };
 
-  const handleMouseMove = (e) => {
-    if (draggedIndex === null) return;
-    const rect = canvasRef.current.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+  // Кнопка "Примерить"
+  const handleGenerate = async () => {
+    if (!humanImg || !garmentImg) {
+      alert("Пожалуйста, загрузи оба фото!");
+      return;
+    }
 
-    const updated = [...items];
-    updated[draggedIndex] = {
-      ...updated[draggedIndex],
-      x: x - 50,
-      y: y - 50,
-    };
-    setItems(updated);
-  };
+    setLoading(true);
+    setResultImg(null); 
 
-  const handleMouseUp = () => setDraggedIndex(null);
+    try {
+      // 1. Готовим данные
+      const formData = new FormData();
+      formData.append("human", humanImg);
+      formData.append("garment", garmentImg);
+      
+      // 🔥 ВАЖНО: Отправляем выбранную категорию на сервер
+      formData.append("category", category);
 
-  const handleClear = () => {
-    setPhoto(null);
-    setItems([]);
+      // 2. Отправляем на сервер
+      const response = await axios.post(`${getBaseURL()}/tryon`, formData, {
+        headers: { "Content-Type": "multipart/form-data" },
+        responseType: "blob", 
+      });
+
+      // 3. Показываем результат
+      const imageUrl = URL.createObjectURL(response.data);
+      setResultImg(imageUrl);
+      
+    } catch (error) {
+      console.error("Ошибка:", error);
+      alert("Ошибка генерации. Проверь консоль и терминал сервера.");
+    } finally {
+      setLoading(false);
+    }
   };
 
   return (
-    <div>
-      <h2>📸 Try-On by Photo</h2>
-      <input type="file" accept="image/*" onChange={handlePhotoUpload} />
-      <button onClick={handleClear}>❌ Clear</button>
+    <div style={{ padding: "40px", textAlign: "center", maxWidth: "800px", margin: "0 auto" }}>
+      <h1 className="text-3xl font-bold mb-8">✨ Виртуальная Примерка (AI)</h1>
+      
+      <div style={{ display: "flex", justifyContent: "center", gap: "20px", marginBottom: "20px", flexWrap: "wrap" }}>
+        {/* Карточка: Человек */}
+        <div style={{ border: "2px dashed #ccc", padding: "20px", borderRadius: "12px", width: "300px" }}>
+          <h3 className="text-xl mb-4">1. Твое фото</h3>
+          <input type="file" onChange={(e) => handleFileChange(e, setHumanImg)} accept="image/*" />
+          {humanImg && (
+            <img 
+              src={URL.createObjectURL(humanImg)} 
+              alt="Human" 
+              style={{marginTop: 15, width: "100%", borderRadius: 8, maxHeight: "300px", objectFit: "contain"}}
+            />
+          )}
+        </div>
 
-      {photo && (
-        <canvas
-          ref={canvasRef}
-          style={{ border: "1px solid #ccc", marginTop: "10px", cursor: "move" }}
-          onMouseDown={handleMouseDown}
-          onMouseMove={handleMouseMove}
-          onMouseUp={handleMouseUp}
-          onWheel={handleWheel}
-        />
+        {/* Карточка: Одежда */}
+        <div style={{ border: "2px dashed #ccc", padding: "20px", borderRadius: "12px", width: "300px" }}>
+          <h3 className="text-xl mb-4">2. Одежда</h3>
+          <input type="file" onChange={(e) => handleFileChange(e, setGarmentImg)} accept="image/*" />
+          {garmentImg && (
+            <img 
+              src={URL.createObjectURL(garmentImg)} 
+              alt="Garment" 
+              style={{marginTop: 15, width: "100%", borderRadius: 8, maxHeight: "300px", objectFit: "contain"}}
+            />
+          )}
+        </div>
+      </div>
+
+      {/* 🔥 НОВЫЙ БЛОК: Выбор категории */}
+      <div style={{ marginBottom: "30px", padding: "15px", backgroundColor: "#f9f9f9", borderRadius: "12px", display: "inline-block" }}>
+        <label style={{ marginRight: "10px", fontSize: "18px", fontWeight: "bold" }}>Что примеряем?</label>
+        <select 
+          value={category} 
+          onChange={(e) => setCategory(e.target.value)}
+          style={{ 
+            padding: "10px", 
+            fontSize: "16px", 
+            borderRadius: "8px", 
+            border: "1px solid #ddd",
+            cursor: "pointer"
+          }}
+        >
+          <option value="upper_body">👕 Верх (Майки, Кофты)</option>
+          <option value="lower_body">👖 Низ (Джинсы, Юбки, Шорты)</option>
+          <option value="dresses">👗 Платье (Весь рост)</option>
+        </select>
+      </div>
+      <br/>
+
+      {/* Кнопка запуска */}
+      <button 
+        onClick={handleGenerate} 
+        disabled={loading}
+        style={{
+          padding: "15px 50px", 
+          fontSize: "18px", 
+          fontWeight: "bold",
+          backgroundColor: loading ? "#ccc" : "#7c3aed", 
+          color: "white", 
+          border: "none", 
+          borderRadius: "30px",
+          cursor: loading ? "not-allowed" : "pointer",
+          transition: "all 0.3s",
+          boxShadow: "0 4px 15px rgba(124, 58, 237, 0.4)"
+        }}
+      >
+        {loading ? "⏳ Шьем одежду... (20-30 сек)" : "🚀 ПРИМЕРИТЬ"}
+      </button>
+
+      {/* Блок результата */}
+      {resultImg && (
+        <div style={{ marginTop: "40px", borderTop: "1px solid #eee", paddingTop: "40px" }}>
+          <h2 className="text-2xl font-bold mb-4">✨ Готовый образ:</h2>
+          <img 
+            src={resultImg} 
+            alt="Result" 
+            style={{ 
+              maxWidth: "100%", 
+              borderRadius: "16px", 
+              boxShadow: "0 20px 50px rgba(0,0,0,0.2)" 
+            }} 
+          />
+        </div>
       )}
-
-      {!photo && items.length > 0 && <p>🖼 Upload your photo to try on items!</p>}
-      {!photo && items.length === 0 && <p>🧸 Your wardrobe is empty!</p>}
     </div>
   );
 }
