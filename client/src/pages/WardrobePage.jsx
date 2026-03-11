@@ -1,10 +1,9 @@
-// client/src/pages/WardrobePage.jsx
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './Wardrobe.module.css';
 import GlbViewer from '../components/GlbViewer';
 import axios from 'axios';
-import { getBaseURL } from '../assistant/api'; // Подключаем твой API
+import { getBaseURL } from '../assistant/api'; 
 
 import {
   getWardrobe,
@@ -15,12 +14,10 @@ import {
   addOutfit,
 } from '../utils/wardrobeStorage';
 
-// API base
 const API_BASE = process.env.REACT_APP_API || 'http://localhost:5050';
 const toPublicUrl = (s = '') =>
   s?.startsWith('/uploads') ? `${API_BASE}${s}` : s;
 
-// Загрузка аватара
 function loadAvatarInfo() {
   try {
     const rawFinal = localStorage.getItem('avatarFinal');
@@ -46,31 +43,28 @@ const PALETTE = ['#111827', '#EF4444', '#F59E0B', '#10B981', '#3B82F6', '#8B5CF6
 export default function WardrobePage() {
   const navigate = useNavigate();
 
-  /* ───────── State ───────── */
   const [tab, setTab] = useState('Items'); 
   const [items, setItems] = useState(() => getWardrobe().map((i) => ({ ...i, image: toPublicUrl(i.image) })));
   const [query, setQuery] = useState('');
   const [cat, setCat] = useState('All');
   const [colors, setColors] = useState([]);
 
-  // Avatar
   const [avatarUrl, setAvatarUrl] = useState(null);
   const [avatarMeta, setAvatarMeta] = useState(null);
 
-  // Stage & Layers (для обычного режима)
   const canvasRef = useRef(null);
-  const [stageImg, setStageImg] = useState(null); // Это фото, которое мы видим в центре
+  const [stageImg, setStageImg] = useState(null); 
   const [layers, setLayers] = useState([]); 
   const [zoom, setZoom] = useState(1);
   const [selected, setSelected] = useState(null);
 
-  // 🌟 NEW: AI Try-On Logic
-  const [isTryOnMode, setIsTryOnMode] = useState(false); // Включен ли режим AI примерки?
-  const [tryOnHuman, setTryOnHuman] = useState(null);    // Файл фото человека
-  const [tryOnGarment, setTryOnGarment] = useState(null);// Файл фото одежды
-  const [isGenerating, setIsGenerating] = useState(false); // Крутилка загрузки
+  // 🌟 AI Try-On Logic
+  const [isTryOnMode, setIsTryOnMode] = useState(false); 
+  const [tryOnHuman, setTryOnHuman] = useState(null);    
+  const [tryOnGarment, setTryOnGarment] = useState(null);
+  const [tryOnCategory, setTryOnCategory] = useState('upper_body'); // ✨ НОВОЕ: Состояние для категории
+  const [isGenerating, setIsGenerating] = useState(false); 
 
-  /* ───────── Effects ───────── */
   useEffect(() => {
     saveWardrobe(items);
   }, [items]);
@@ -81,7 +75,6 @@ export default function WardrobePage() {
     setAvatarMeta(meta);
   }, []);
 
-  // Фильтрация
   const filtered = useMemo(() => {
     let arr = items;
     if (cat !== 'All') arr = arr.filter((i) => (i.category || '').toLowerCase() === cat.toLowerCase());
@@ -89,7 +82,6 @@ export default function WardrobePage() {
     if (colors.length) arr = arr.filter((i) => (i.tint ? colors.includes(i.tint) : true));
     return arr;
   }, [items, cat, query, colors]);
-
 
   /* ───────── AI Generation Function ───────── */
   const handleGenerateAI = async () => {
@@ -104,19 +96,15 @@ export default function WardrobePage() {
       const formData = new FormData();
       formData.append("human", tryOnHuman);
       formData.append("garment", tryOnGarment);
+      formData.append("category", tryOnCategory); // ✨ НОВОЕ: Передаем категорию на сервер
 
-      // Отправляем на сервер (адрес берется из api.js)
       const response = await axios.post(`${getBaseURL()}/tryon`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
         responseType: "blob",
       });
 
-      // Получаем результат и ставим его на сцену
       const imageUrl = URL.createObjectURL(response.data);
-      setStageImg(imageUrl); // ✨ ЗАМЕНЯЕМ ЦЕНТРАЛЬНОЕ ФОТО НА РЕЗУЛЬТАТ
-      
-      // Выключаем режим примерки, чтобы показать результат во всей красе
-      // setIsTryOnMode(false); 
+      setStageImg(imageUrl); 
       
     } catch (error) {
       console.error("AI Error:", error);
@@ -126,8 +114,7 @@ export default function WardrobePage() {
     }
   };
 
-
-  /* ───────── Canvas Rendering (Standard Logic) ───────── */
+  /* ───────── Canvas Rendering ───────── */
   useEffect(() => {
     const c = canvasRef.current;
     if (!c) return;
@@ -142,11 +129,10 @@ export default function WardrobePage() {
     ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
     ctx.clearRect(0, 0, W, H);
 
-    // Если нет фото - рисуем фон
     if (!stageImg) {
       ctx.fillStyle = '#fafafa';
       ctx.fillRect(0, 0, W, H);
-      if (!avatarUrl) { // Текст только если нет аватара
+      if (!avatarUrl) { 
         ctx.fillStyle = '#9ca3af';
         ctx.font = '14px sans-serif';
         ctx.textAlign = 'center';
@@ -161,7 +147,6 @@ export default function WardrobePage() {
         const img = new Image();
         img.crossOrigin = 'anonymous';
         img.src = toPublicUrl(it.image);
-        // ... (упрощенная отрисовка для краткости, полная логика сохранена в твоем старом коде, тут база)
         img.onload = () => {
              const s = l.scale || 1;
              ctx.drawImage(img, l.x, l.y, img.width*s, img.height*s);
@@ -172,9 +157,8 @@ export default function WardrobePage() {
     if (stageImg) {
       const bg = new Image();
       bg.crossOrigin = 'anonymous';
-      bg.src = stageImg; // Либо загруженное фото, либо результат AI
+      bg.src = stageImg; 
       bg.onload = () => {
-        // Center image contain
         const scale = Math.min(W / bg.width, H / bg.height) * zoom;
         const w = bg.width * scale;
         const h = bg.height * scale;
@@ -186,8 +170,6 @@ export default function WardrobePage() {
     }
   }, [stageImg, layers, zoom, items, avatarUrl]);
 
-
-  /* ───────── Handlers ───────── */
   const onImportFav = () => {
     const added = importFromFavorites();
     setItems(getWardrobe().map((i) => ({ ...i, image: toPublicUrl(i.image) })));
@@ -201,7 +183,6 @@ export default function WardrobePage() {
     }
   };
   
-  // Обычная загрузка фото (не AI)
   const onUploadPhotoStandard = (e) => {
     const f = e.target.files?.[0];
     if (f) {
@@ -214,10 +195,8 @@ export default function WardrobePage() {
   return (
     <div className={styles.page}>
       
-      {/* 🟢 HEADER */}
       <div className={styles.header}>
         <div className={styles.tabs}>
-           {/* Просто декоративные табы пока */}
           {['Items', 'Outfits', 'Try-On'].map(t => (
             <button key={t} className={`${styles.tab} ${tab===t ? styles.tabActive : ''}`} onClick={()=>setTab(t)}>{t}</button>
           ))}
@@ -229,7 +208,6 @@ export default function WardrobePage() {
         </div>
       </div>
 
-      {/* 🟢 LEFT PANEL (Filters) */}
       <aside className={styles.left}>
         <div className={styles.searchBox}>
           <span className={styles.searchIcon}>🔍</span>
@@ -245,10 +223,8 @@ export default function WardrobePage() {
         </div>
       </aside>
 
-      {/* 🟢 MAIN STAGE (Central Canvas) */}
       <main className={styles.stageWrap}>
         
-        {/* Toolbar (Zoom, Reset) */}
         <div className={styles.toolbar}>
           <button className={styles.toolBtn} onClick={()=>setZoom(z=>z+0.1)}>+</button>
           <button className={styles.toolBtn} onClick={()=>setZoom(z=>Math.max(0.2, z-0.1))}>-</button>
@@ -256,17 +232,14 @@ export default function WardrobePage() {
         </div>
 
         <div className={styles.canvasBox}>
-          {/* Canvas для фото */}
           <canvas ref={canvasRef} style={{width:'100%', height:'100%'}} />
 
-          {/* Avatar Preview (если нет фото) */}
           {!stageImg && avatarUrl && (
              <div style={{position:'absolute', inset:0, pointerEvents:'none'}}>
                 <GlbViewer url={avatarUrl} height="100%" />
              </div>
           )}
 
-          {/* 🌟 AI CONTROLS OVERLAY (Твой квадрат слева внизу) */}
           {isTryOnMode && (
             <div style={{
               position: 'absolute',
@@ -279,13 +252,12 @@ export default function WardrobePage() {
               display: 'flex',
               flexDirection: 'column',
               gap: '12px',
-              width: '220px',
+              width: '240px',
               zIndex: 100,
               border: '1px solid #e5e7eb'
             }}>
               <h3 style={{fontSize:'14px', fontWeight:'bold', margin:0}}>✨ AI Try-On</h3>
               
-              {/* 1. Human Upload */}
               <label style={{
                  display:'flex', alignItems:'center', gap:'8px', fontSize:'13px', 
                  cursor:'pointer', padding:'8px', border:'1px dashed #ccc', borderRadius:'8px'
@@ -295,7 +267,6 @@ export default function WardrobePage() {
                  {tryOnHuman && <img src={URL.createObjectURL(tryOnHuman)} style={{width:30, height:30, borderRadius:4, objectFit:'cover'}} />}
               </label>
 
-              {/* 2. Garment Upload */}
               <label style={{
                  display:'flex', alignItems:'center', gap:'8px', fontSize:'13px', 
                  cursor:'pointer', padding:'8px', border:'1px dashed #ccc', borderRadius:'8px'
@@ -305,7 +276,22 @@ export default function WardrobePage() {
                  {tryOnGarment && <img src={URL.createObjectURL(tryOnGarment)} style={{width:30, height:30, borderRadius:4, objectFit:'cover'}} />}
               </label>
 
-              {/* 3. Generate Button */}
+              {/* ✨ НОВОЕ: Выбор категории одежды */}
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
+                <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#4b5563' }}>Category:</label>
+                <select 
+                  value={tryOnCategory} 
+                  onChange={(e) => setTryOnCategory(e.target.value)}
+                  style={{
+                    padding: '8px', borderRadius: '8px', border: '1px solid #ccc', fontSize: '13px', outline: 'none'
+                  }}
+                >
+                  <option value="upper_body">Верх (Tops)</option>
+                  <option value="lower_body">Низ (Bottoms)</option>
+                  <option value="dresses">Платья (Dresses)</option>
+                </select>
+              </div>
+
               <button 
                 onClick={handleGenerateAI}
                 disabled={isGenerating || !tryOnHuman || !tryOnGarment}
@@ -335,7 +321,6 @@ export default function WardrobePage() {
         </div>
       </main>
 
-      {/* 🟢 RIGHT PANEL (Wardrobe Items) */}
       <aside className={styles.right}>
          <div className={styles.panelHeader}>
             <strong>Your Wardrobe</strong>
@@ -345,18 +330,13 @@ export default function WardrobePage() {
                <img className={styles.thumb} src={toPublicUrl(it.image)} />
                <div>
                   <div className={styles.cardTitle}>{it.name}</div>
-                  {/* Кнопка Wear отправляет одежду в AI слот, если режим включен */}
                   <button 
                     className={styles.chip} 
                     style={{marginTop:5, fontSize:11}}
                     onClick={() => {
-                        // Если мы в режиме AI, то эта кнопка загрузит одежду в слот
                         if(isTryOnMode) {
-                           // Тут нужен сложный хак для конвертации URL в File, 
-                           // пока просто оставим пустым или сделаем alert
                            alert("For AI mode, please upload garment file manually for now!");
                         } else {
-                           // Обычный режим - просто слой
                            setLayers([...layers, { itemId: it.id, x: 100, y: 100, scale: 0.5 }]);
                         }
                     }}
@@ -368,9 +348,7 @@ export default function WardrobePage() {
          ))}
       </aside>
 
-      {/* 🟢 BOTTOM BAR */}
       <div className={styles.bottom}>
-        {/* ГЛАВНАЯ КНОПКА: Переключает режим */}
         <button 
            className={`${styles.btn} ${isTryOnMode ? styles.primary : ''}`}
            onClick={() => setIsTryOnMode(!isTryOnMode)}

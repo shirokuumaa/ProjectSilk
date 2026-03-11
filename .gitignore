@@ -28,3 +28,8 @@ seller/build/
 .idea/
 fastapi_app/static/bg/
 fastapi_app/static/mesh/
+
+
+
+
+gpu-infer/venv/
