@@ -1,10 +1,12 @@
-// client/src/components/GlbViewer.jsx
 import React, { Suspense } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Environment, useGLTF } from '@react-three/drei';
+// 👇 ИСПРАВЛЕНИЕ: Добавили Html и Center в импорт
+import { OrbitControls, Environment, useGLTF, Html, Center } from '@react-three/drei';
 
 function Model({ url }) {
-  const { scene } = useGLTF(url);
+  // Явно указываем надежный CDN от Google для распаковки Draco-моделей
+  const { scene } = useGLTF(url, 'https://www.gstatic.com/draco/versioned/decoders/1.5.5/');
+  
   return <primitive object={scene} />;
 }
 
@@ -26,20 +28,30 @@ export default function GlbViewer({
         border: '1px solid #e5e7eb',
       }}
     >
-      <Canvas camera={{ position: [0, 1.4, 3], fov: 40 }}>
+      {/* 👇 ИСПРАВЛЕНИЕ: Чуть опустили и отодвинули камеру, чтобы модель влезла целиком */}
+      <Canvas camera={{ position: [0, 0, 4.5], fov: 45 }}>
         <color attach="background" args={[background]} />
         <ambientLight intensity={0.6} />
         <directionalLight intensity={0.9} position={[2, 4, 2]} />
-        <Suspense fallback={null}>
-          <Model url={url} />
+        
+        {/* 👇 ИСПРАВЛЕНИЕ: Добавили видимый текст загрузки */}
+        <Suspense fallback={<Html center><div style={{color: '#4b5563', fontWeight: 'bold', whiteSpace: 'nowrap'}}>⏳ Загрузка 3D...</div></Html>}>
+          
+          {/* 👇 ИСПРАВЛЕНИЕ: Магия выравнивания по центру! */}
+          <Center>
+            <Model url={url} />
+          </Center>
+          
           <Environment preset="city" />
         </Suspense>
+        
         <OrbitControls
           enablePan
           enableRotate
           enableZoom
-          minDistance={1.2}
-          maxDistance={5}
+          minDistance={1}
+          maxDistance={10}
+          target={[0, 0, 0]} // 👇 ИСПРАВЛЕНИЕ: Центр вращения теперь точно по центру модели
         />
       </Canvas>
     </div>

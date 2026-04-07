@@ -32,9 +32,11 @@ function loadAvatarInfo() {
       const glb = old.model3d ? toPublicUrl(old.model3d) : null;
       return { url: glb, meta: { id: old.id, preview: old.image ? toPublicUrl(old.image) : '', glb } };
     }
-    return { url: null, meta: null };
+    // ИСПРАВЛЕНИЕ: Возвращаем локальный путь к файлу в папке public
+    return { url: '/uploads/stub/avatar.glb', meta: null };
   } catch {
-    return { url: null, meta: null };
+    // ИСПРАВЛЕНИЕ: То же самое для блока ошибки
+    return { url: '/uploads/stub/avatar.glb', meta: null };
   }
 }
 
@@ -62,7 +64,7 @@ export default function WardrobePage() {
   const [isTryOnMode, setIsTryOnMode] = useState(false); 
   const [tryOnHuman, setTryOnHuman] = useState(null);    
   const [tryOnGarment, setTryOnGarment] = useState(null);
-  const [tryOnCategory, setTryOnCategory] = useState('upper_body'); // ✨ НОВОЕ: Состояние для категории
+  const [tryOnCategory, setTryOnCategory] = useState('upper_body');
   const [isGenerating, setIsGenerating] = useState(false); 
 
   useEffect(() => {
@@ -96,7 +98,7 @@ export default function WardrobePage() {
       const formData = new FormData();
       formData.append("human", tryOnHuman);
       formData.append("garment", tryOnGarment);
-      formData.append("category", tryOnCategory); // ✨ НОВОЕ: Передаем категорию на сервер
+      formData.append("category", tryOnCategory);
 
       const response = await axios.post(`${getBaseURL()}/tryon`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
@@ -234,8 +236,9 @@ export default function WardrobePage() {
         <div className={styles.canvasBox}>
           <canvas ref={canvasRef} style={{width:'100%', height:'100%'}} />
 
+          {/* ИСПРАВЛЕНИЕ: zIndex позволяет взаимодействовать с 3D моделью */}
           {!stageImg && avatarUrl && (
-             <div style={{position:'absolute', inset:0, pointerEvents:'none'}}>
+             <div style={{position:'absolute', inset:0, zIndex: 10}}>
                 <GlbViewer url={avatarUrl} height="100%" />
              </div>
           )}
@@ -276,7 +279,6 @@ export default function WardrobePage() {
                  {tryOnGarment && <img src={URL.createObjectURL(tryOnGarment)} style={{width:30, height:30, borderRadius:4, objectFit:'cover'}} />}
               </label>
 
-              {/* ✨ НОВОЕ: Выбор категории одежды */}
               <div style={{ display: 'flex', flexDirection: 'column', gap: '4px' }}>
                 <label style={{ fontSize: '12px', fontWeight: 'bold', color: '#4b5563' }}>Category:</label>
                 <select 
