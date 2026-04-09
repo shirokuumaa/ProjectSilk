@@ -239,7 +239,7 @@ export default function WardrobePage() {
           {/* ИСПРАВЛЕНИЕ: zIndex позволяет взаимодействовать с 3D моделью */}
           {!stageImg && avatarUrl && (
              <div style={{position:'absolute', inset:0, zIndex: 10}}>
-                <GlbViewer url={avatarUrl} height="100%" />
+                <GlbViewer url={avatarUrl} garmentUrl="/uploads/stub/dress.glb" height="100%" />
              </div>
           )}
 
