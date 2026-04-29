@@ -1,22 +1,184 @@
-# Virtual Try-On Pipeline
+# Virtual Try‑On Pipeline — High‑Level Design
 
-## Introduction
-This document outlines the design of the three-stage virtual try-on pipeline.
+## Overview
 
-## Stage 1: Avatar Try-On
-In this stage, users create or select a personalized avatar that represents them in the virtual fitting environment. The avatar's appearance can be customized based on the user’s facial features, body type, and preferred style. This stage ensures that the garment fits the avatar accurately, providing a realistic visualization of how clothing will look when worn.
+Система состоит из трёх основных этапов:
 
-## Stage 2: Garment Processing Service
-Once the avatar has been set up, this stage involves the processing of garments that the user intends to try on. The garment processing service handles various tasks such as:
-- Uploading garment images
-- Analyzing fabric patterns and textures
-- Preparing garments for realistic rendering on the avatar.  
-This processing ensures that the garments are displayed with accurate colors, prints, and fits.
+1. **Avatar Try‑On (Stage 1)** — клиентский аватар + 3D‑платье в одной сцене.  
+2. **Garment Processing (Stage 2)** — автоматическая подготовка 3D‑одежды.  
+3. **End‑to‑End Flow Seller → DB → Client Try‑On (Stage 3)** — полный пользовательский сценарий.
 
-## Stage 3: End-to-End Flow
-The final stage integrates the avatar and the processed garments to simulate a realistic try-on experience. This includes:
-- Dynamic fitting of garments on the avatar
-- Real-time rendering of the try-on experience as the user interacts with the clothing,
-- Options to share or save the results for future reference.
+Сейчас реализован базовый вариант Stage 1. Этот документ описывает целевое поведение Stage 2 и Stage 3.
 
-This three-stage pipeline aims to provide an innovative and engaging way for users to try on clothing virtually, bridging the gap between traditional shopping and the convenience of online platforms.
+---
+
+## Stage 1 — Avatar Try‑On (Current Prototype)
+
+### Цель
+
+Дать возможность:
+
+- сгенерировать/выбрать аватара клиента (`avatar.glb`);
+- загрузить / выбрать 3D‑платье (`dress.glb`);
+- отобразить их вместе в 3D‑viewer.
+
+### Текущее поведение
+
+- `GlbViewer` загружает:
+  - аватара (`avatar.glb`);
+  - тестовое платье (`dress.glb`).
+- Модели подгоняются друг к другу по bounding boxes:
+  - нормализация масштаба аватара;
+  - масштабирование и выравнивание платья по высоте и центру;
+  - базовое позиционирование в одной сцене.
+
+### Ограничения (KNOWN LIMITATIONS)
+
+- Платье не имеет рига/skin‑weights, не повторяет точную форму тела.
+- Посадка не реалистична (особенно в области плеч, груди, спины).
+- Нет симуляции ткани.
+- Поддерживаем только тестовый кейс «один аватар + одно платье».
+
+Stage 1 закрыт на уровне визуального прототипа.  
+Реалистичность будет улучшаться в Stage 2.
+
+---
+
+## Stage 2 — Garment Processing Service (Automatic 3D Clothes Preparation)
+
+### Задача
+
+Сделать отдельный сервис (или batch‑процесс), который:
+
+- принимает **сырую 3D‑одежду** (результат 2D→3D из Trellis/другой модели);
+- превращает её в **готовый garment‑asset**, совместимый с нашим аватаром.
+
+### Входные данные
+
+- `raw_garment.glb` �� 3D‑меш одежды без гарантий:
+  - произвольный масштаб (см/м/дюймы);
+  - произвольные оси и pivot;
+  - возможно, без скелета и skin‑weights.
+
+- Метаданные от продавца:
+  - тип: `dress` \| `top` \| `bottom` \| `shoes` и т.д.;
+  - категория, бренд, цвет, сезон;
+  - опционально: примерные физические параметры (длина, обхват талии и т.п.).
+
+### Выходные данные
+
+- `prepared_garment.glb`:
+  - нормализованный масштаб (единый для всей системы);
+  - унифицированная ориентация (ось вверх, центр и pivot в ожидаемой точке);
+  - риг, совместимый со стандартным аватаром;
+  - skin‑weights (каждая вершина знает, к каким костям привязана).
+
+- `garment_meta.json`:
+  - id товара;
+  - путь к `prepared_garment.glb`;
+  - тип гармента (верх/низ/платье);
+  - карта тела, которую он покрывает (torso, legs, etc.);
+  - параметры для примера (например, длина по ноге, высота талии).
+
+### Основные шаги обработки (план)
+
+1. **Нормализация масштаба и осей**
+   - Определить bounding box гармента.
+   - Привести к целевой высоте (например, соответствующей росту базового аватара).
+   - Привести к системе координат (Y ↑, Z вперёд и т.п.).
+   - Перенести pivot в логическую точку (талия/центр по XY, низ по Y).
+
+2. **Совместимый скелет (rigging)**
+   - Станда��тный скелет аватара зафиксировать как «эталон».
+   - Для одежды:
+     - либо копировать часть скелета аватара (torso/legs/arms),
+     - либо использовать auto‑rigging инструмент, но приводить к нашей схеме костей.
+
+3. **Skinning (weights)**
+   - Автоматически рассчитать веса вершин относительно костей.
+   - Убедиться, что при простой позе (T‑pose) одежда совпадает с телом.
+   - Добавить базовый smooth‑falloff по зонам тела (плечо, талия, бедро).
+
+4. **Валидация**
+   - Проверить:
+     - нет ли масштаба ≫/≪, чем ожидалось;
+     - нет ли перевёрнутых нормалей;
+     - нет ли критических разрывов/дыр.
+   - Сохранить результат как `prepared_garment.glb` + метаданные.
+
+### Где это может жить
+
+На первых порах это может быть:
+
+- отдельный backend‑сервис;
+- или оффлайн‑скрипт (например, Blender‑скрипт), запускаемый вручную/по крону.
+
+Важно: Stage 2 не трогает фронтенд клиента напрямую — он готовит данные для Stage 3.
+
+---
+
+## Stage 3 — End‑to‑End Flow: Seller → DB → Client → Try‑On
+
+### Общий сценарий
+
+1. **Seller UI**
+   - Продавец логинится на «seller‑site» (отдельный фронт).
+   - Загружает фото/изображение товара.
+   - Указывает базовую информацию о товаре (название, цена, категории и т.д.).
+
+2. **2D→3D Generation (Trellis или другая модель)**
+   - Бекенд принимает изображение.
+   - Запускает 2D→3D пайплайн (Trellis).
+   - Получает `raw_garment.glb`.
+
+3. **Garment Processing (Stage 2)**
+   - На вход: `raw_garment.glb`.
+   - На выход: `prepared_garment.glb` + `garment_meta.json`.
+   - Сохраняется в хранилище (S3/файловое) и в БД:
+     - URLы для рендеринга;
+     - характеристики для фильтрации на сайте.
+
+4. **Client Catalog UI**
+   - Классический e‑commerce фронт:
+     - список товаров;
+     - фильтры;
+     - карточка товара с фото + 3D‑preview (по желанию).
+
+5. **Client → Wardrobe → Try‑On**
+   - Клиент нажимает, например, «Add to Wardrobe» на карточке товара.
+   - В Wardrobe сохраняется:
+     - ссылка на `prepared_garment.glb`,
+     - метаданные (название, превью, цвет и т.п.).
+   - На странице `Wardrobe`:
+     - клиент выбирает свой аватар;
+     - выбирает товар из списка Wardrobe;
+     - фронтенд загружает:
+       - `avatar.glb`;
+       - `prepared_garment.glb` (готовый asset из Stage 2);
+     - `GlbViewer` показывает результат (аватар + одежда).
+
+### API‑контуры (черновой)
+
+- **Seller side**
+  - `POST /api/seller/items` — создать товар, принять фото.
+  - `GET /api/seller/items` — список товаров продавца.
+
+- **Internal processing**
+  - `POST /internal/garments/process` — запустить Stage 2 для товара (id → raw_garment.glb → prepared_garment.glb).
+
+- **Client side**
+  - `GET /api/catalog/items` — список товаров для клиента.
+  - `POST /api/wardrobe/items` — добавить товар в гардероб клиента.
+  - `GET /api/wardrobe/items` — список вещей клиента (с ссылками на `prepared_garment.glb`).
+
+---
+
+## Status Summary
+
+- **Stage 1 (Avatar Try‑On)** — базовый прототип реализован в текущем фронтенде (ProjectSilk client).  
+- **Stage 2 (Garment Processing)** — не реализован, требуется отдельный сервис/скрипт (данный документ описывает целевое поведение).  
+- **Stage 3 (End‑to‑End Flow)** — частично есть (Wardrobe UI на стороне клиента), нет:
+  - полноценного seller‑front;
+  - 2D→3D интеграции;
+  - Garment Processing;
+  - связки «карточка товара → wardrobe → try‑on».
