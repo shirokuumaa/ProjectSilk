@@ -33,3 +33,8 @@ fastapi_app/static/mesh/
 
 
 gpu-infer/venv/
+*.glb
+*.gltf
+.env
+.DS_Store
+__pycache__/
