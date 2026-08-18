@@ -1,5 +1,6 @@
 // client/src/pages/SellerPanel.jsx
 import React, { useEffect, useState } from "react";
+import SizeChartEditor, { serializeSizeChart } from "../components/SizeChartEditor";
 
 // единая точка входа API (как и в других файлах)
 const API = process.env.REACT_APP_API || "http://localhost:5050";
@@ -8,6 +9,9 @@ export default function SellerPanel() {
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState("Clothes");
+
+  const [sizeChart, setSizeChart] = useState([]);
+  const [garmentType, setGarmentType] = useState("top");
 
   const [processedUrl, setProcessedUrl] = useState(null);   // превью (blob URL)
   const [processedBlob, setProcessedBlob] = useState(null); // файл для отправки (Blob/File)
@@ -75,7 +79,7 @@ export default function SellerPanel() {
         const f = await r.json(); // {rembg:true/false, triposr:true/false, ...}
         setAiFeatures(f);
 
-        // heavy-only: считаем “online” только если rembg реально доступен
+        // heavy-only: считаем "online" только если rembg реально доступен
         const on = f?.rembg === true;
         setAiOnline(on);
         setAiHint(on ? "" : "AI offline — фон не вырезаем, 3D недоступно.");
@@ -199,6 +203,8 @@ export default function SellerPanel() {
       fd.append("title", title.trim());
       fd.append("price", String(Number(price)));
       fd.append("category", category);
+      fd.append("garmentType", garmentType);
+      fd.append("sizeChart", JSON.stringify(serializeSizeChart(sizeChart)));
       fd.append("image", processedBlob, "product.png");
 
       // приоритет у файла, загруженного пользователем
@@ -229,6 +235,7 @@ export default function SellerPanel() {
       // сброс формы
       setTitle("");
       setPrice("");
+      setSizeChart([]);
 
       if (processedUrl && String(processedUrl).startsWith("blob:")) {
         URL.revokeObjectURL(processedUrl);
@@ -269,13 +276,12 @@ export default function SellerPanel() {
       <div
         style={{
           display: "grid",
-          gridTemplateColumns: "minmax(0, 380px) minmax(0, 380px)",
+          gridTemplateColumns: "minmax(0, 1fr)",
           gap: 24,
-          alignItems: "flex-start",
-          maxWidth: 800,
+          maxWidth: 900,
         }}
       >
-        {/* Левая колонка — форма */}
+        {/* Основная колонка — форма */}
         <div>
           <div style={{ margin: "12px 0" }}>
             <label style={{ display: "block", marginBottom: 6 }}>Изображение товара</label>
@@ -315,6 +321,14 @@ export default function SellerPanel() {
                 <option>Electronics</option>
               </select>
 
+              {/* Компонент размерной сетки */}
+              <SizeChartEditor
+                value={sizeChart}
+                onChange={setSizeChart}
+                garmentType={garmentType}
+                onGarmentTypeChange={setGarmentType}
+              />
+
               <div style={{ marginTop: 4 }}>
                 <button
                   onClick={handleMake3D}
@@ -343,6 +357,30 @@ export default function SellerPanel() {
                 )}
               </div>
 
+              {glbUrl && (
+                <div
+                  style={{
+                    width: "100%",
+                    height: 320,
+                    borderRadius: 12,
+                    overflow: "hidden",
+                    background: "#1118270d",
+                    border: "1px solid #e5e7eb",
+                    marginBottom: 8,
+                  }}
+                >
+                  <model-viewer
+                    src={glbUrl}
+                    alt="3D preview"
+                    camera-controls
+                    auto-rotate
+                    autoplay
+                    exposure="0.9"
+                    style={{ width: "100%", height: "100%" }}
+                  ></model-viewer>
+                </div>
+              )}
+
               <button
                 onClick={handleSave}
                 disabled={saving}
@@ -351,87 +389,6 @@ export default function SellerPanel() {
                 {saving ? "Сохраняю…" : "💾 Сохранить в БД"}
               </button>
             </div>
-          )}
-        </div>
-
-        {/* Правая колонка — превью */}
-        <div>
-          {processedUrl ? (
-            <>
-              <div style={{ marginBottom: 12, fontSize: 13, fontWeight: 600, color: "#111827" }}>
-                2D-превью товара
-              </div>
-
-              {/* серый фон помогает увидеть прозрачность PNG */}
-              <div
-                style={{
-                  width: "100%",
-                  borderRadius: 8,
-                  overflow: "hidden",
-                  background: "#e5e7eb",
-                  marginBottom: 16,
-                }}
-              >
-                <img
-                  src={processedUrl}
-                  alt="Предпросмотр"
-                  style={{ width: "100%", display: "block" }}
-                />
-              </div>
-
-              <div style={{ marginBottom: 8, fontSize: 13, fontWeight: 600, color: "#111827" }}>
-                3D-превью (GLB)
-              </div>
-
-              {!glbUrl && (
-                <p style={{ fontSize: 13, color: "#6b7280" }}>
-                  Сгенерируй 3D или загрузи готовую модель, чтобы посмотреть её здесь.
-                </p>
-              )}
-
-              {glbUrl && (
-                <>
-                  <div
-                    style={{
-                      width: "100%",
-                      height: 320,
-                      borderRadius: 12,
-                      overflow: "hidden",
-                      background: "#1118270d",
-                      border: "1px solid #e5e7eb",
-                      marginBottom: 8,
-                    }}
-                  >
-                    <model-viewer
-                      src={glbUrl}
-                      alt="3D preview"
-                      camera-controls
-                      auto-rotate
-                      autoplay
-                      exposure="0.9"
-                      style={{ width: "100%", height: "100%" }}
-                    ></model-viewer>
-                  </div>
-
-                  <div style={{ fontSize: 13 }}>
-                    <a
-                      href={glbUrl}
-                      download="model.glb"
-                      style={{ fontSize: 13, color: "#2563eb" }}
-                    >
-                      ⤓ Скачать GLB
-                    </a>
-                    <span style={{ marginLeft: 8, color: "#6b7280" }}>
-                      — можно использовать в AR / на странице товара.
-                    </span>
-                  </div>
-                </>
-              )}
-            </>
-          ) : (
-            <p style={{ fontSize: 13, color: "#6b7280" }}>
-              Сначала загрузите изображение товара — здесь появится 2D и 3D-превью.
-            </p>
           )}
         </div>
       </div>

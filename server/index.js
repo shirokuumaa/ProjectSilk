@@ -12,6 +12,7 @@ import wardrobeRoutes from './routes/wardrobeRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
 import avatarRoutes from './routes/avatarRoutes.js';
 import avatarPersistRoutes from "./routes/avatarPersistRoutes.js";
+import bodyProfileRoutes from './routes/bodyProfileRoutes.js';
 
 
 dotenv.config();
@@ -53,6 +54,7 @@ app.use('/uploads', express.static(uploadsDir));
 /* 4) API-роуты */
 app.use('/api/products', productRoutes);
 app.use('/api/wardrobe', wardrobeRoutes); // ← добавили гардероб
+app.use('/api/body-profile', bodyProfileRoutes);
 
 /* Health & debug */
 app.get('/healthz', (_req, res) => res.json({ ok: true }));

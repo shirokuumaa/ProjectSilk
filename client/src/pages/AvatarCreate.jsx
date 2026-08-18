@@ -1,13 +1,16 @@
 // client/src/pages/AvatarCreate.jsx
+// ФИНАЛЬНАЯ ВЕРСИЯ: Шаг 2 (обмеры) → прямо в Гардероб
+// Шаги 1 (фото) и 3 (генерация) заморожены — нужны GPU
+
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { saveBodyProfile, loadBodyProfile } from '../utils/bodyProfileApi';
+import MeasurementsPreview from '../components/MeasurementsPreview';
 
-// базовый адрес API (для абсолютных URL к /uploads и проверки OFF/PROXY)
 const API_BASE = process.env.REACT_APP_API || 'http://localhost:5050';
 const toPublicUrl = (s = '') =>
   (s && s.startsWith('/uploads') ? `${API_BASE}${s}` : s);
 
-// Набор ракурсов
 const ANGLES = [
   { key: 'front', label: 'Front (A-pose)', required: true },
   { key: 'back', label: 'Back', required: true },
@@ -32,7 +35,6 @@ const input = {
 };
 const note = { color: '#6b7280', fontSize: 13 };
 
-// ───────── utils ─────────
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
 function dataURLtoFile(dataUrl, filename = 'image.jpg') {
@@ -76,7 +78,6 @@ function analyzeImageData(id) {
 export default function AvatarCreate() {
   const nav = useNavigate();
 
-  // AI режим (off/proxy/gpu...)
   const [aiMode, setAiMode] = useState('off');
   useEffect(() => {
     (async () => {
@@ -91,18 +92,12 @@ export default function AvatarCreate() {
     })();
   }, []);
 
-  // Шаги: 1 — Capture/Upload, 2 — Measurements, 3 — Review/Generate
   const [step, setStep] = useState(1);
-
-  // Фото по ракурсам: { [key]: { dataUrl, file? } }
   const [shots, setShots] = useState({});
   const [activeKey, setActiveKey] = useState('front');
-
-  // Turnaround video → кадры
-  const [turnFrames, setTurnFrames] = useState([]); // [{dataUrl, t}]
+  const [turnFrames, setTurnFrames] = useState([]);
   const turnFileRef = useRef(null);
 
-  // Черновик измерений
   const [m, setM] = useState({
     heightCm: 170,
     chest: '',
@@ -117,10 +112,26 @@ export default function AvatarCreate() {
     style: 'realistic',
   });
 
-  // Флаг, что мы уже один раз прочитали черновик
   const [draftLoaded, setDraftLoaded] = useState(false);
 
-  // Загрузка из localStorage один раз
+  useEffect(() => {
+    (async () => {
+      const saved = await loadBodyProfile();
+      if (!saved) return;
+      setM((prev) => ({
+        ...prev,
+        heightCm: saved.heightCm ?? prev.heightCm,
+        chest: saved.chest ?? prev.chest,
+        waist: saved.waist ?? prev.waist,
+        hips: saved.hips ?? prev.hips,
+        shoulders: saved.shoulderWidth ?? prev.shoulders,
+        inseam: saved.inseam ?? prev.inseam,
+        skinTone: saved.skinTone ?? prev.skinTone,
+        hair: saved.hairStyle ?? prev.hair,
+      }));
+    })();
+  }, []);
+
   useEffect(() => {
     try {
       const raw = localStorage.getItem('avatarDraft');
@@ -133,13 +144,11 @@ export default function AvatarCreate() {
         if (d.turnFrames) setTurnFrames(d.turnFrames);
       }
     } catch {
-      // если ошибка парсинга — просто начинаем с нуля
     } finally {
       setDraftLoaded(true);
     }
   }, []);
 
-  // Сохранение в avatarDraft — только после загрузки
   useEffect(() => {
     if (!draftLoaded) return;
     try {
@@ -148,7 +157,6 @@ export default function AvatarCreate() {
         JSON.stringify({ shots, m, step, activeKey, turnFrames })
       );
     } catch {
-      /* ignore overflow */
     }
   }, [draftLoaded, shots, m, step, activeKey, turnFrames]);
 
@@ -162,13 +170,12 @@ export default function AvatarCreate() {
     setActiveKey('front');
   };
 
-  // Камера + контур-гайд
   const [useCamera, setUseCamera] = useState(false);
   const [showGuides, setShowGuides] = useState(true);
   const videoRef = useRef(null);
   const streamRef = useRef(null);
   const fileRef = useRef(null);
-  const [quality, setQuality] = useState('bad'); // bad|ok|good
+  const [quality, setQuality] = useState('bad');
 
   useEffect(() => {
     let stop = false;
@@ -278,7 +285,6 @@ export default function AvatarCreate() {
   );
   const providedCount = Object.keys(shots).length;
 
-  // Turnaround video → извлечение кадров
   const onPickVideo = () => turnFileRef.current?.click();
 
   const onVideoFile = async (e) => {
@@ -346,7 +352,6 @@ export default function AvatarCreate() {
     }));
   };
 
-  // авто-оценка мерок
   const [estimBusy, setEstimBusy] = useState(false);
 
   const estimateFromPhotos = async () => {
@@ -372,7 +377,6 @@ export default function AvatarCreate() {
           'Stub-оценка от роста/типа тела. С GPU заменим на фотометрическую оценку.'
         );
       } else {
-        // TODO: когда появится /measure/estimate
         alert(
           'GPU-роут ещё не подключён — пока используем stub.'
         );
@@ -380,201 +384,6 @@ export default function AvatarCreate() {
     } finally {
       setEstimBusy(false);
     }
-  };
-
-  // Генерация
-  const [job, setJob] = useState(null); // {id, status, previewUrl, glbUrl, message}
-  const [busy, setBusy] = useState(false);
-  const [msg, setMsg] = useState('');
-
-  const startGeneration = async () => {
-    if (!haveRequired && !turnFrames.length) {
-      alert(
-        'Добавь обязательные ракурсы или загрузи turnaround-видео.'
-      );
-      return;
-    }
-
-    const firstKey = ANGLES.find(
-      (a) => shots[a.key]
-    )?.key;
-    const dataUrlFallback = firstKey
-      ? shots[firstKey].dataUrl
-      : turnFrames[0]?.dataUrl || null;
-    if (!dataUrlFallback) {
-      alert('Нет фото для запуска.');
-      return;
-    }
-
-    try {
-      setBusy(true);
-      setMsg('Uploading…');
-
-      const fd = new FormData();
-      if (aiMode === 'off') {
-        fd.append(
-          'photo',
-          dataURLtoFile(dataUrlFallback, 'avatar.jpg')
-        );
-      } else {
-        ANGLES.forEach((a) => {
-          const d = shots[a.key]?.dataUrl;
-          if (d)
-            fd.append(
-              'photos[]',
-              dataURLtoFile(d, `${a.key}.jpg`)
-            );
-        });
-        const N = Math.min(12, turnFrames.length);
-        for (let i = 0; i < N; i++) {
-          const idx = Math.round(
-            (turnFrames.length - 1) * (i / (N - 1))
-          );
-          fd.append(
-            'photos[]',
-            dataURLtoFile(
-              turnFrames[idx].dataUrl,
-              `turn_${i}.jpg`
-            )
-          );
-        }
-      }
-      Object.entries(m).forEach(([k, v]) =>
-        fd.append(k, String(v))
-      );
-
-      const start = await fetch(
-        `${API_BASE}/api/ai/avatar/start`,
-        { method: 'POST', body: fd }
-      )
-        .then((r) => r.json())
-        .catch(() => ({}));
-      const jobId =
-        start.jobId || start.job_id || start.id;
-      if (!jobId) {
-        alert('Не удалось запустить генерацию');
-        setBusy(false);
-        return;
-      }
-      setJob({ id: jobId, status: 'queued' });
-      setStep(3);
-
-      let finished = false;
-      for (let i = 0; i < 90; i++) {
-        await sleep(2000);
-        const st = await fetch(
-          `${API_BASE}/api/ai/avatar/status/${encodeURIComponent(
-            jobId
-          )}`
-        )
-          .then((r) => r.json())
-          .catch(() => ({}));
-        const preview =
-          st.previewUrl ||
-          st.preview_url ||
-          st.preview ||
-          null;
-        const glb =
-          st.glbUrl || st.glb_url || st.glb || null;
-        const status = st.status || 'processing';
-        const prog =
-          typeof st.progress === 'number'
-            ? st.progress
-            : null;
-        if (prog != null)
-          setMsg(`Generating… ${Math.round(prog * 100)}%`);
-        setJob((prev) => ({
-          ...(prev || {}),
-          status,
-          previewUrl: preview
-            ? toPublicUrl(preview)
-            : prev?.previewUrl || null,
-          glbUrl: glb
-            ? toPublicUrl(glb)
-            : prev?.glbUrl || null,
-          message: st.message,
-        }));
-        if (status === 'error') {
-          setBusy(false);
-          setMsg('Error');
-          finished = true;
-          break;
-        }
-        if (status === 'done') {
-          setBusy(false);
-          setMsg('Done');
-          finished = true;
-          break;
-        }
-      }
-      if (!finished) {
-        setBusy(false);
-        setMsg(
-          'Timed out — проверь позже в истории задач.'
-        );
-      }
-    } catch (e) {
-      console.error(e);
-      alert('Avatar generation error');
-      setBusy(false);
-      setMsg('');
-    }
-  };
-
-  const openViewer = () => {
-    if (job?.glbUrl)
-      window.open(
-        `/viewer?src=${encodeURIComponent(job.glbUrl)}`,
-        '_blank',
-        'noopener,noreferrer'
-      );
-  };
-
-  // 💾 Сохранение финального аватара и переход на Try-On Avatar
-  const saveAvatarAndOpenTryOn = () => {
-    if (job?.status !== 'done' || !job.glbUrl) return;
-
-    const firstByAngles = ANGLES.map(
-      (a) => shots[a.key]?.dataUrl
-    ).find(Boolean);
-    const preview =
-      job.previewUrl ||
-      firstByAngles ||
-      turnFrames[0]?.dataUrl ||
-      '';
-
-    const avatarFinal = {
-      id: `avatar-${Date.now()}`,
-      name: 'My Avatar',
-      preview,
-      glb: job.glbUrl,
-      createdAt: Date.now(),
-    };
-
-    try {
-      // для TryOnAvatar (3D)
-      localStorage.setItem(
-        'avatarFinal',
-        JSON.stringify(avatarFinal)
-      );
-
-      // опционально: положим и в гардероб, чтобы можно было использовать как item
-      localStorage.setItem(
-        'wardrobeAvatar',
-        JSON.stringify({
-          id: avatarFinal.id,
-          name: avatarFinal.name,
-          image: avatarFinal.preview,
-          model3d: avatarFinal.glb,
-          addedAt: avatarFinal.createdAt,
-        })
-      );
-    } catch {
-      /* ignore quota errors */
-    }
-
-    alert('Аватар сохранён. Открываю Avatar Try-On.');
-    nav('/tryon/avatar');
   };
 
   const frameColor =
@@ -588,14 +397,13 @@ export default function AvatarCreate() {
     <div
       style={{ padding: 24, display: 'grid', gap: 16 }}
     >
-      <h2>🧍 Generate Avatar</h2>
+      <h2>🧍 Create Your Body Profile</h2>
 
       {/* STEPPER */}
       <div style={{ display: 'flex', gap: 8 }}>
         {[
-          'Capture/Upload',
-          'Measurements',
-          'Review/Generate',
+          'Photos (optional)',
+          'Your Measurements',
         ].map((t, i) => (
           <div
             key={t}
@@ -614,14 +422,13 @@ export default function AvatarCreate() {
         ))}
       </div>
 
-      {/* STEP 1 */}
+      {/* STEP 1 — PHOTOS (OPTIONAL) */}
       {step === 1 && (
         <section style={card}>
-          <h3>Step 1 · Capture / Upload</h3>
+          <h3>Step 1 · Photos (Optional)</h3>
           <p style={note}>
-            Лучшие результаты: однотонный фон, ровный свет,
-            A-pose, камера 2–3 м. AI mode:{' '}
-            <strong>{aiMode.toUpperCase()}</strong>
+            ℹ️ Фото нужны только если хочешь узнать свои обмеры автоматически.
+            Можешь их пропустить и ввести обмеры вручную на Шаге 2.
           </p>
 
           <div
@@ -680,13 +487,8 @@ export default function AvatarCreate() {
               onChange={onFile}
               style={{ display: 'none' }}
             />
-            <span
-              style={{
-                ...note,
-                marginLeft: 8,
-              }}
-            >
-              Active angle:{' '}
+            <span style={note}>
+              Ракурс:{' '}
               <strong>
                 {
                   ANGLES.find(
@@ -719,26 +521,7 @@ export default function AvatarCreate() {
                     background: '#fff',
                   }}
                 >
-                  <div
-                    style={{
-                      display: 'flex',
-                      justifyContent: 'space-between',
-                      alignItems: 'center',
-                      marginBottom: 8,
-                    }}
-                  >
-                    <strong>{a.label}</strong>
-                    {a.required && (
-                      <span
-                        style={{
-                          ...note,
-                          fontSize: 12,
-                        }}
-                      >
-                        required
-                      </span>
-                    )}
-                  </div>
+                  <strong>{a.label}</strong>
                   <div
                     onClick={() => setActiveKey(a.key)}
                     style={{
@@ -753,6 +536,7 @@ export default function AvatarCreate() {
                       outline: active
                         ? '2px solid #111827'
                         : 'none',
+                      marginTop: 8,
                     }}
                   >
                     {shot ? (
@@ -804,7 +588,6 @@ export default function AvatarCreate() {
             })}
           </div>
 
-          {/* Камера с контур-гайдом */}
           {useCamera && (
             <div
               style={{
@@ -878,18 +661,10 @@ export default function AvatarCreate() {
             </div>
           )}
 
-          {/* Turnaround видео */}
           <div style={{ marginTop: 24 }}>
-            <h4
-              style={{
-                margin: '0 0 8px',
-              }}
-            >
-              Turnaround video (optional)
-            </h4>
+            <h4>Turnaround video (optional)</h4>
             <p style={note}>
-              Загрузите 10–15 секунд видео —
-              извлечём ~12–20 кадров.
+              Загрузите 10–15 сек видео
             </p>
             <button onClick={onPickVideo}>
               Upload video
@@ -937,13 +712,12 @@ export default function AvatarCreate() {
                   }}
                 >
                   <button onClick={autoFillFromTurn}>
-                    Auto-fill required from
-                    turnaround
+                    Auto-fill from video
                   </button>
                   <button
                     onClick={() => setTurnFrames([])}
                   >
-                    Clear video frames
+                    Clear
                   </button>
                 </div>
               </>
@@ -962,23 +736,19 @@ export default function AvatarCreate() {
               Clear draft
             </button>
             <div style={{ flex: 1 }} />
-            <button
-              disabled={!haveRequired && !turnFrames.length}
-              onClick={() => setStep(2)}
-            >
+            <button onClick={() => setStep(2)}>
               Next: Measurements ▶️
             </button>
           </div>
         </section>
       )}
 
-      {/* STEP 2 */}
+      {/* STEP 2 — MEASUREMENTS (REQUIRED) */}
       {step === 2 && (
         <section style={card}>
-          <h3>Step 2 · Measurements</h3>
+          <h3>Step 2 · Your Measurements</h3>
           <p style={note}>
-            Рост обязателен для масштаба. Остальные
-            мерки улучшают посадку одежды.
+            ✅ Главное: введи обмеры и нажми "Сохранить обмеры" → твоё тело готово!
           </p>
           <div
             style={{
@@ -990,7 +760,7 @@ export default function AvatarCreate() {
             }}
           >
             <label>
-              Height (cm)
+              Height (cm) <span style={{ color: 'red' }}>*</span>
               <input
                 type="number"
                 min="120"
@@ -1006,7 +776,7 @@ export default function AvatarCreate() {
               />
             </label>
             <label>
-              Chest / Bust (cm)
+              Chest / Bust (cm) <span style={{ color: 'red' }}>*</span>
               <input
                 type="number"
                 value={m.chest}
@@ -1020,7 +790,7 @@ export default function AvatarCreate() {
               />
             </label>
             <label>
-              Waist (cm)
+              Waist (cm) <span style={{ color: 'red' }}>*</span>
               <input
                 type="number"
                 value={m.waist}
@@ -1034,7 +804,7 @@ export default function AvatarCreate() {
               />
             </label>
             <label>
-              Hips (cm)
+              Hips (cm) <span style={{ color: 'red' }}>*</span>
               <input
                 type="number"
                 value={m.hips}
@@ -1144,26 +914,6 @@ export default function AvatarCreate() {
                 <option value="curly">Curly</option>
               </select>
             </label>
-            <label>
-              Style
-              <select
-                value={m.style}
-                onChange={(e) =>
-                  setM({
-                    ...m,
-                    style: e.target.value,
-                  })
-                }
-                style={input}
-              >
-                <option value="realistic">
-                  Realistic
-                </option>
-                <option value="cartoon">
-                  Cartoon
-                </option>
-              </select>
-            </label>
           </div>
 
           <div
@@ -1184,180 +934,21 @@ export default function AvatarCreate() {
                 : 'Auto-estimate from photos'}
             </button>
             <span style={note}>
-              В AI-OFF это заглушка; с GPU пойдём по
-              keypoints+depth.
+              (Если загрузил фото на Шаге 1)
             </span>
           </div>
 
+          {/* Живой предпросмотр тела */}
+          <MeasurementsPreview m={m} onSaved={() => nav('/wardrobe')} />
+
           <div style={{ marginTop: 16 }}>
             <button onClick={() => setStep(1)}>
-              ◀️ Back
-            </button>{' '}
-            <button onClick={() => setStep(3)}>
-              Next: Review ▶️
+              ◀️ Back to photos
             </button>
           </div>
-        </section>
-      )}
-
-      {/* STEP 3 */}
-      {step === 3 && (
-        <section style={card}>
-          <h3>Step 3 · Review & Generate</h3>
-          <p style={note}>
-            Photos:{' '}
-            <strong>{providedCount}</strong>{' '}
-            {ANGLES.filter((a) => shots[a.key])
-              .map((a) => a.label)
-              .join(', ') || '—'}
-            {turnFrames.length
-              ? ` · Turnaround frames: ${turnFrames.length}`
-              : ''}
-          </p>
-
-          <div
-            style={{
-              display: 'flex',
-              gap: 12,
-              flexWrap: 'wrap',
-            }}
-          >
-            {ANGLES.filter((a) => shots[a.key]).map(
-              (a) => (
-                <img
-                  key={a.key}
-                  src={shots[a.key].dataUrl}
-                  alt={a.key}
-                  style={{
-                    height: 120,
-                    borderRadius: 8,
-                    border: '1px solid #e5e7eb',
-                  }}
-                />
-              )
-            )}
-            {turnFrames.slice(0, 6).map((fr, i) => (
-              <img
-                key={`t${i}`}
-                src={fr.dataUrl}
-                alt={`t${i}`}
-                style={{
-                  height: 120,
-                  borderRadius: 8,
-                  border: '1px solid #e5e7eb',
-                }}
-              />
-            ))}
-          </div>
-
-          <div style={{ marginTop: 16 }}>
-            <button onClick={() => setStep(2)}>
-              ◀️ Back
-            </button>{' '}
-            <button
-              onClick={startGeneration}
-              disabled={busy}
-            >
-              Start generation ▶️
-            </button>
-          </div>
-
-          {busy && (
-            <p style={{ marginTop: 8 }}>
-              ⏳ {msg || 'Working…'}
-            </p>
-          )}
-
-          {job?.status === 'done' && (
-            <div
-              style={{
-                marginTop: 16,
-                display: 'grid',
-                gap: 8,
-              }}
-            >
-              <div
-                style={{
-                  display: 'flex',
-                  gap: 16,
-                  alignItems: 'center',
-                  flexWrap: 'wrap',
-                }}
-              >
-                {job.previewUrl ? (
-                  <img
-                    src={job.previewUrl}
-                    alt="avatar"
-                    style={{
-                      height: 180,
-                      borderRadius: 8,
-                      border: '1px solid #e5e7eb',
-                    }}
-                  />
-                ) : (
-                  <div
-                    style={{
-                      height: 180,
-                      width: 180,
-                      display: 'grid',
-                      placeItems: 'center',
-                      background: '#f9fafb',
-                      border: '1px solid #e5e7eb',
-                      borderRadius: 8,
-                      color: '#6b7280',
-                    }}
-                  >
-                    Avatar Preview
-                  </div>
-                )}
-                <div>
-                  <div>
-                    <strong>GLB:</strong>{' '}
-                    {job.glbUrl ? (
-                      <a
-                        href={job.glbUrl}
-                        target="_blank"
-                        rel="noreferrer"
-                      >
-                        {job.glbUrl}
-                      </a>
-                    ) : (
-                      '—'
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div>
-                <button
-                  disabled={!job.glbUrl}
-                  onClick={openViewer}
-                >
-                  Open 3D Viewer
-                </button>{' '}
-                <button
-                  disabled={!job.glbUrl}
-                  onClick={saveAvatarAndOpenTryOn}
-                >
-                  Save avatar & open Try-On Avatar
-                </button>{' '}
-                <button
-                  onClick={() => nav('/wardrobe')}
-                >
-                  Back to Wardrobe
-                </button>
-              </div>
-            </div>
-          )}
-
-          {job?.status === 'error' && (
-            <p>
-              ❌{' '}
-              {job.message ||
-                'Generation failed. Try other photos.'}
-            </p>
-          )}
         </section>
       )}
     </div>
   );
 }
+

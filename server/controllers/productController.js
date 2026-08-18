@@ -38,7 +38,25 @@ export const getProductById = async (req, res) => {
 /** POST /api/products  (multipart или JSON) */
 export const addProduct = async (req, res) => {
   try {
-    const { title, name, price, category = 'Clothes' } = req.body;
+    const { title, name, price, category = 'Clothes', garmentType = 'top' } = req.body;
+
+    // Парсим размерную сетку и валидируем
+    let sizeChart = [];
+    if (req.body.sizeChart) {
+      try {
+        const parsed = typeof req.body.sizeChart === 'string'
+          ? JSON.parse(req.body.sizeChart)
+          : req.body.sizeChart;
+        if (Array.isArray(parsed)) {
+          sizeChart = parsed.filter((s) => {
+            // каждая строка должна иметь size и хотя бы один обмер
+            return s && s.size && (s.chest || s.waist || s.hips || s.length || s.sleeve);
+          });
+        }
+      } catch (e) {
+        console.warn('sizeChart parse failed:', e.message);
+      }
+    }
 
     // ── Картинка ───────────────────────────────────────────────
     let imageUrl = null;
@@ -98,6 +116,8 @@ export const addProduct = async (req, res) => {
       name: String(name || title).trim(),
       price: priceNum,
       category: String(category || 'Clothes'),
+      garmentType: String(garmentType || 'top'),
+      sizeChart,
       image: imageUrl,
       model3d: model3dUrl || undefined,
       rating: 0,
