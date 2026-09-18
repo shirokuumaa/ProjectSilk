@@ -1,24 +1,68 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* client/src/index.css
+ *
+ * Токены обязаны идти первой строкой: @import в CSS работает только
+ * до остальных правил.
+ */
+ @import './styles/tokens.css';
 
-body {
-  margin: 0;
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen',
-    'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue',
-    sans-serif;
-  -webkit-font-smoothing: antialiased;
-  -moz-osx-font-smoothing: grayscale;
-}
-
-code {
-  font-family: source-code-pro, Menlo, Monaco, Consolas, 'Courier New',
-    monospace;
-}
-
-:root{
-  --pill-bg:#fff;
-  --pill-fg:#1f2937;
-  --pill-radius:22px;
-  --pill-shadow:0 6px 24px rgba(0,0,0,.08);
-}
+ @tailwind base;
+ @tailwind components;
+ @tailwind utilities;
+ 
+ /* ── глобальная база ───────────────────────────────────────────
+  * Это самая важная часть для внешнего вида: фон, шрифт и цвет
+  * текста задаются здесь один раз и достаются каждой странице —
+  * включая те, которые ещё не переведены на макет v11.
+  */
+ 
+ * { box-sizing: border-box; }
+ 
+ html, body, #root { height: 100%; }
+ 
+ body {
+   margin: 0;
+   background: var(--bg);
+   font-family: var(--font-ui);
+   font-size: var(--fs-md);
+   line-height: 1.5;
+   color: var(--ink-2);
+   -webkit-font-smoothing: antialiased;
+   -moz-osx-font-smoothing: grayscale;
+ }
+ 
+ /* Кнопки и ссылки по умолчанию наследуют шрифт — иначе браузер
+    подставляет свой системный и вёрстка выглядит разнородной. */
+ button, input, select, textarea {
+   font: inherit;
+   color: inherit;
+ }
+ 
+ button { cursor: pointer; }
+ 
+ a { color: inherit; text-decoration: none; }
+ 
+ code, kbd, samp { font-family: var(--font-mono); }
+ 
+ /* Заголовки — серифом, как в макете */
+ h1, h2, h3 {
+   font-family: var(--font-display);
+   font-weight: 600;
+   color: var(--ink);
+   margin: 0 0 .5em;
+ }
+ 
+ h1 { font-size: 26px; }
+ h2 { font-size: 21px; }
+ h3 { font-size: 17px; }
+ 
+ ::placeholder { color: var(--muted-2); }
+ 
+ /* Скроллбар в тон странице */
+ ::-webkit-scrollbar { width: 11px; height: 11px; }
+ ::-webkit-scrollbar-track { background: transparent; }
+ ::-webkit-scrollbar-thumb {
+   background: var(--line);
+   border-radius: 99px;
+   border: 3px solid var(--bg);
+ }
+ ::-webkit-scrollbar-thumb:hover { background: var(--line-strong); }

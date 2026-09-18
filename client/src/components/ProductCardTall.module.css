@@ -1,90 +1,176 @@
-:root{
-    --card-shadow: 0 16px 48px rgba(0,0,0,.08);
-    --soft: #f3f5f9;
-  }
-  
-  .card{
-    width: 220px;             /* узкая */
-    min-height: 360px;        /* высокая */
-    background:#fff;
-    border-radius: 18px;
-    box-shadow: var(--card-shadow);
-    display:flex;
-    flex-direction: column;
-    overflow:hidden;
-    transition: transform .12s ease, box-shadow .12s ease;
-    cursor: pointer;
-  }
-  .card:hover{ transform: translateY(-2px); box-shadow: 0 20px 60px rgba(0,0,0,.10); }
-  
-  .media{
-    position:relative;
-    background: var(--soft);
-    aspect-ratio: 3 / 4;      /* вертикальная картинка */
-    display:flex; align-items:center; justify-content:center;
-  }
-  .image{
-    width:100%; height:100%; object-fit: cover;
-  }
-  
-  .heart{
-    position:absolute; top:8px; right:8px;
-    width:32px; height:32px; border:none; border-radius:999px;
-    background:#ffffffcc; backdrop-filter: blur(4px);
-    display:flex; align-items:center; justify-content:center;
-    font-size:16px; cursor:pointer; transition:transform .12s ease, background .12s ease;
-  }
-  .heart:hover{ transform: scale(1.06); }
-  .heartOn{ background:#ffeff3; color:#e11d48; }
-  
-  .body{
-    padding: 10px 12px 12px;
-    display:flex; flex-direction:column; gap:8px;
-  }
-  
-  .name{
-    font-size: 14px; font-weight: 600; color:#0f172a;
-    line-height: 1.25; max-height: 2.6em; overflow:hidden;
-  }
-  
-  .rating{ display:flex; align-items:center; gap:4px; }
-  .starOn{ color:#f59e0b; }
-  .starOff{ color:#e5e7eb; }
-  .ratingNum{ font-size:12px; color:#6b7280; margin-left:4px; }
-  
-  .footerRow{
-    margin-top: 2px;
-    display:flex; align-items:center; justify-content:space-between; gap:8px;
-  }
-  
-  .price{
-    font-weight:700; color:#0f172a;
-    font-size: 16px;
-  }
-  
-  .actions{ display:flex; align-items:center; gap:6px; }
-  .pillBtn{
-    border:none; background:#fff; color:#111827;
-    padding:6px 10px; border-radius: 999px;
-    box-shadow: 0 8px 24px rgba(0,0,0,.10);
-    cursor:pointer; font-size:12px; white-space:nowrap;
-    transition: transform .12s ease, box-shadow .12s ease, background .12s ease;
-  }
-  .pillBtn:hover{ transform: translateY(-1px); box-shadow: 0 12px 32px rgba(0,0,0,.12); background:#f9fafb; }
-  
-  .cartBtn{ font-weight:600; }
-  .tick{
-    margin-left:6px; font-size:12px; color:#10b981;
-  }
+/* client/src/components/ProductCardTall.module.css
+ * Карточка товара по макету projectsilk_v11.html.
+ * В макете карточки лежат на светлом полотне без тяжёлых теней —
+ * только тончайшая тень, чтобы отделить белое от белого.
+ */
 
-  /* fade-in при смене кадра */
-.fadeIn{ animation: fade .35s ease; }
-@keyframes fade { from{opacity:0} to{opacity:1} }
-
-/* бейдж сверху слева */
-.badge{
-  position:absolute; top:10px; left:10px;
-  background:#111827; color:#fff;
-  font-size:12px; padding:4px 8px; border-radius:999px;
-  box-shadow: 0 8px 22px rgba(0,0,0,.18);
+ .card {
+  background: var(--surface);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  box-shadow: var(--shadow-card);
+  display: flex;
+  flex-direction: column;
+  cursor: pointer;
+  transition: transform .14s ease, box-shadow .14s ease;
 }
+
+.card:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 22px -12px rgba(24, 24, 27, .22);
+}
+
+.card[draggable="true"] { cursor: grab; }
+.card[draggable="true"]:active { cursor: grabbing; }
+
+/* ── картинка ── */
+
+.media {
+  position: relative;
+  aspect-ratio: 3 / 4;
+  background: var(--surface-3);
+  display: grid;
+  place-items: center;
+  overflow: hidden;
+}
+
+.image { width: 100%; height: 100%; object-fit: cover; }
+
+.fadeIn { animation: fade .35s ease; }
+@keyframes fade { from { opacity: 0 } to { opacity: 1 } }
+
+.badge {
+  position: absolute;
+  top: 10px;
+  left: 10px;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: var(--surface);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  z-index: 2;
+}
+
+.heart {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, .78);
+  backdrop-filter: blur(4px);
+  display: grid;
+  place-items: center;
+  font-size: 17px;
+  line-height: 1;
+  color: var(--muted-2);
+  cursor: pointer;
+  z-index: 2;
+  transition: transform .12s ease, color .12s ease;
+}
+
+.heart:hover { transform: scale(1.08); }
+.heartOn { color: #E8384F; }
+
+/* ── тело ── */
+
+.body { padding: 12px 14px 14px; }
+
+.name {
+  font-size: var(--fs-md);
+  color: var(--ink-2);
+  line-height: 1.3;
+  margin-bottom: 5px;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.rating {
+  font-size: 12px;
+  color: #D4D4D8;
+  letter-spacing: .5px;
+  margin-bottom: 8px;
+}
+
+.ratingNum {
+  font-style: normal;
+  color: var(--muted-2);
+  margin-left: 4px;
+  letter-spacing: 0;
+}
+
+/* Подсказка про 3D. В макете это отдельная строка — покупатель
+   должен видеть возможность примерки, не нажимая ничего. */
+.dragHint {
+  font-size: 11px;
+  color: var(--muted-2);
+  margin: -2px 0 8px;
+}
+
+.dragHintNo { color: #B45309; }
+
+/* ── цена и кнопки ──
+ * В макете v11 цена и три кнопки стоят в одну строку, но там подписи
+ * английские и короткие («Add», «Avatar»). По-русски они в 228 пикселей
+ * не помещаются и вылезают за край карточки — поэтому две строки.
+ */
+
+.priceRow {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 9px;
+}
+
+.price {
+  font-size: 17px;
+  font-weight: 700;
+  color: var(--ink);
+  line-height: 1.15;
+}
+
+.priceUnit {
+  font-size: 12px;
+  font-weight: 400;
+  color: var(--muted);
+}
+
+.actions {
+  display: flex;
+  align-items: stretch;
+  gap: 5px;
+}
+
+.pillBtn {
+  flex: 1;
+  min-width: 0;
+  padding: 7px 4px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line-3);
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  font-size: 11.5px;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: border-color .15s, background .15s;
+}
+
+.pillBtn:hover { border-color: var(--line-strong); background: var(--surface-2); }
+
+.cartBtn {
+  flex: 0 0 auto;
+  padding: 7px 13px;
+  border-color: var(--ink);
+  background: var(--ink);
+  color: var(--surface);
+}
+
+.cartBtn:hover { background: var(--ink); border-color: var(--ink); opacity: .86; }

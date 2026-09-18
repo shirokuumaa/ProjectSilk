@@ -16,31 +16,42 @@ export default function TopBar({ search, setSearch, cartItems }) {
   const handleMouseEnter = () => { clearTimeout(closeTimer.current); setShowMenu(true); };
   const handleMouseLeave = () => { closeTimer.current = setTimeout(() => setShowMenu(false), 300); };
 
-  // 🔍 / 🎤 / 📷
   const handleVoiceSearch = () => {
     if (!('webkitSpeechRecognition' in window)) {
-      alert("❌ Voice search is not supported in your browser."); return;
+      alert('Voice search is not supported in this browser.');
+      return;
     }
     const r = new window.webkitSpeechRecognition();
     r.lang = 'en-US';
     r.onresult = (e) => setSearch(e.results[0][0].transcript);
     r.start();
   };
+
   const handleImageSearch = (e) => {
     const f = e.target.files?.[0];
-    if (f) setSearch(f.name.split('.')[0].replace(/[_-]/g, ' ')); // ← убрали лишний escape
+    if (f) setSearch(f.name.split('.')[0].replace(/[_-]/g, ' '));
   };
 
-  const handleLogout = () => { localStorage.removeItem('loggedInUser'); window.location.reload(); };
+  const handleLogout = () => {
+    localStorage.removeItem('loggedInUser');
+    window.location.reload();
+  };
 
   return (
     <header className={styles.wrapper}>
       <div className={styles.row}>
-        {/* left: logo + categories */}
+        {/* левая часть */}
         <div className={styles.left}>
-          <span className={styles.logo}>💙 ProjectSilk</span>
+          <span className={styles.logo}>
+            <i className={styles.logoDot} />
+            ProjectSilk
+          </span>
 
-          <div className={styles.menuWrapper} onMouseEnter={handleMouseEnter} onMouseLeave={handleMouseLeave}>
+          <div
+            className={styles.menuWrapper}
+            onMouseEnter={handleMouseEnter}
+            onMouseLeave={handleMouseLeave}
+          >
             <button className={styles.menuBtn}>Categories ▾</button>
             {showMenu && (
               <div className={styles.menuContainer}>
@@ -50,50 +61,62 @@ export default function TopBar({ search, setSearch, cartItems }) {
           </div>
         </div>
 
-        {/* center: search + icons + I'm a Seller */}
+        {/* центр */}
         <div className={styles.center}>
           <div className={styles.search}>
             <input
               className={styles.searchInput}
-              placeholder="Search products..."
+              placeholder="Search products…"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
-            <button className={styles.iconBtn} onClick={() => setSearch(search)} aria-label="Search">🔍</button>
-            <button className={styles.iconBtn} onClick={handleVoiceSearch} aria-label="Voice">🎤</button>
-            <button className={styles.iconBtn} onClick={() => fileInputRef.current?.click()} aria-label="Image">📷</button>
-            <input type="file" accept="image/*" ref={fileInputRef} onChange={handleImageSearch} style={{ display: 'none' }} />
+            <button className={styles.iconBtn} onClick={() => setSearch(search)} aria-label="Search">⌕</button>
+            <button className={styles.iconBtn} onClick={handleVoiceSearch} aria-label="Search by voice">◉</button>
+            <button
+              className={styles.iconBtn}
+              onClick={() => fileInputRef.current?.click()}
+              aria-label="Search by image"
+            >
+              ▣
+            </button>
+            <input
+              type="file"
+              accept="image/*"
+              ref={fileInputRef}
+              onChange={handleImageSearch}
+              style={{ display: 'none' }}
+            />
           </div>
 
-          <Link to="/seller" className={styles.sellerBtn}>👛 I’m a Seller</Link>
+          <Link to="/seller" className={styles.sellerBtn}>I'm a Seller</Link>
         </div>
 
-        {/* right: account / orders / fav / cart */}
+        {/* правая часть */}
         <div className={styles.right}>
-          <button className={styles.navPill} onClick={() => setShowProfile(!showProfile)}>👤 <span>Sign in</span></button>
-          <button className={styles.navPill} onClick={() => navigate('/orders')}>📦 <span>Orders</span></button>
-          <button className={styles.navPill} onClick={() => navigate('/favorites')}>❤️ <span>Fav</span></button>
-
+          <button className={styles.navPill} onClick={() => setShowProfile(!showProfile)}>
+            {loggedInUser ? loggedInUser : 'Sign in'}
+          </button>
+          <button className={styles.navPill} onClick={() => navigate('/orders')}>Orders</button>
+          <button className={styles.navPill} onClick={() => navigate('/favorites')}>Fav</button>
           <button className={styles.navPill} onClick={() => navigate('/cart')}>
-            🛒 <span>Cart</span>
+            Cart
             {totalItems > 0 && <span className={styles.badge}>{totalItems}</span>}
           </button>
         </div>
       </div>
 
-      {/* profile popover */}
       {showProfile && (
         <div className={styles.profileBox}>
           {loggedInUser ? (
             <>
-              <p>Welcome back, <strong>{loggedInUser}</strong>! 👋</p>
-              <button className={styles.primary} onClick={handleLogout}>Logout</button>
+              <p>Signed in as <strong>{loggedInUser}</strong></p>
+              <button className={styles.primary} onClick={handleLogout}>Sign out</button>
             </>
           ) : (
             <>
-              <p>Welcome, guest! 👤</p>
-              <button className={styles.primary} onClick={() => navigate('/login')}>Login</button>
-              <button className={styles.ghost} onClick={() => navigate('/register')}>Register</button>
+              <p>You're not signed in</p>
+              <button className={styles.primary} onClick={() => navigate('/login')}>Sign in</button>
+              <button className={styles.ghost} onClick={() => navigate('/register')}>Create account</button>
             </>
           )}
         </div>

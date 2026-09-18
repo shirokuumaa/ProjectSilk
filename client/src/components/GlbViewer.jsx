@@ -1,28 +1,42 @@
 // client/src/components/GlbViewer.jsx
+//
+// Что изменено против прошлой версии:
+//
+// 1. КАМЕРА ПОДСТРАИВАЕТСЯ САМА (FitCamera). Раньше стояла на жёстких 3.2 м:
+//    на высокой фигуре обрезало голову, на низкой оставалось пустое поле.
+//    Теперь замеряется фактический bounding box сцены и камера отъезжает
+//    ровно настолько, чтобы фигура заполнила кадр. Переживёт замену
+//    процедурного тела на болванку художника.
+//
+// 2. УБРАН <Environment preset="city" />. Он качает HDR-карту со стороннего
+//    CDN внутри Suspense: при сбое сети вся сцена навсегда зависала на
+//    «Loading 3D…». Заменён обычным светом — выглядит так же, грузится сразу.
+//
+// 3. Светлая сцена и мягкая сетка по макету v11 вместо серого блока с рамкой.
+
 import React, { Suspense, useLayoutEffect, useMemo, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
-import { OrbitControls, Environment, useGLTF, Html } from '@react-three/drei';
+import { OrbitControls, useGLTF, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import BodyAvatar, { getBodyLandmarks } from './BodyAvatar';
+import FitCamera from './FitCamera';
 import { drapeGarment } from '../utils/garmentDrape';
 
-// Normalizes any model to a target height and centers it at origin (feet at y=0)
+/** Приводит модель к целевому росту, ставит ступни на y=0. */
 function normalizeModel(object, targetHeight = 1.7) {
   const box = new THREE.Box3().setFromObject(object);
   const size = box.getSize(new THREE.Vector3());
   if (size.y === 0) return;
-  const scale = targetHeight / size.y;
-  object.scale.setScalar(scale);
-  const newBox = new THREE.Box3().setFromObject(object);
-  object.position.x -= (newBox.min.x + newBox.max.x) / 2;
-  object.position.y -= newBox.min.y;
-  object.position.z -= (newBox.min.z + newBox.max.z) / 2;
+  object.scale.setScalar(targetHeight / size.y);
+  const nb = new THREE.Box3().setFromObject(object);
+  object.position.x -= (nb.min.x + nb.max.x) / 2;
+  object.position.y -= nb.min.y;
+  object.position.z -= (nb.min.z + nb.max.z) / 2;
 }
 
 /**
- * На какой уровень тела садится вещь и какой обхват задаёт её ширину.
- * Одежда масштабируется по ШИРИНЕ тела, а не по росту —
- * иначе футболка растягивается на весь рост аватара.
+ * На какой уровень тела садится вещь и какой обхват задаёт ширину.
+ * Масштаб по ШИРИНЕ, не по росту — иначе футболка растягивается на весь рост.
  */
 const FIT_RULES = {
   top:       { anchor: 'shoulder', widthAt: 'chest', align: 'top' },
@@ -38,17 +52,9 @@ function bodyWidthAt(profile, key) {
   return (per / 100) / 2.7;
 }
 
-/**
- * Посадка одежды: масштаб по ширине, позиция по анатомическому уровню,
- * затем прижатие вершин к телу.
- */
 function GarmentOnBody({
-  garmentScene,
-  profile,
-  garmentType = 'top',
-  layerOffset = 0,
-  fit = 'regular',
-  drape = true,
+  garmentScene, profile, garmentType = 'top',
+  layerOffset = 0, fit = 'regular', drape = true,
 }) {
   const ref = useRef();
 
@@ -65,56 +71,37 @@ function GarmentOnBody({
     const size = box.getSize(new THREE.Vector3());
     if (size.x === 0 || size.y === 0) return;
 
-    // автоопределение единиц (см vs м)
+    // автоопределение единиц (см против метров)
     let preScale = 1;
     if (size.y > marks.height * 10) preScale = 0.01;
     else if (size.y < marks.height * 0.1) preScale = 100;
 
-    // масштаб по ширине тела на нужном уровне
     const targetWidth = bodyWidthAt(profile, rule.widthAt) * 2.15;
-    const currentWidth = size.x * preScale;
-    const scale = (targetWidth / currentWidth) * preScale;
+    const scale = (targetWidth / (size.x * preScale)) * preScale;
     ref.current.scale.setScalar(scale);
 
-    // позиционирование по анатомическому уровню
     const scaled = new THREE.Box3().setFromObject(ref.current);
     const anchorY = marks[rule.anchor] ?? marks.shoulder;
 
-    if (rule.align === 'top') {
-      ref.current.position.y += anchorY - scaled.max.y;
-    } else {
-      ref.current.position.y += anchorY - scaled.min.y;
-    }
+    if (rule.align === 'top') ref.current.position.y += anchorY - scaled.max.y;
+    else ref.current.position.y += anchorY - scaled.min.y;
 
     ref.current.position.x -= (scaled.min.x + scaled.max.x) / 2;
     ref.current.position.z -= (scaled.min.z + scaled.max.z) / 2;
 
-    // прижатие ткани к телу
     if (drape && ['top', 'dress', 'outerwear', 'bottom'].includes(garmentType)) {
       try {
-        const stats = drapeGarment(ref.current, profile, {
-          fit,
-          layer: layerOffset,
-        });
-        if (stats.pushed > 0 || stats.pulled > 0) {
-          console.debug(
-            `[drape] ${garmentType}: вытолкнуто ${stats.pushed}, подтянуто ${stats.pulled} из ${stats.total} вершин`
-          );
-        }
+        drapeGarment(ref.current, profile, { fit, layer: layerOffset });
       } catch (e) {
-        console.warn('[drape] не удалось прижать одежду:', e.message);
+        console.warn('[drape] could not fit garment to body:', e.message);
       }
     }
   }, [garmentScene, profile, garmentType, layerOffset, fit, drape]);
 
-  return (
-    <group ref={ref}>
-      <primitive object={garmentScene} />
-    </group>
-  );
+  return <group ref={ref}><primitive object={garmentScene} /></group>;
 }
 
-/** Старый фиттер — для случая, когда аватар это GLB-файл */
+/** Фиттер для случая, когда аватар — это GLB-файл, а не обмеры. */
 function GarmentFitter({ avatarScene, garmentScene }) {
   const garmentRef = useRef();
   const fitted = useRef(false);
@@ -123,46 +110,37 @@ function GarmentFitter({ avatarScene, garmentScene }) {
     if (!avatarScene || !garmentScene || !garmentRef.current || fitted.current) return;
     fitted.current = true;
 
-    const avatarBox = new THREE.Box3().setFromObject(avatarScene);
-    const avatarSize = avatarBox.getSize(new THREE.Vector3());
-    const avatarCenterX = (avatarBox.min.x + avatarBox.max.x) / 2;
-    const avatarCenterZ = (avatarBox.min.z + avatarBox.max.z) / 2;
-
-    const garmentBox = new THREE.Box3().setFromObject(garmentScene);
-    const garmentSize = garmentBox.getSize(new THREE.Vector3());
-    if (garmentSize.y === 0) return;
+    const aBox = new THREE.Box3().setFromObject(avatarScene);
+    const aSize = aBox.getSize(new THREE.Vector3());
+    const gBox = new THREE.Box3().setFromObject(garmentScene);
+    const gSize = gBox.getSize(new THREE.Vector3());
+    if (gSize.y === 0) return;
 
     let preScale = 1;
-    if (garmentSize.y > avatarSize.y * 10) preScale = 0.01;
-    else if (garmentSize.y < avatarSize.y * 0.1) preScale = 100;
+    if (gSize.y > aSize.y * 10) preScale = 0.01;
+    else if (gSize.y < aSize.y * 0.1) preScale = 100;
 
-    const correctedHeight = garmentSize.y * preScale;
-    const scaleFactor = (avatarSize.y / correctedHeight) * preScale * 0.55;
-    garmentRef.current.scale.set(scaleFactor, scaleFactor, scaleFactor);
+    const scaleFactor = (aSize.y / (gSize.y * preScale)) * preScale * 0.55;
+    garmentRef.current.scale.setScalar(scaleFactor);
 
-    const scaledBox = new THREE.Box3().setFromObject(garmentRef.current);
-    garmentRef.current.position.x += (avatarCenterX - (scaledBox.min.x + scaledBox.max.x) / 2);
-    garmentRef.current.position.y += (avatarBox.max.y * 0.82 - scaledBox.max.y);
-    garmentRef.current.position.z += (avatarCenterZ - (scaledBox.min.z + scaledBox.max.z) / 2) + 0.01;
+    const sBox = new THREE.Box3().setFromObject(garmentRef.current);
+    garmentRef.current.position.x += ((aBox.min.x + aBox.max.x) / 2) - ((sBox.min.x + sBox.max.x) / 2);
+    garmentRef.current.position.y += aBox.max.y * 0.82 - sBox.max.y;
+    garmentRef.current.position.z += ((aBox.min.z + aBox.max.z) / 2) - ((sBox.min.z + sBox.max.z) / 2) + 0.01;
   }, [avatarScene, garmentScene]);
 
-  return (
-    <group ref={garmentRef}>
-      <primitive object={garmentScene} />
-    </group>
-  );
+  return <group ref={garmentRef}><primitive object={garmentScene} /></group>;
 }
 
 function GlbGarment({ url, profile, garmentType, layerOffset, fit, drape }) {
   const { scene } = useGLTF(url);
-  // клонируем с копией геометрии — drape меняет вершины,
-  // без клона испортим кэшированную модель
+
+  // Клон с копией геометрии: drape меняет вершины, без клона
+  // испортим модель в кэше useGLTF для всех остальных экранов.
   const cloned = useMemo(() => {
     const c = scene.clone(true);
     c.traverse((child) => {
-      if (child.isMesh && child.geometry) {
-        child.geometry = child.geometry.clone();
-      }
+      if (child.isMesh && child.geometry) child.geometry = child.geometry.clone();
     });
     return c;
   }, [scene]);
@@ -181,18 +159,14 @@ function GlbGarment({ url, profile, garmentType, layerOffset, fit, drape }) {
 
 function AvatarOnly({ avatarUrl }) {
   const { scene } = useGLTF(avatarUrl);
-  useLayoutEffect(() => {
-    normalizeModel(scene, 1.7);
-  }, [scene]);
+  useLayoutEffect(() => { normalizeModel(scene, 1.7); }, [scene]);
   return <primitive object={scene} />;
 }
 
 function AvatarWithGarment({ avatarUrl, garmentUrl }) {
   const avatar = useGLTF(avatarUrl);
   const garment = useGLTF(garmentUrl);
-  useLayoutEffect(() => {
-    normalizeModel(avatar.scene, 1.7);
-  }, [avatar.scene]);
+  useLayoutEffect(() => { normalizeModel(avatar.scene, 1.7); }, [avatar.scene]);
   return (
     <>
       <primitive object={avatar.scene} />
@@ -204,12 +178,8 @@ function AvatarWithGarment({ avatarUrl, garmentUrl }) {
 /**
  * GlbViewer
  *
- * Режимы аватара:
- *   profile — тело строится из обмеров покупателя, файл не нужен
- *   url     — аватар загружается из GLB
- *
+ * Аватар: profile — тело из обмеров (файл не нужен); url — GLB-модель.
  * garments — [{ url, garmentType, layer, fit }]
- * drape    — прижимать ли ткань к телу (по умолчанию да)
  */
 export default function GlbViewer({
   url,
@@ -218,11 +188,15 @@ export default function GlbViewer({
   garments = null,
   stressMap = null,
   height = 360,
-  background = '#f9fafb',
-  showGrid = true,
+  background = '#FDFCFB',
+  showGrid = false,
   drape = true,
+  fill = 0.92,
+  back = false,
+  resetKey = '',
 }) {
-  // ── все hooks до условий ──
+  const controlsRef = useRef(null);
+
   const items = useMemo(() => {
     if (Array.isArray(garments) && garments.length) {
       return [...garments].sort((a, b) => (a.layer || 1) - (b.layer || 1));
@@ -231,35 +205,29 @@ export default function GlbViewer({
     return [];
   }, [garments, garmentUrl]);
 
-  const camY = useMemo(() => {
-    return profile ? ((Number(profile.heightCm) || 170) / 100) * 0.5 : 0.85;
-  }, [profile]);
+  const fitKey = useMemo(
+    () => [profile?.heightCm, profile?.chest, profile?.waist, profile?.hips,
+           items.map((g) => g.url).join('|')].join('-'),
+    [profile, items],
+  );
 
   const hasBody = !!profile;
   if (!hasBody && !url) return null;
 
   return (
-    <div
-      style={{
-        width: '100%',
-        height,
-        borderRadius: 12,
-        overflow: 'hidden',
-        background,
-        border: '1px solid #e5e7eb',
-      }}
-    >
-      <Canvas camera={{ position: [0, camY, 3.2], fov: 40, near: 0.1, far: 100 }}>
+    <div style={{ width: '100%', height, borderRadius: 12, overflow: 'hidden', background }}>
+      <Canvas dpr={[1, 2]} camera={{ position: [0, 1, 3], fov: 40 }}>
         <color attach="background" args={[background]} />
-        <ambientLight intensity={0.7} />
-        <directionalLight intensity={1.0} position={[2, 4, 2]} castShadow />
-        <directionalLight intensity={0.3} position={[-2, 2, -2]} />
+        <ambientLight intensity={0.82} />
+        <directionalLight intensity={0.95} position={[2, 4, 2]} />
+        <directionalLight intensity={0.28} position={[-2, 2, -2]} />
+        <directionalLight intensity={0.18} position={[0, 1, -3]} />
 
         <Suspense
           fallback={
             <Html center>
-              <div style={{ color: '#4b5563', fontWeight: 'bold', whiteSpace: 'nowrap' }}>
-                ⏳ Loading 3D...
+              <div style={{ color: '#7A7580', fontSize: 13, whiteSpace: 'nowrap' }}>
+                Loading model…
               </div>
             </Html>
           }
@@ -284,21 +252,17 @@ export default function GlbViewer({
           ) : (
             <AvatarOnly avatarUrl={url} />
           )}
-          <Environment preset="city" />
         </Suspense>
 
-        {showGrid && (
-          <gridHelper args={[4, 16, '#e5e7eb', '#f3f4f6']} position={[0, 0, 0]} />
-        )}
+        {showGrid && <gridHelper args={[4, 16, '#E4E1DC', '#EDEAE5']} />}
 
-        <OrbitControls
-          target={[0, camY, 0]}
-          enablePan={false}
-          enableRotate
-          enableZoom
-          minDistance={1.2}
-          maxDistance={6}
+        <FitCamera
+          controlsRef={controlsRef}
+          fill={fill}
+          back={back}
+          resetKey={`${fitKey}-${resetKey}`}
         />
+        <OrbitControls ref={controlsRef} enablePan={false} enableZoom />
       </Canvas>
     </div>
   );

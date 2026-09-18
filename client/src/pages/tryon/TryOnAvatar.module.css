@@ -1,0 +1,299 @@
+/* client/src/pages/tryon/TryOnAvatar.module.css
+ *
+ * Все цвета берутся из styles/tokens.css. Хардкодных #hex здесь нет —
+ * это образец того, как должен выглядеть остальной фронт после переезда.
+ */
+
+ .page {
+    min-height: 100vh;
+    background: var(--bg);
+    font-family: var(--font-ui);
+    color: var(--ink-2);
+    font-size: var(--fs-md);
+    padding: 20px 20px 48px;
+  }
+  
+  .shell {
+    max-width: var(--page-max);
+    margin: 0 auto;
+    background: var(--surface);
+    border: 1px solid var(--line);
+    border-radius: var(--r-lg);
+    overflow: hidden;
+  }
+  
+  /* ── шапка ───────────────────────────────────────────── */
+  
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 15px 20px;
+    border-bottom: 1px solid var(--line-2);
+  }
+  
+  .logo {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    font-family: var(--font-display);
+    font-size: var(--fs-xl);
+    color: var(--ink);
+  }
+  
+  .logoDot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    display: block;
+    background: linear-gradient(103deg, var(--accent-deep), var(--accent));
+  }
+  
+  .pageTag {
+    font-family: var(--font-ui);
+    font-size: var(--fs-sm);
+    color: var(--muted);
+    border-left: 1px solid var(--line);
+    padding-left: 11px;
+    margin-left: 3px;
+  }
+  
+  .headerRight {
+    margin-left: auto;
+    display: flex;
+    gap: 8px;
+    align-items: center;
+    flex-wrap: wrap;
+  }
+  
+  /* ── кнопки ──────────────────────────────────────────── */
+  
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 6px;
+    padding: 8px 15px;
+    border-radius: var(--r-pill);
+    border: 1px solid var(--line);
+    background: var(--surface);
+    color: inherit;
+    font: inherit;
+    font-size: var(--fs-base);
+    white-space: nowrap;
+    cursor: pointer;
+    transition: border-color .15s, background .15s;
+  }
+  
+  .btn:hover:not(:disabled) { border-color: var(--line-strong); }
+  .btn:disabled { opacity: .38; cursor: not-allowed; }
+  
+  .btnDark {
+    background: var(--ink);
+    color: var(--surface);
+    border-color: var(--ink);
+    font-weight: 500;
+  }
+  
+  .btnSm { padding: 5px 11px; font-size: var(--fs-sm); }
+  
+  .btnAccent { border-color: var(--accent); color: var(--accent); }
+  
+  .btnOn {
+    background: var(--accent);
+    border-color: var(--accent);
+    color: var(--surface);
+  }
+  
+  /* ── основная сетка ──────────────────────────────────── */
+  
+  .body {
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 380px;
+    align-items: stretch;
+    min-height: 640px;
+  }
+  
+  @media (max-width: 1020px) {
+    .body { grid-template-columns: minmax(0, 1fr); }
+    .side { border-left: 0; border-top: 1px solid var(--line-2); }
+  }
+  
+  /* ── сцена ───────────────────────────────────────────── */
+  
+  .stage {
+    position: relative;
+    background: var(--surface-4);
+    display: flex;
+    flex-direction: column;
+  }
+  
+  .canvasWrap { flex: 1; min-height: 560px; }
+  
+  .stageFoot {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    padding: 12px 16px;
+    border-top: 1px solid var(--line-2);
+    background: var(--surface);
+  }
+  
+  .measure {
+    font-family: var(--font-mono);
+    font-size: var(--fs-xs);
+    color: var(--muted);
+    margin-right: auto;
+  }
+  
+  /* ── вердикт по размеру ──────────────────────────────── */
+  
+  .verdict {
+    margin: 0 16px 12px;
+    padding: 11px 14px;
+    border-radius: var(--r-sm);
+    font-size: var(--fs-base);
+    line-height: 1.45;
+  }
+  
+  .verdictGood { background: var(--fit-good-bg); color: var(--fit-good); }
+  .verdictWarn { background: var(--fit-warn-bg); color: var(--fit-warn); }
+  .verdictBad  { background: var(--fit-bad-bg);  color: var(--fit-bad); }
+  
+  /* ── правая панель ───────────────────────────────────── */
+  
+  .side {
+    border-left: 1px solid var(--line-2);
+    background: var(--surface);
+    padding: 16px;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    overflow: auto;
+    max-height: calc(100vh - 140px);
+  }
+  
+  .sectionLabel {
+    font-size: 10.5px;
+    letter-spacing: .13em;
+    text-transform: uppercase;
+    color: var(--muted);
+    font-weight: 600;
+  }
+  
+  /* ── слоты ───────────────────────────────────────────── */
+  
+  .slots { display: grid; gap: 7px; }
+  
+  .slot {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 10px;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--line-2);
+    background: var(--surface-2);
+  }
+  
+  .slotFilled { border-color: var(--accent); background: var(--accent-soft); }
+  
+  .slotName {
+    flex: 1;
+    min-width: 0;
+    font-size: var(--fs-sm);
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  
+  .slotKind {
+    font-size: var(--fs-xs);
+    color: var(--muted);
+    width: 74px;
+    flex-shrink: 0;
+  }
+  
+  .no3d {
+    font-size: var(--fs-xs);
+    color: var(--fit-warn);
+    white-space: nowrap;
+  }
+  
+  /* ── список гардероба ────────────────────────────────── */
+  
+  .list { display: grid; gap: 8px; }
+  
+  .item {
+    display: grid;
+    grid-template-columns: 52px minmax(0, 1fr);
+    gap: 10px;
+    padding: 8px;
+    border-radius: var(--r-sm);
+    border: 1px solid var(--line-2);
+    background: var(--surface);
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+    color: inherit;
+    transition: border-color .15s;
+  }
+  
+  .item:hover { border-color: var(--line-strong); }
+  .itemActive { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  
+  .thumb {
+    width: 52px;
+    height: 52px;
+    object-fit: cover;
+    border-radius: var(--r-xs);
+    background: var(--surface-3);
+  }
+  
+  .itemName { font-size: var(--fs-sm); font-weight: 500; margin-bottom: 3px; }
+  .itemMeta { font-size: var(--fs-xs); color: var(--muted); }
+  
+  .sizes { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 7px; }
+  
+  .sizeChip {
+    padding: 3px 9px;
+    border-radius: var(--r-pill);
+    border: 1px solid var(--line-3);
+    background: var(--surface);
+    font-size: var(--fs-xs);
+    font-family: var(--font-mono);
+    cursor: pointer;
+    color: inherit;
+  }
+  
+  .sizeChipOn { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+  .sizeChipBest { border-color: var(--fit-good); color: var(--fit-good); }
+  
+  /* ── пустые состояния ────────────────────────────────── */
+  
+  .empty {
+    display: grid;
+    place-items: center;
+    align-content: center;
+    gap: 10px;
+    text-align: center;
+    padding: 40px 24px;
+    border: 1.5px dashed var(--line-dashed);
+    border-radius: var(--r-md);
+    color: var(--muted);
+    margin: 16px;
+  }
+  
+  .emptyTitle { color: var(--ink); font-size: 15px; font-weight: 500; }
+  .emptyText { font-size: var(--fs-sm); line-height: 1.55; max-width: 34ch; }
+  
+  .hint { font-size: var(--fs-xs); color: var(--muted-2); line-height: 1.5; margin: 0; }
+  
+  .notice {
+    padding: 9px 11px;
+    border-radius: var(--r-xs);
+    background: var(--fit-warn-bg);
+    color: var(--fit-warn);
+    font-size: var(--fs-sm);
+    line-height: 1.45;
+  }

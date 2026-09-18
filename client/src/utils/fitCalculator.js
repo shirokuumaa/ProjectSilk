@@ -1,37 +1,40 @@
 // client/src/utils/fitCalculator.js
 //
-// Расчёт посадки одежды по обмерам. Чистая арифметика, без зависимостей.
-// Работает и в браузере, и в Node (если понадобится на сервере — скопировать
-// этот файл в server/utils/ без изменений).
+// Fit maths. Pure arithmetic, no dependencies — runs in the browser and in
+// Node alike (copy this file to server/utils/ unchanged if it is ever needed
+// server-side).
 //
-// Основная идея: прибавка на свободу (ease) = обхват изделия − обхват тела.
-//   ease < 0  → не сходится
-//   ease ~ 0  → в обтяжку
-//   ease 4-8  → сидит нормально
-//   ease > 15 → висит мешком
+// Core idea: ease = garment girth − body girth.
+//   ease < 0   → will not close
+//   ease ~ 0   → skin tight
+//   ease 4-8   → sits well
+//   ease > 15  → hangs loose
+//
+// NOTE: every string in this file is shown to the customer. Keep them in
+// English and keep them short — they appear inside small cards and chips.
 
-/** Ключевые обмеры, по которым судим о посадке. Порядок = приоритет. */
+/** Measurements that decide fit, in priority order. */
 export const KEY_MEASUREMENTS = ['chest', 'waist', 'hips'];
 
 export const MEASUREMENT_LABELS = {
-  chest: 'грудь',
-  waist: 'талия',
-  hips: 'бёдра',
-  length: 'длина',
-  sleeve: 'рукав',
+  chest: 'bust',
+  waist: 'waist',
+  hips: 'hips',
+  length: 'length',
+  sleeve: 'sleeve',
 };
 
 /**
- * Целевые прибавки по типу кроя (см).
- * min — меньше этого жмёт, ideal — как задумано, max — больше этого висит.
+ * Target ease per cut, in centimetres.
+ * min — tighter than this pinches, ideal — as designed, max — looser hangs.
  */
 const EASE_TARGETS = {
-  tight:   { min: -2, ideal: 2,  max: 6 },   // облегающее: боди, лосины, платье в обтяжку
-  regular: { min: 2,  ideal: 6,  max: 14 },  // обычный крой: футболка, рубашка, платье
-  loose:   { min: 8,  ideal: 16, max: 30 },  // свободный: оверсайз, пальто, худи
+  tight:   { min: -2, ideal: 2,  max: 6 },   // bodycon, leggings, fitted dress
+  regular: { min: 2,  ideal: 6,  max: 14 },  // tee, shirt, everyday dress
+  loose:   { min: 8,  ideal: 16, max: 30 },  // oversized, coat, hoodie
 };
 
-/** Уровни вердикта от худшего к лучшему. */
+/** Verdict levels, worst to best. */
 export const FIT_LEVELS = {
   TOO_TIGHT:  'too_tight',
   TIGHT:      'tight',
@@ -41,11 +44,11 @@ export const FIT_LEVELS = {
 };
 
 const LEVEL_TEXT = {
-  too_tight: 'не сходится',
-  tight:     'будет туго',
-  good:      'сидит хорошо',
-  loose:     'свободно',
-  too_loose: 'висит мешком',
+  too_tight: 'will not close',
+  tight:     'snug',
+  good:      'good fit',
+  loose:     'roomy',
+  too_loose: 'hangs loose',
 };
 
 const LEVEL_COLOR = {
@@ -57,11 +60,11 @@ const LEVEL_COLOR = {
 };
 
 /**
- * Оценка одного обмера.
- * @param {number} bodyValue    обхват тела, см
- * @param {number} garmentValue обхват изделия, см
+ * Score a single measurement.
+ * @param {number} bodyValue    body girth, cm
+ * @param {number} garmentValue garment girth, cm
  * @param {string} fit          'tight' | 'regular' | 'loose'
- * @param {number} stretch      эластичность ткани, % (0 = не тянется)
+ * @param {number} stretch      fabric stretch, % (0 = no stretch)
  */
 export function evaluateMeasurement(bodyValue, garmentValue, fit = 'regular', stretch = 0) {
   if (bodyValue == null || garmentValue == null) return null;
@@ -69,17 +72,17 @@ export function evaluateMeasurement(bodyValue, garmentValue, fit = 'regular', st
   const target = EASE_TARGETS[fit] || EASE_TARGETS.regular;
   const ease = garmentValue - bodyValue;
 
-  // Эластичная ткань допускает отрицательную прибавку.
-  // Комфортно тянется примерно на половину заявленной эластичности.
+  // Stretch fabric tolerates negative ease. Comfortable stretch is roughly
+  // half of what the mill claims.
   const stretchAllowance = garmentValue * (stretch / 100) * 0.5;
   const effectiveEase = ease + stretchAllowance;
 
   let level;
-  if (effectiveEase < target.min - 3)      level = FIT_LEVELS.TOO_TIGHT;
-  else if (effectiveEase < target.min)     level = FIT_LEVELS.TIGHT;
-  else if (effectiveEase <= target.max)    level = FIT_LEVELS.GOOD;
-  else if (effectiveEase <= target.max + 8) level = FIT_LEVELS.LOOSE;
-  else                                      level = FIT_LEVELS.TOO_LOOSE;
+  if (effectiveEase < target.min - 3)        level = FIT_LEVELS.TOO_TIGHT;
+  else if (effectiveEase < target.min)       level = FIT_LEVELS.TIGHT;
+  else if (effectiveEase <= target.max)      level = FIT_LEVELS.GOOD;
+  else if (effectiveEase <= target.max + 8)  level = FIT_LEVELS.LOOSE;
+  else                                       level = FIT_LEVELS.TOO_LOOSE;
 
   return {
     ease: Math.round(ease * 10) / 10,
@@ -87,15 +90,15 @@ export function evaluateMeasurement(bodyValue, garmentValue, fit = 'regular', st
     level,
     text: LEVEL_TEXT[level],
     color: LEVEL_COLOR[level],
-    // расстояние от идеала — используется для выбора лучшего размера
+    // distance from ideal — used to pick the best size
     deviation: Math.abs(effectiveEase - target.ideal),
   };
 }
 
 /**
- * Оценка одного размера целиком.
- * @param {object} body    профиль тела { chest, waist, hips, ... }
- * @param {object} size    строка размерной сетки { size, chest, waist, hips, fit, stretch }
+ * Score one whole size.
+ * @param {object} body body profile { chest, waist, hips, ... }
+ * @param {object} size size chart row { size, chest, waist, hips, fit, stretch }
  */
 export function evaluateSize(body, size) {
   const fit = size.fit || 'regular';
@@ -106,9 +109,7 @@ export function evaluateSize(body, size) {
   let totalDeviation = 0;
   let counted = 0;
 
-  const severity = {
-    too_tight: 4, too_loose: 3, tight: 2, loose: 1, good: 0,
-  };
+  const severity = { too_tight: 4, too_loose: 3, tight: 2, loose: 1, good: 0 };
 
   for (const key of KEY_MEASUREMENTS) {
     const result = evaluateMeasurement(body[key], size[key], fit, stretch);
@@ -127,17 +128,13 @@ export function evaluateSize(body, size) {
     level: worst,
     text: LEVEL_TEXT[worst],
     color: LEVEL_COLOR[worst],
-    score: totalDeviation / counted, // меньше = лучше
+    score: totalDeviation / counted, // lower is better
     wearable: worst !== FIT_LEVELS.TOO_TIGHT && worst !== FIT_LEVELS.TOO_LOOSE,
   };
 }
 
 /**
- * Главная функция: подобрать размер и объяснить решение.
- *
- * @param {object} body      профиль тела
- * @param {Array}  sizeChart размерная сетка товара
- * @param {string} chosen    размер, выбранный покупателем (опционально)
+ * Pick a size and explain the choice.
  *
  * @returns {{
  *   recommended: object|null,
@@ -151,25 +148,23 @@ export function findBestSize(body, sizeChart = [], chosen = null) {
   if (!body || !sizeChart.length) {
     return {
       recommended: null, chosen: null, all: [],
-      message: 'Укажите свои обмеры, чтобы увидеть рекомендацию по размеру',
+      message: 'Add your measurements to see a size recommendation',
       shouldWarn: false,
     };
   }
 
-  const all = sizeChart
-    .map((size) => evaluateSize(body, size))
-    .filter(Boolean);
+  const all = sizeChart.map((size) => evaluateSize(body, size)).filter(Boolean);
 
   if (!all.length) {
     return {
       recommended: null, chosen: null, all: [],
-      message: 'Продавец не указал обмеры этой вещи',
+      message: 'The seller did not enter measurements for this item',
       shouldWarn: false,
     };
   }
 
-  // Лучший = носибельный с минимальным отклонением от идеала.
-  // Если носибельных нет — берём наименее плохой.
+  // Best = wearable with the smallest deviation from ideal.
+  // If nothing is wearable, take the least bad.
   const wearable = all.filter((s) => s.wearable);
   const pool = wearable.length ? wearable : all;
   const recommended = pool.reduce((a, b) => (a.score <= b.score ? a : b));
@@ -180,26 +175,24 @@ export function findBestSize(body, sizeChart = [], chosen = null) {
   let shouldWarn = false;
 
   if (!wearable.length) {
-    message = `К сожалению, ни один размер не подойдёт — ближе всего ${recommended.size}`;
+    message = `No size will really work — ${recommended.size} is the closest`;
     shouldWarn = true;
   } else if (!chosenResult) {
-    message = `Ваш размер — ${recommended.size}`;
+    message = `Your size is ${recommended.size}`;
   } else if (chosenResult.size === recommended.size) {
-    message = `${chosenResult.size} — ваш размер, сядет хорошо`;
+    message = `${chosenResult.size} is your size — it will sit well`;
   } else if (!chosenResult.wearable) {
-    const problem = worstPart(chosenResult);
-    message = `${chosenResult.size} не подойдёт: ${problem}. Возьмите ${recommended.size}`;
+    message = `${chosenResult.size} will not work: ${worstPart(chosenResult)}. Take ${recommended.size}`;
     shouldWarn = true;
   } else {
-    const problem = worstPart(chosenResult);
-    message = `${chosenResult.size} наденется, но ${problem}. Лучше сядет ${recommended.size}`;
+    message = `${chosenResult.size} will go on, but ${worstPart(chosenResult)}. ${recommended.size} fits better`;
     shouldWarn = true;
   }
 
   return { recommended, chosen: chosenResult, all, message, shouldWarn };
 }
 
-/** Какой обмер портит посадку сильнее всего — для текста подсказки. */
+/** Which measurement spoils the fit most — used in the hint text. */
 function worstPart(sizeResult) {
   let worstKey = null;
   let worstDev = -1;
@@ -212,21 +205,21 @@ function worstPart(sizeResult) {
     }
   }
 
-  if (!worstKey) return 'посадка не идеальна';
+  if (!worstKey) return 'the fit is not ideal';
 
   const part = sizeResult.parts[worstKey];
   const label = MEASUREMENT_LABELS[worstKey] || worstKey;
   const cm = Math.abs(part.ease);
 
-  if (part.level === FIT_LEVELS.TOO_TIGHT) return `в ${label} не хватает ${cm.toFixed(0)} см`;
-  if (part.level === FIT_LEVELS.TIGHT)     return `в ${label} будет туго`;
-  if (part.level === FIT_LEVELS.TOO_LOOSE) return `в ${label} лишних ${cm.toFixed(0)} см`;
-  return `в ${label} свободновато`;
+  if (part.level === FIT_LEVELS.TOO_TIGHT) return `it is ${cm.toFixed(0)} cm short at the ${label}`;
+  if (part.level === FIT_LEVELS.TIGHT)     return `it will be snug at the ${label}`;
+  if (part.level === FIT_LEVELS.TOO_LOOSE) return `there is ${cm.toFixed(0)} cm too much at the ${label}`;
+  return `it is a little loose at the ${label}`;
 }
 
 /**
- * Данные для подсветки зон натяжения на 3D-аватаре.
- * Возвращает { chest: '#e03131', waist: '#2f9e44', ... }
+ * Data for highlighting stress zones on the 3D avatar.
+ * Returns { chest: '#e03131', waist: '#2f9e44', ... }
  */
 export function getStressMap(sizeResult) {
   if (!sizeResult) return {};

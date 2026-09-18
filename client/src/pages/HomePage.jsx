@@ -1,28 +1,30 @@
 // client/src/pages/HomePage.jsx
 import React, { useEffect, useMemo, useState } from 'react';
+import axios from 'axios';
+
 import TopBar from '../components/TopBar';
 import CategoryMenu from '../components/CategoryMenu';
 import AvatarPanel from '../components/AvatarPanel';
 import RightDock from '../components/RightDock';
 import ProductCardTall from '../components/ProductCardTall';
 import styles from './HomePage.module.css';
-import axios from 'axios';
+
+const API_BASE = process.env.REACT_APP_API || 'http://localhost:5050';
 
 export default function HomePage({
   search, setSearch,
   category, setCategory,
   cartItems,
-  addToCart
+  addToCart,
 }) {
   const [allProducts, setAllProducts] = useState([]);
   const [loading, setLoading] = useState(true);
 
-  // Загружаем товары
   useEffect(() => {
     let canceled = false;
     (async () => {
       try {
-        const res = await axios.get('http://localhost:5050/api/products');
+        const res = await axios.get(`${API_BASE}/api/products`);
         if (!canceled) setAllProducts(res.data || []);
       } catch {
         if (!canceled) setAllProducts([]);
@@ -33,10 +35,9 @@ export default function HomePage({
     return () => { canceled = true; };
   }, []);
 
-  // Фильтрация по категории и поиску (без Fuse для простоты)
   const filtered = useMemo(() => {
     const q = (search || '').trim().toLowerCase();
-    return (allProducts || []).filter(p => {
+    return (allProducts || []).filter((p) => {
       const inCat = category === 'All' || p.category === category;
       if (!inCat) return false;
       if (!q) return true;
@@ -46,46 +47,37 @@ export default function HomePage({
   }, [allProducts, category, search]);
 
   return (
-    <div>
-      <TopBar search={search} setSearch={setSearch} cartItems={cartItems} />
-      <CategoryMenu selected={category} onSelect={setCategory} />
+    <div className={styles.page}>
+      <div className={styles.site}>
+        <TopBar search={search} setSearch={setSearch} cartItems={cartItems} />
+        <CategoryMenu selected={category} onSelect={setCategory} />
 
-      <div className={styles.layout}>
-        {/* левая колонка под 3D-аватар */}
-        <AvatarPanel />
+        <div className={styles.homebody}>
+          <AvatarPanel />
 
-        {/* центральная область с карточками */}
-        <section className={styles.mainArea}>
-          {loading && <p style={{ padding: 12 }}>Загружаем товары…</p>}
+          <section className={styles.grid}>
+            {loading && <p className={styles.state}>Loading products…</p>}
 
-          {!loading && filtered.length === 0 && (
-            <p style={{ padding: 12 }}>
-              Ничего не найдено по запросу: <strong>{search}</strong>
-            </p>
-          )}
+            {!loading && filtered.length === 0 && (
+              <p className={styles.state}>
+                {search
+                  ? <>Nothing found for <strong>{search}</strong></>
+                  : 'Nothing in this category yet'}
+              </p>
+            )}
 
-          {!loading && filtered.length > 0 && (
-            <div
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(auto-fill, minmax(220px, 1fr))',
-                gap: 16
-              }}
-            >
-              {filtered.map((product) => (
-                <ProductCardTall
-                  key={product._id || product.id}
-                  product={product}
-                  addToCart={addToCart}
-                />
-              ))}
-            </div>
-          )}
-        </section>
+            {!loading && filtered.map((product) => (
+              <ProductCardTall
+                key={product._id || product.id}
+                product={product}
+                addToCart={addToCart}
+              />
+            ))}
+          </section>
+
+          <RightDock />
+        </div>
       </div>
-
-      {/* правая вертикальная панель (AI / Wardrobe / Support) */}
-      <RightDock />
     </div>
   );
 }

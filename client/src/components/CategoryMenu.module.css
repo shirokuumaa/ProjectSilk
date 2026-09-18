@@ -1,0 +1,31 @@
+/* client/src/components/CategoryMenu.module.css */
+
+.cats {
+  display: flex;
+  gap: 9px;
+  justify-content: center;
+  flex-wrap: wrap;
+  padding: 18px 20px 6px;
+}
+
+.cat {
+  padding: 9px 20px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line-3);
+  background: var(--surface);
+  color: inherit;
+  font: inherit;
+  font-size: var(--fs-md);
+  cursor: pointer;
+  transition: border-color .15s, background .15s, color .15s;
+}
+
+.cat:hover { border-color: var(--line-strong); }
+
+.on {
+  background: var(--pink);
+  border-color: var(--pink);
+  color: var(--surface);
+}
+
+.on:hover { border-color: var(--pink); }
