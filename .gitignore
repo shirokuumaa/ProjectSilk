@@ -22,6 +22,12 @@ server/uploads/
 client/build/
 seller/build/
 
+# ───── Локальные базы SQLite ─────
+# пересоздаются: cd assistant && python tools/ingest_csv_to_sqlite.py
+*.db
+*.db-shm
+*.db-wal
+
 # ───── Системные файлы и настройки редактора ─────
 .DS_Store
 .vscode/
