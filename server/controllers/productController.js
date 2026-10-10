@@ -1,10 +1,16 @@
 // server/controllers/productController.js
 import Product from '../models/Product.js';
-import { exec } from 'child_process';
+import { execFile } from 'child_process';
 import util from 'util';
+import fs from 'fs';
 import path from 'path';
+import { fileURLToPath } from 'url';
 
-const execPromise = util.promisify(exec);
+const execFilePromise = util.promisify(execFile);
+
+const __dirname = path.dirname(fileURLToPath(import.meta.url));
+// server/controllers -> server -> корень репозитория -> scripts/
+const GARMENT_SCRIPT = path.resolve(__dirname, '..', '..', 'scripts', 'process_garment.py');
 
 /** утилита: безопасно привести к числу */
 function toNumber(v) {
@@ -82,21 +88,39 @@ export const addProduct = async (req, res) => {
       const preparedFilePath = path.join(rawFile.destination, preparedFileName);
 
       const blenderPath = process.env.BLENDER_PATH || '/Applications/Blender.app/Contents/MacOS/Blender';
-      const scriptPath = path.join(process.cwd(), 'scripts/process_garment.py');
 
-      try {
-        console.log(`🔄 [Blender] Запуск нормализации для ${rawFile.filename}...`);
-        
-        // Запускаем Blender в фоновом режиме (headless)
-        await execPromise(`"${blenderPath}" -b -P "${scriptPath}" -- "${rawFilePath}" "${preparedFilePath}"`);
-        
-        console.log(`✅ GLB нормализован: ${preparedFileName}`);
-        // Если всё успешно, сохраняем в базу путь к ОБРАБОТАННОЙ модели
-        model3dUrl = `/uploads/models/${preparedFileName}`;
-      } catch (err) {
-        console.error('❌ [Blender] Ошибка нормализации:', err);
-        // Фолбэк: если Blender упал, сохраняем хотя бы сырую модель
-        model3dUrl = `/uploads/models/${rawFile.filename}`;
+      // По умолчанию — сырая модель; prepared подставляем только если файл реально появился
+      model3dUrl = `/uploads/models/${rawFile.filename}`;
+
+      if (!fs.existsSync(GARMENT_SCRIPT)) {
+        console.error(`❌ [Blender] Скрипт не найден: ${GARMENT_SCRIPT}. Сохраняем сырую модель.`);
+      } else {
+        try {
+          console.log(`🔄 [Blender] Запуск нормализации для ${rawFile.filename}...`);
+
+          // headless; --python-exit-code 1 — ошибка скрипта даёт ненулевой код выхода
+          await execFilePromise(
+            blenderPath,
+            ['-b', '--python-exit-code', '1', '-P', GARMENT_SCRIPT, '--', rawFilePath, preparedFilePath],
+            { timeout: 180000, maxBuffer: 10 * 1024 * 1024 },
+          );
+
+          const prepared = fs.existsSync(preparedFilePath) ? fs.statSync(preparedFilePath) : null;
+          if (prepared && prepared.size > 0) {
+            console.log(`✅ GLB нормализован: ${preparedFileName}`);
+            model3dUrl = `/uploads/models/${preparedFileName}`;
+          } else {
+            console.error(`❌ [Blender] Завершился без ошибки, но файла ${preparedFileName} нет или он пустой. Сохраняем сырую модель.`);
+          }
+        } catch (err) {
+          if (err.code === 'ENOENT') {
+            console.error(`❌ [Blender] Blender не найден по пути ${blenderPath}. Задайте BLENDER_PATH. Сохраняем сырую модель.`);
+          } else if (err.killed) {
+            console.error('❌ [Blender] Превышен таймаут 180 с. Сохраняем сырую модель.');
+          } else {
+            console.error(`❌ [Blender] Ошибка нормализации (код ${err.code}): ${err.stderr || err.message}. Сохраняем сырую модель.`);
+          }
+        }
       }
     } else if (req.body.model3d) {
       model3dUrl = String(req.body.model3d);

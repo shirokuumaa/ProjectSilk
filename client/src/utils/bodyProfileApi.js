@@ -5,13 +5,14 @@
 
 const API = process.env.REACT_APP_API || 'http://localhost:5050';
 
-/** Текущий пользователь из localStorage (как в остальном проекте) */
+/**
+ * Текущий пользователь — только имя из 'loggedInUser'.
+ * Ключ 'user' не читаем: RegisterPage хранит там JSON с паролем.
+ */
 export function getCurrentUser() {
-  return (
-    localStorage.getItem('loggedInUser') ||
-    localStorage.getItem('user') ||
-    null
-  );
+  const name = localStorage.getItem('loggedInUser');
+  const trimmed = typeof name === 'string' ? name.trim() : '';
+  return trimmed || null;
 }
 
 /**

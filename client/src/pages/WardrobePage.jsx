@@ -49,6 +49,10 @@ export default function WardrobePage() {
   const [items, setItems] = useState(() =>
     getWardrobe().map((i) => ({ ...i, image: toPublicUrl(i.image) })));
 
+  // Catalog is the source of truth for size charts: addToWardrobe() does not
+  // store sizeChart in localStorage.
+  const [catalog, setCatalog] = useState([]);
+
   const [profile, setProfile] = useState(null);
   const [profileLoading, setProfileLoading] = useState(true);
 
@@ -80,8 +84,40 @@ export default function WardrobePage() {
     return () => { alive = false; };
   }, []);
 
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      try {
+        const r = await fetch(`${API_BASE}/api/products`);
+        if (!r.ok) throw new Error(`HTTP ${r.status}`);
+        const data = await r.json();
+        if (alive) setCatalog(Array.isArray(data) ? data : []);
+      } catch {
+        if (alive) setCatalog([]);
+      }
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  // Wardrobe items enriched with fresh catalog data, matched by id.
+  const view = useMemo(() => {
+    const byId = new Map(catalog.map((c) => [String(c._id || c.id), c]));
+    return items.map((it) => {
+      const c = byId.get(String(it.id));
+      if (!c) return it;
+      return {
+        ...it,
+        name: c.name || c.title || it.name,
+        price: c.price ?? it.price,
+        model3d: c.model3d || it.model3d,
+        garmentType: c.garmentType || it.garmentType || guessType(c.category || it.category),
+        sizeChart: Array.isArray(c.sizeChart) && c.sizeChart.length ? c.sizeChart : it.sizeChart,
+      };
+    });
+  }, [items, catalog]);
+
   const ready = isProfileComplete(profile);
-  const active = items.find((i) => i.id === activeId) || null;
+  const active = view.find((i) => i.id === activeId) || null;
 
   // ── fit ──
   const fit = useMemo(() => {
@@ -458,13 +494,13 @@ export default function WardrobePage() {
               </>
             )}
 
-            <div className={styles.lbl}>Wardrobe · {items.length}</div>
+            <div className={styles.lbl}>Wardrobe · {view.length}</div>
 
-            {items.length === 0 ? (
+            {view.length === 0 ? (
               <p className={styles.tiny}>
                 Your wardrobe is empty. Use “Wardrobe” on any product card to save items here.
               </p>
-            ) : items.map((it) => {
+            ) : view.map((it) => {
               const on = isWorn(it.id);
               const has3d = !!it.model3d;
               return (
