@@ -89,7 +89,17 @@ app.use((err, _req, res, _next) => {
       mongoose.connection.port,
       mongoose.connection.name
     );
-    app.listen(PORT, () => {
+    // Express 5 передаёт ошибку запуска (например, занятый порт) в этот колбэк,
+    // а не бросает её — без проверки сервер «стартует», ничего не слушая.
+    app.listen(PORT, (err) => {
+      if (err) {
+        if (err.code === 'EADDRINUSE') {
+          console.error(`❌ Порт ${PORT} уже занят другим процессом. Освободите его или задайте другой PORT.`);
+        } else {
+          console.error('❌ Не удалось запустить HTTP-сервер:', err?.message || err);
+        }
+        process.exit(1);
+      }
       console.log(`API:      http://localhost:${PORT}`);
       console.log(`AI proxy: http://localhost:${PORT}/api/ai`);
     });
