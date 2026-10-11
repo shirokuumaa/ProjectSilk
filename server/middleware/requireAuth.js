@@ -39,7 +39,8 @@ export async function requireAuth(req, res, next) {
   try {
     const user = await User.findById(payload.sub).lean();
     if (!user) return res.status(401).json({ message: 'Account no longer exists' });
-    req.user = { id: String(user._id), username: user.username };
+    // роль читаем из базы на каждом запросе: «Become a seller» действует сразу
+    req.user = publicUser(user);
     next();
   } catch (err) {
     if (err.name === 'CastError') {
@@ -47,6 +48,30 @@ export async function requireAuth(req, res, next) {
     }
     next(err);
   }
+}
+
+/** То, что о пользователе можно отдавать клиенту и класть в req.user. */
+export function publicUser(user) {
+  return {
+    id: String(user._id),
+    username: user.username,
+    role: user.role || 'buyer', // записи до появления ролей — покупатели
+    storeName: user.storeName || null,
+  };
+}
+
+/** Только для указанной роли; ставится после requireAuth. */
+export function requireRole(role) {
+  return (req, res, next) => {
+    if (req.user?.role !== role) {
+      return res.status(403).json({
+        message: role === 'seller'
+          ? 'This action requires a seller account.'
+          : 'You do not have access to this action.',
+      });
+    }
+    next();
+  };
 }
 
 /**

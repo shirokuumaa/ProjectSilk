@@ -38,6 +38,9 @@ const ProductSchema = new mongoose.Schema({
   model3d:  { type: String },                   // /uploads/models/...
   rating:   { type: Number, default: 0 },
 
+  // продавец, который выставил товар; менять и удалять может только он
+  owner:    { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },
+
   // --- для Try-On Avatar ---
 
   // размерная сетка; без неё подбор размера невозможен

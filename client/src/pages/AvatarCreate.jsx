@@ -6,6 +6,7 @@ import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { saveBodyProfile, loadBodyProfile } from '../utils/bodyProfileApi';
 import MeasurementsPreview from '../components/MeasurementsPreview';
+import { authFetch } from '../utils/auth';
 
 const API_BASE = process.env.REACT_APP_API || 'http://localhost:5050';
 const toPublicUrl = (s = '') =>
@@ -82,7 +83,7 @@ export default function AvatarCreate() {
   useEffect(() => {
     (async () => {
       try {
-        const j = await fetch(
+        const j = await authFetch(
           `${API_BASE}/api/ai/__target`
         ).then((r) => r.json());
         setAiMode(String(j?.AI_MODE || 'off').toLowerCase());

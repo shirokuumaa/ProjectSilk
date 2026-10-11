@@ -44,7 +44,7 @@ export default function AvatarCreateMode1Test() {
 
     (async () => {
       try {
-        const r = await fetch(`${API_BASE}/api/ai/__target`);
+        const r = await authFetch(`${API_BASE}/api/ai/__target`);
         const j = await r.json().catch(() => null);
 
         if (aborted) return;
@@ -89,7 +89,7 @@ export default function AvatarCreateMode1Test() {
     (async () => {
       if (!target?.AI_ENABLED) return;
       try {
-        const r = await fetch(`${API_BASE}/api/ai/features`);
+        const r = await authFetch(`${API_BASE}/api/ai/features`);
         if (aborted) return;
 
         if (!r.ok) {
@@ -133,7 +133,7 @@ export default function AvatarCreateMode1Test() {
   const pollJobUntilDone = async (id, { timeoutMs = 90000 } = {}) => {
     const start = Date.now();
     while (Date.now() - start < timeoutMs) {
-      const j = await fetch(`${API_BASE}/api/ai/avatar/job/${encodeURIComponent(id)}`).then((r) => r.json());
+      const j = await authFetch(`${API_BASE}/api/ai/avatar/job/${encodeURIComponent(id)}`).then((r) => r.json());
       if (j?.status === 'done') return j;
       if (j?.status === 'error') return j;
       await sleep(800);
@@ -188,7 +188,7 @@ export default function AvatarCreateMode1Test() {
     try {
       // 1) body
       pushLog('POST /avatar/body/anny');
-      const body = await fetch(`${API_BASE}/api/ai/avatar/body/anny`, {
+      const body = await authFetch(`${API_BASE}/api/ai/avatar/body/anny`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({}),
@@ -201,7 +201,7 @@ export default function AvatarCreateMode1Test() {
 
       // 2) rig (job)
       pushLog('POST /avatar/rig (create job)');
-      const rigStart = await fetch(`${API_BASE}/api/ai/avatar/rig`, {
+      const rigStart = await authFetch(`${API_BASE}/api/ai/avatar/rig`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ body_mesh_url }),
@@ -228,7 +228,7 @@ export default function AvatarCreateMode1Test() {
 
       // 4) export
       pushLog('POST /avatar/export');
-      const exp = await fetch(`${API_BASE}/api/ai/avatar/export`, {
+      const exp = await authFetch(`${API_BASE}/api/ai/avatar/export`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ rigged_mesh_url }),

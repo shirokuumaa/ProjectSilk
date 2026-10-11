@@ -46,7 +46,7 @@ export default function LoginPage() {
           value={password}
           onChange={(e) => setPassword(e.target.value)}
         /><br /><br />
-        {error && <p role="alert" style={{ color: '#c92a2a', margin: '0 0 12px' }}>{error}</p>}
+        {error && <p role="alert" style={{ color: 'var(--fit-bad)', margin: '0 0 12px' }}>{error}</p>}
         <button type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
       </form>
       <p style={{ marginTop: 16 }}>

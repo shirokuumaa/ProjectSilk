@@ -3,10 +3,10 @@ import express from "express";
 import fs from "fs";
 import path from "path";
 import crypto from "crypto";
-import { fileURLToPath } from "url";
 import { pipeline } from "stream/promises";
 import "dotenv/config";
 import { requireAuth } from "../middleware/requireAuth.js";
+import { AVATARS_DIR } from "../config/paths.js";
 
 const router = express.Router();
 
@@ -30,11 +30,8 @@ function normalizeGpuBase(raw) {
 
 const GPU_BASE = normalizeGpuBase(process.env.GPU_URL || "");
 
-// uploads dir: server/uploads/avatars
-const __filename = fileURLToPath(import.meta.url);
-const __dirname = path.dirname(__filename);
-const avatarsDir = path.join(__dirname, "..", "uploads", "avatars");
-fs.mkdirSync(avatarsDir, { recursive: true });
+// uploads dir: <UPLOADS_DIR>/avatars (см. config/paths.js)
+const avatarsDir = AVATARS_DIR;
 
 // POST /api/avatar/persist   (нужен токен: сервер скачивает и хранит файл)
 // body: { url: "/static/mesh/xxx.obj" } OR { url: "https://...obj" }

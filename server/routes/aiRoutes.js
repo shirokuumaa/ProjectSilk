@@ -1,8 +1,42 @@
 // server/routes/aiRoutes.js
 import express from "express";
+import { Readable } from "stream";
+import rateLimit from "express-rate-limit";
 import "dotenv/config";
+import { requireAuth } from "../middleware/requireAuth.js";
 
 const router = express.Router();
+
+/*
+ * Весь прокси — только с токеном: каждый запрос может стоить денег на GPU.
+ * Лимиты считаются на пользователя, а не на IP:
+ *   POST и прочие «тяжёлые» — AI_HEAVY_LIMIT_PER_HOUR (по умолчанию 20 в час),
+ *   GET/HEAD (статус, features, готовые файлы, опрос задачи) — AI_LIGHT_LIMIT_PER_HOUR (600).
+ */
+const isLight = (req) => req.method === "GET" || req.method === "HEAD";
+const perUser = (req) => req.user.id;
+
+const aiHeavyLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: Number(process.env.AI_HEAVY_LIMIT_PER_HOUR) || 20,
+  keyGenerator: perUser,
+  skip: isLight,
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { message: "Hourly AI request limit reached. Please try again later." },
+});
+
+const aiLightLimiter = rateLimit({
+  windowMs: 60 * 60 * 1000,
+  limit: Number(process.env.AI_LIGHT_LIMIT_PER_HOUR) || 600,
+  keyGenerator: perUser,
+  skip: (req) => !isLight(req),
+  standardHeaders: "draft-8",
+  legacyHeaders: false,
+  message: { message: "Too many AI status requests. Please try again later." },
+});
+
+router.use(requireAuth, aiHeavyLimiter, aiLightLimiter);
 
 /**
  * AI_MODE:
@@ -87,6 +121,9 @@ router.use(async (req, res) => {
   const headers = { ...req.headers };
   delete headers.host;
   delete headers["content-length"];
+  // токен покупателя и куки на GPU-сервер (RunPod) не отправляем
+  delete headers.authorization;
+  delete headers.cookie;
 
   try {
     const options = { method, headers };
@@ -101,12 +138,15 @@ router.use(async (req, res) => {
 
     res.status(upstream.status);
 
+    // fetch уже распаковал тело — старые длина и сжатие стали бы неправдой
+    const SKIP = new Set(["transfer-encoding", "content-encoding", "content-length"]);
     for (const [key, value] of upstream.headers.entries()) {
-      if (key.toLowerCase() === "transfer-encoding") continue;
+      if (SKIP.has(key.toLowerCase())) continue;
       res.setHeader(key, value);
     }
 
-    if (upstream.body) upstream.body.pipe(res);
+    // fetch в Node отдаёт web-поток (ReadableStream), у него нет .pipe()
+    if (upstream.body) Readable.fromWeb(upstream.body).pipe(res);
     else res.end();
   } catch (err) {
     console.error("AI proxy error:", err);

@@ -12,6 +12,12 @@ export const USERNAME_RE = /^[a-z0-9_.-]{3,32}$/;
 
 export const normalizeUsername = (v) => String(v ?? '').trim().toLowerCase();
 
+/** buyer — покупатель (по умолчанию), seller — может выставлять товары. */
+export const ROLES = ['buyer', 'seller'];
+
+export const normalizeStoreName = (v) => String(v ?? '').trim().replace(/\s+/g, ' ');
+export const isValidStoreName = (v) => v.length >= 2 && v.length <= 60;
+
 const userSchema = new mongoose.Schema({
   username: {
     type: String,
@@ -23,6 +29,10 @@ const userSchema = new mongoose.Schema({
   },
   // bcrypt-хеш; в выборки не попадает, пока его не запросят явно
   passwordHash: { type: String, required: true, select: false },
+  // старые записи без поля считаются покупателями (см. requireAuth)
+  role: { type: String, enum: ROLES, default: 'buyer' },
+  // название магазина; есть только у продавца
+  storeName: { type: String, trim: true, maxlength: 60 },
 }, { timestamps: true, versionKey: false });
 
 userSchema.set('toJSON', {

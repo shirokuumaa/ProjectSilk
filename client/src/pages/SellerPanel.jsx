@@ -1,11 +1,129 @@
 // client/src/pages/SellerPanel.jsx
-import React, { useEffect, useState } from "react";
+//
+// Кабинет продавца. Доступ решает сервер (роль seller), здесь — только
+// понятный экран для гостя и покупателя. Все запросы — через authFetch.
+// Весь текст интерфейса — на английском, цвета — из styles/tokens.css.
+import React, { useCallback, useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import SizeChartEditor, { serializeSizeChart } from "../components/SizeChartEditor";
+import { authFetch, becomeSeller, fetchMe, isLoggedIn } from "../utils/auth";
 
 // единая точка входа API (как и в других файлах)
 const API = process.env.REACT_APP_API || "http://localhost:5050";
+const toPublicUrl = (s = "") => (String(s).startsWith("/uploads") ? `${API}${s}` : s);
+
+// те же ограничения, что на сервере (utils/uploadChecks.js) — чтобы ругаться до отправки
+const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const MAX_IMAGE_MB = 10;
+const MAX_MODEL_MB = 50;
+
+const AI_OFF_HINT = "AI is offline — the background is kept as is and 3D is unavailable.";
+
+async function errorMessage(r, fallback) {
+  const j = await r.json().catch(() => null);
+  return j?.message || j?.error || `${fallback} (HTTP ${r.status})`;
+}
+
+/* ───────────────────────── доступ ───────────────────────── */
 
 export default function SellerPanel() {
+  const nav = useNavigate();
+  const [access, setAccess] = useState("loading"); // loading | guest | buyer | seller
+  const [me, setMe] = useState(null);
+
+  useEffect(() => {
+    let alive = true;
+    (async () => {
+      const user = isLoggedIn() ? await fetchMe().catch(() => null) : null;
+      if (!alive) return;
+      setMe(user);
+      setAccess(!user ? "guest" : user.role === "seller" ? "seller" : "buyer");
+    })();
+    return () => { alive = false; };
+  }, []);
+
+  if (access === "loading") {
+    return <div style={ui.page}><p style={ui.muted}>Checking your account…</p></div>;
+  }
+
+  if (access === "guest") {
+    return (
+      <div style={ui.page}>
+        <div style={ui.gate}>
+          <h2 style={ui.h2}>Seller dashboard</h2>
+          <p style={ui.muted}>Sign in with a seller account to open the seller dashboard.</p>
+          <div style={ui.row}>
+            <button style={ui.btnDark} onClick={() => nav("/login")}>Sign in</button>
+            <button style={ui.btn} onClick={() => nav("/register")}>Create seller account</button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (access === "buyer") {
+    return (
+      <div style={ui.page}>
+        <BecomeSeller
+          username={me?.username}
+          onDone={(user) => { setMe(user); setAccess("seller"); }}
+        />
+      </div>
+    );
+  }
+
+  return <SellerDashboard storeName={me?.storeName} />;
+}
+
+function BecomeSeller({ username, onDone }) {
+  const [storeName, setStoreName] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+
+  const submit = async (e) => {
+    e.preventDefault();
+    setError("");
+    if (storeName.trim().length < 2) {
+      setError("Please enter your store name (at least 2 characters).");
+      return;
+    }
+    setBusy(true);
+    try {
+      onDone(await becomeSeller(storeName));
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <form style={ui.gate} onSubmit={submit}>
+      <h2 style={ui.h2}>Seller dashboard</h2>
+      <p style={ui.muted}>
+        The seller dashboard is for seller accounts. You are signed in
+        as <b>{username}</b>, a buyer account.
+      </p>
+      <p style={ui.muted}>Open a store to start selling — your account stays the same.</p>
+      <input
+        style={ui.input}
+        placeholder="Store name"
+        value={storeName}
+        onChange={(e) => setStoreName(e.target.value)}
+      />
+      {error && <p role="alert" style={ui.error}>{error}</p>}
+      <div style={ui.row}>
+        <button type="submit" style={ui.btnDark} disabled={busy}>
+          {busy ? "Opening…" : "Become a seller"}
+        </button>
+      </div>
+    </form>
+  );
+}
+
+/* ───────────────────────── кабинет ───────────────────────── */
+
+function SellerDashboard({ storeName }) {
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState("Clothes");
@@ -24,6 +142,8 @@ export default function SellerPanel() {
   const [making3d, setMaking3d] = useState(false);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+  const [listKey, setListKey] = useState(0); // смена — перечитать «My products»
 
   // статус AI
   const [aiOnline, setAiOnline] = useState(null); // null | true | false
@@ -65,14 +185,14 @@ export default function SellerPanel() {
         const ctl = new AbortController();
         const t = setTimeout(() => ctl.abort(), 4000);
 
-        const r = await fetch(`${API}/api/ai/features`, { signal: ctl.signal });
+        const r = await authFetch(`${API}/api/ai/features`, { signal: ctl.signal });
         clearTimeout(t);
         if (aborted) return;
 
         if (!r.ok) {
           setAiOnline(false);
           setAiFeatures(null);
-          setAiHint("AI offline — фон не вырезаем, 3D недоступно.");
+          setAiHint(AI_OFF_HINT);
           return;
         }
 
@@ -82,12 +202,12 @@ export default function SellerPanel() {
         // heavy-only: считаем "online" только если rembg реально доступен
         const on = f?.rembg === true;
         setAiOnline(on);
-        setAiHint(on ? "" : "AI offline — фон не вырезаем, 3D недоступно.");
+        setAiHint(on ? "" : AI_OFF_HINT);
       } catch (e) {
         if (aborted) return;
         setAiOnline(false);
         setAiFeatures(null);
-        setAiHint("AI offline — фон не вырезаем, 3D недоступно.");
+        setAiHint(AI_OFF_HINT);
       }
     })();
     return () => {
@@ -99,21 +219,25 @@ export default function SellerPanel() {
   // heavy-only: если AI off — возвращаем оригинал, без лёгких моделей
   async function tryRemoveBg(file) {
     if (!aiOnline) {
-      setAiHint("AI off: background kept as-is.");
+      setAiHint("AI is off — the background is kept as is.");
       return file;
     }
 
     const fd = new FormData();
     fd.append("image", file); // поле обязательно "image"
 
-    const r = await fetch(`${API}/api/ai/remove-background`, {
+    const r = await authFetch(`${API}/api/ai/remove-background`, {
       method: "POST",
       body: fd,
     });
 
     if (r.status === 503) {
       setAiOnline(false);
-      setAiHint("AI temporarily disabled (no GPU); using original background.");
+      setAiHint("AI is temporarily off (no GPU) — the original background is kept.");
+      return file;
+    }
+    if (r.status === 429) {
+      setAiHint(await errorMessage(r, "AI limit reached"));
       return file;
     }
     if (!r.ok) throw new Error(`remove-background failed: ${r.status}`);
@@ -123,11 +247,10 @@ export default function SellerPanel() {
     if (!imageUrl) throw new Error("No image_url returned from AI");
 
     // качаем png через Node-прокси: /api/ai + image_url
-    const imgResp = await fetch(`${API}/api/ai${imageUrl}`);
+    const imgResp = await authFetch(`${API}/api/ai${imageUrl}`);
     if (!imgResp.ok) throw new Error(`failed to fetch processed image: ${imgResp.status}`);
 
-    const blob = await imgResp.blob(); // image/png
-    return blob;
+    return imgResp.blob(); // image/png
   }
 
   async function handleImageUpload(file) {
@@ -140,8 +263,18 @@ export default function SellerPanel() {
     setModel3dBlob(null);
     setUser3dFile(null);
     setError("");
-    setLoading(true);
+    setNotice("");
 
+    if (!IMAGE_TYPES.includes(file.type)) {
+      setError("The image must be a JPEG, PNG or WebP file.");
+      return;
+    }
+    if (file.size > MAX_IMAGE_MB * 1024 * 1024) {
+      setError(`The image is too large (maximum ${MAX_IMAGE_MB} MB).`);
+      return;
+    }
+
+    setLoading(true);
     try {
       const blob = await tryRemoveBg(file);
 
@@ -150,19 +283,36 @@ export default function SellerPanel() {
       setProcessedUrl(URL.createObjectURL(blob));
     } catch (e) {
       console.error(e);
-      setError("Не удалось обработать изображение. Попробуй другое.");
+      setError("Could not process the image. Please try another one.");
     } finally {
       setLoading(false);
     }
   }
 
+  function handleModelPick(file) {
+    setError("");
+    if (!file) return setUser3dFile(null);
+    if (!file.name.toLowerCase().endsWith(".glb")) {
+      setUser3dFile(null);
+      return setError("The 3D model must be a .glb file.");
+    }
+    if (file.size > MAX_MODEL_MB * 1024 * 1024) {
+      setUser3dFile(null);
+      return setError(`The 3D model is too large (maximum ${MAX_MODEL_MB} MB).`);
+    }
+    setUser3dFile(file);
+  }
+
   async function handleMake3D() {
-    if (!processedBlob) return alert("Сначала загрузите изображение и дождитесь обработки.");
+    if (!processedBlob) {
+      setError("Upload an image first and wait until it is processed.");
+      return;
+    }
 
     // heavy-only: если AI off или TripoSR off — 3D нельзя
-    if (!aiOnline) return alert("AI сейчас выключен, 3D-реконструкция недоступна.");
+    if (!aiOnline) return setError("AI is off right now, so 3D reconstruction is unavailable.");
     if (!(aiFeatures?.triposr === true)) {
-      return alert("TripoSR сейчас выключен (triposr:false). 3D пока недоступно.");
+      return setError("3D reconstruction (TripoSR) is turned off right now.");
     }
 
     setMaking3d(true);
@@ -171,22 +321,21 @@ export default function SellerPanel() {
       const fd = new FormData();
       fd.append("image", processedBlob, "product.png");
 
-      const r = await fetch(`${API}/api/ai/triposr`, { method: "POST", body: fd });
+      const r = await authFetch(`${API}/api/ai/triposr`, { method: "POST", body: fd });
 
       if (r.status === 503) {
         setAiOnline(false);
-        setError("3D-реконструкция временно недоступна (AI off).");
+        setError("3D reconstruction is temporarily unavailable (AI is off).");
         return;
       }
-
-      if (!r.ok) throw new Error(`triposr failed: ${r.status}`);
+      if (!r.ok) throw new Error(await errorMessage(r, "3D reconstruction failed"));
 
       const ab = await r.arrayBuffer();
       setModel3dBlob(new Blob([ab], { type: "model/gltf-binary" }));
-      alert("✅ 3D-модель (GLB) готова. Её можно покрутить и сохранить вместе c товаром.");
+      setNotice("The 3D model (GLB) is ready. Rotate it to check, then save it with the product.");
     } catch (e) {
       console.error(e);
-      setError("3D-реконструкция не удалась.");
+      setError(e.message || "3D reconstruction failed.");
     } finally {
       setMaking3d(false);
     }
@@ -194,10 +343,12 @@ export default function SellerPanel() {
 
   async function handleSave() {
     if (!title.trim() || !price || !processedBlob) {
-      return alert("Заполни название, цену и добавь изображение.");
+      setError("Please fill in the title and price and add an image.");
+      return;
     }
     setSaving(true);
     setError("");
+    setNotice("");
     try {
       const fd = new FormData();
       fd.append("title", title.trim());
@@ -205,32 +356,20 @@ export default function SellerPanel() {
       fd.append("category", category);
       fd.append("garmentType", garmentType);
       fd.append("sizeChart", JSON.stringify(serializeSizeChart(sizeChart)));
-      fd.append("image", processedBlob, "product.png");
+      // имя файла задаёт расширение на сервере; у исходного File оно своё (jpg/webp)
+      fd.append("image", processedBlob, processedBlob.name || "product.png");
 
       // приоритет у файла, загруженного пользователем
       const modelToSend = user3dFile ?? model3dBlob;
       if (modelToSend) {
-        fd.append(
-          "model3d",
-          modelToSend,
-          user3dFile ? (user3dFile.name || "model.glb") : "model.glb"
-        );
+        fd.append("model3d", modelToSend, user3dFile ? user3dFile.name : "model.glb");
       }
 
-      const r = await fetch(`${API}/api/products`, { method: "POST", body: fd });
-      let payload = null;
-      try {
-        payload = await r.json();
-      } catch {
-        payload = null;
-      }
+      const r = await authFetch(`${API}/api/products`, { method: "POST", body: fd });
+      if (!r.ok) throw new Error(await errorMessage(r, "Could not save the product"));
 
-      if (!r.ok) {
-        const msg = (payload && (payload.error || payload.message)) || `HTTP ${r.status}`;
-        throw new Error(msg);
-      }
-
-      alert("✅ Товар сохранён! Открой вкладку All Products.");
+      setNotice("Product saved. It is now in the catalogue and in “My products” below.");
+      setListKey((k) => k + 1);
 
       // сброс формы
       setTitle("");
@@ -249,7 +388,7 @@ export default function SellerPanel() {
       setAiHint("");
     } catch (e) {
       console.error(e);
-      setError(`Ошибка сохранения товара: ${String(e.message || e)}`);
+      setError(`Could not save the product: ${String(e.message || e)}`);
     } finally {
       setSaving(false);
     }
@@ -258,62 +397,57 @@ export default function SellerPanel() {
   const canMake3D = aiOnline === true && aiFeatures?.triposr === true;
 
   return (
-    <div style={{ padding: 24 }}>
-      <h2 style={{ marginBottom: 8 }}>👕 Загрузка товара продавцом</h2>
+    <div style={ui.page}>
+      <h2 style={{ ...ui.h2, marginBottom: 4 }}>👕 Add a product</h2>
+      {storeName && <p style={{ ...ui.muted, margin: "0 0 8px" }}>Store: <b>{storeName}</b></p>}
 
       {/* индикатор AI */}
       <div style={{ margin: "8px 0 16px", fontSize: 13 }}>
-        {aiOnline === null && <span>Проверяем AI…</span>}
+        {aiOnline === null && <span style={ui.muted}>Checking AI…</span>}
         {aiOnline === true && (
-          <span style={{ color: "#059669" }}>🟢 AI online (heavy models, GPU)</span>
+          <span style={{ color: "var(--fit-good)" }}>🟢 AI online (GPU models)</span>
         )}
         {aiOnline === false && (
-          <span style={{ color: "#b45309" }}>🟠 AI offline — фон не вырезаем, 3D недоступно</span>
+          <span style={{ color: "var(--fit-warn)" }}>🟠 {AI_OFF_HINT}</span>
         )}
       </div>
 
-      {/* Двухколоночный layout: слева форма, справа превью (2D + 3D) */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "minmax(0, 1fr)",
-          gap: 24,
-          maxWidth: 900,
-        }}
-      >
+      <div style={{ display: "grid", gridTemplateColumns: "minmax(0, 1fr)", gap: 24, maxWidth: 900 }}>
         {/* Основная колонка — форма */}
         <div>
           <div style={{ margin: "12px 0" }}>
-            <label style={{ display: "block", marginBottom: 6 }}>Изображение товара</label>
+            <label style={{ display: "block", marginBottom: 6 }}>Product image (JPEG, PNG or WebP, up to {MAX_IMAGE_MB} MB)</label>
             <input
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0])}
             />
             {aiHint && (
-              <small style={{ color: "#6b7280", display: "block", marginTop: 6 }}>
+              <small style={{ ...ui.muted, display: "block", marginTop: 6 }}>
                 {aiHint}
               </small>
             )}
           </div>
 
-          {loading && <p>⏳ Обрабатываем изображение…</p>}
-          {error && <p style={{ color: "crimson" }}>{error}</p>}
+          {loading && <p>⏳ Processing the image…</p>}
+          {error && <p role="alert" style={ui.error}>{error}</p>}
+          {notice && <p role="status" style={{ color: "var(--fit-good)" }}>{notice}</p>}
 
           {/* Остальная форма показывается после выбора изображения */}
           {processedUrl && (
             <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
+              <img src={processedUrl} alt="Product preview" style={ui.preview} />
               <input
                 value={title}
                 onChange={(e) => setTitle(e.target.value)}
-                placeholder="Название товара"
+                placeholder="Product title"
               />
               <input
                 value={price}
                 onChange={(e) => setPrice(e.target.value)}
                 type="number"
                 min="0"
-                placeholder="Цена"
+                placeholder="Price, ₸"
               />
               <select value={category} onChange={(e) => setCategory(e.target.value)}>
                 <option>Clothes</option>
@@ -336,39 +470,34 @@ export default function SellerPanel() {
                   style={{ padding: "8px 12px" }}
                 >
                   {canMake3D
-                    ? (making3d ? "Генерирую 3D…" : "🧱 Сгенерировать 3D (GLB)")
-                    : "🧱 3D недоступно (TripoSR off)"}
+                    ? (making3d ? "Generating 3D…" : "🧱 Generate 3D (GLB)")
+                    : "🧱 3D unavailable (AI is off)"}
                 </button>
               </div>
 
               <div style={{ marginTop: 6 }}>
                 <label style={{ display: "block", marginBottom: 6 }}>
-                  Или загрузить готовую 3D-модель (опционально)
+                  Or upload a ready 3D model (.glb, up to {MAX_MODEL_MB} MB, optional)
                 </label>
                 <input
                   type="file"
-                  accept=".glb,.gltf,.obj,.fbx,.usdz"
-                  onChange={(e) => setUser3dFile(e.target.files?.[0] || null)}
+                  accept=".glb,model/gltf-binary"
+                  onChange={(e) => handleModelPick(e.target.files?.[0] || null)}
                 />
                 {user3dFile && (
-                  <small style={{ display: "block", marginTop: 6, color: "#555" }}>
-                    Выбрано: {user3dFile.name} ({(user3dFile.size / 1024 / 1024).toFixed(2)} MB)
+                  <small style={{ ...ui.muted, display: "block", marginTop: 6 }}>
+                    Selected: {user3dFile.name} ({(user3dFile.size / 1024 / 1024).toFixed(2)} MB)
+                  </small>
+                )}
+                {!user3dFile && !model3dBlob && (
+                  <small style={{ ...ui.muted, display: "block", marginTop: 6 }}>
+                    Without a 3D model buyers can still check their size, but cannot try the item on.
                   </small>
                 )}
               </div>
 
               {glbUrl && (
-                <div
-                  style={{
-                    width: "100%",
-                    height: 320,
-                    borderRadius: 12,
-                    overflow: "hidden",
-                    background: "#1118270d",
-                    border: "1px solid #e5e7eb",
-                    marginBottom: 8,
-                  }}
-                >
+                <div style={ui.viewer}>
                   <model-viewer
                     src={glbUrl}
                     alt="3D preview"
@@ -386,12 +515,128 @@ export default function SellerPanel() {
                 disabled={saving}
                 style={{ marginTop: 8, padding: "8px 12px" }}
               >
-                {saving ? "Сохраняю…" : "💾 Сохранить в БД"}
+                {saving ? "Saving…" : "💾 Save product"}
               </button>
             </div>
           )}
         </div>
       </div>
+
+      <MyProducts reloadKey={listKey} />
     </div>
   );
 }
+
+/* ───────────────────────── мои товары ───────────────────────── */
+
+function MyProducts({ reloadKey }) {
+  const [items, setItems] = useState(null); // null — ещё грузим
+  const [error, setError] = useState("");
+  const [deletingId, setDeletingId] = useState(null);
+
+  const load = useCallback(async () => {
+    setError("");
+    try {
+      const r = await authFetch(`${API}/api/products/mine`);
+      if (!r.ok) throw new Error(await errorMessage(r, "Could not load your products"));
+      setItems(await r.json());
+    } catch (e) {
+      setItems([]);
+      setError(e.message);
+    }
+  }, []);
+
+  useEffect(() => { load(); }, [load, reloadKey]);
+
+  const remove = async (p) => {
+    if (!window.confirm(`Delete “${p.title}”? This cannot be undone.`)) return;
+    setDeletingId(p._id);
+    setError("");
+    try {
+      const r = await authFetch(`${API}/api/products/${p._id}`, { method: "DELETE" });
+      if (!r.ok) throw new Error(await errorMessage(r, "Could not delete the product"));
+      setItems((list) => list.filter((x) => x._id !== p._id));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setDeletingId(null);
+    }
+  };
+
+  return (
+    <section style={{ marginTop: 32, maxWidth: 900 }}>
+      <h3 style={ui.h3}>My products{items ? ` · ${items.length}` : ""}</h3>
+      {error && <p role="alert" style={ui.error}>{error}</p>}
+      {items === null && <p style={ui.muted}>Loading…</p>}
+      {items?.length === 0 && !error && (
+        <p style={ui.muted}>You have no products yet. Add your first one above.</p>
+      )}
+      {items?.map((p) => (
+        <div key={p._id} style={ui.item}>
+          <img src={toPublicUrl(p.image)} alt="" style={ui.thumb} />
+          <div style={{ minWidth: 0, flex: 1 }}>
+            <div style={{ fontWeight: 600, color: "var(--ink)" }}>{p.title}</div>
+            <div style={ui.meta}>
+              {Number(p.price || 0).toLocaleString("en-US")} ₸ · {p.garmentType || "top"}
+              {" · "}{p.sizeChart?.length ? `${p.sizeChart.length} sizes` : "no size chart"}
+              {" · "}{p.model3d ? "3D model" : "no 3D model"}
+            </div>
+          </div>
+          <button
+            style={ui.btnDanger}
+            onClick={() => remove(p)}
+            disabled={deletingId === p._id}
+          >
+            {deletingId === p._id ? "Deleting…" : "Delete"}
+          </button>
+        </div>
+      ))}
+    </section>
+  );
+}
+
+const ui = {
+  page: { padding: 24 },
+  h2: { margin: "0 0 12px", color: "var(--ink)" },
+  h3: { margin: "0 0 12px", fontSize: 16, color: "var(--ink)" },
+  muted: { color: "var(--muted)" },
+  error: { color: "var(--fit-bad)" },
+  row: { display: "flex", gap: 8, flexWrap: "wrap", marginTop: 12 },
+  gate: {
+    maxWidth: 520, padding: 20, borderRadius: 12,
+    border: "1px solid var(--line)", background: "var(--surface)",
+  },
+  input: {
+    display: "block", width: "100%", boxSizing: "border-box", marginTop: 8,
+    padding: "8px 10px", borderRadius: 8, border: "1px solid var(--line-strong)",
+  },
+  btn: {
+    padding: "8px 14px", borderRadius: 8, cursor: "pointer",
+    border: "1px solid var(--line-strong)", background: "var(--surface)", color: "var(--ink)",
+  },
+  btnDark: {
+    padding: "8px 14px", borderRadius: 8, cursor: "pointer",
+    border: "1px solid var(--ink)", background: "var(--ink)", color: "var(--surface)",
+  },
+  btnDanger: {
+    padding: "6px 12px", borderRadius: 8, cursor: "pointer",
+    border: "1px solid var(--fit-bad)", background: "var(--surface)", color: "var(--fit-bad)",
+  },
+  preview: {
+    width: 160, height: 200, objectFit: "contain", borderRadius: 8,
+    border: "1px solid var(--line)", background: "var(--surface-3)",
+  },
+  viewer: {
+    width: "100%", height: 320, borderRadius: 12, overflow: "hidden", marginBottom: 8,
+    background: "var(--surface-2)", border: "1px solid var(--line)",
+  },
+  item: {
+    display: "flex", alignItems: "center", gap: 12, padding: 10, marginBottom: 8,
+    borderRadius: 10, border: "1px solid var(--line)", background: "var(--surface)",
+  },
+  thumb: {
+    width: 56, height: 70, objectFit: "cover", borderRadius: 6,
+    background: "var(--surface-3)", border: "1px solid var(--line-2)",
+  },
+  meta: { fontSize: 13, color: "var(--muted)", marginTop: 2 },
+};

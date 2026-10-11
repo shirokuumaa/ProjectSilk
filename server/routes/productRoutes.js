@@ -1,97 +1,126 @@
 // server/routes/productRoutes.js
 import express from "express";
 import multer from "multer";
-import fs from "fs";
 import path from "path";
+import mongoose from "mongoose";
 import {
   addProduct,
+  updateProduct,
+  deleteProduct,
   getAllProducts,
+  getMyProducts,
   getProductById,
 } from "../controllers/productController.js";
-
-// ───────────── подготовим директории ─────────────
-const ROOT = process.cwd();
-const DIR_UPLOADS = path.join(ROOT, "uploads");
-const DIR_IMAGES  = path.join(DIR_UPLOADS, "images");
-const DIR_MODELS  = path.join(DIR_UPLOADS, "models");
-
-for (const p of [DIR_UPLOADS, DIR_IMAGES, DIR_MODELS]) {
-  if (!fs.existsSync(p)) fs.mkdirSync(p, { recursive: true });
-}
+import Product from "../models/Product.js";
+import { requireAuth, requireRole } from "../middleware/requireAuth.js";
+import { IMAGES_DIR, MODELS_DIR } from "../config/paths.js";
+import {
+  IMAGE_EXTENSIONS, MODEL_EXTENSIONS, MAX_MODEL_BYTES, uploadedFiles, removeFiles,
+} from "../utils/uploadChecks.js";
 
 // ───────────── Multer: куда и как сохранять ─────────────
 const storage = multer.diskStorage({
   destination: (_req, file, cb) => {
-    if (file.fieldname === "model3d") return cb(null, DIR_MODELS);
-    return cb(null, DIR_IMAGES);
+    if (file.fieldname === "model3d") return cb(null, MODELS_DIR);
+    return cb(null, IMAGES_DIR);
   },
   filename: (_req, file, cb) => {
     const original = file.originalname || "file";
-    const dot = original.lastIndexOf(".");
-    const ext  = dot >= 0 ? original.slice(dot).toLowerCase() : "";
-    const base = original.slice(0, dot >= 0 ? dot : undefined).replace(/\s+/g, "_");
+    const ext  = path.extname(original).toLowerCase();
+    const base = path.basename(original, path.extname(original))
+      .replace(/[^A-Za-z0-9_-]+/g, "_")
+      .slice(0, 60) || "file";
     cb(null, `${Date.now()}_${Math.random().toString(36).slice(2)}_${base}${ext}`);
   },
 });
 
+const uploadError = (message) => Object.assign(new Error(message), { status: 400 });
+
 // ───────────── Фильтр типов ─────────────
+// Здесь — только расширение (оно определяет Content-Type при раздаче /uploads).
+// Содержимое проверяется после записи: validateUploads() в контроллере.
 const fileFilter = (_req, file, cb) => {
+  const ext = path.extname(file.originalname || "").toLowerCase();
+
   if (file.fieldname === "image") {
-    // 1) нормальный случай: image/*
-    if (file.mimetype && file.mimetype.startsWith("image/")) return cb(null, true);
-    // 2) некоторые клиенты (curl, старые браузеры) шлют octet-stream
-    if (file.mimetype === "application/octet-stream" || !file.mimetype) return cb(null, true);
-    // 3) подстраховка по расширению
-    const name = (file.originalname || "").toLowerCase();
-    if (/\.(png|jpe?g|webp|gif|bmp|tiff?)$/i.test(name)) return cb(null, true);
-
-    return cb(new Error("image: only image/* allowed"));
+    return IMAGE_EXTENSIONS.includes(ext)
+      ? cb(null, true)
+      : cb(uploadError("Image must be a JPEG, PNG or WebP file."));
   }
-
   if (file.fieldname === "model3d") {
-    const okTypes = new Set([
-      "model/gltf-binary",   // .glb
-      "model/gltf+json",     // .gltf
-      "application/octet-stream",
-      "application/octetstream",
-      "text/plain",          // .obj иногда так приходит
-      "application/x-tgif",
-    ]);
-    if (okTypes.has(file.mimetype)) return cb(null, true);
-    const name = (file.originalname || "").toLowerCase();
-    if (/\.(glb|gltf|obj|fbx|usdz?)$/i.test(name)) return cb(null, true);
-
-    return cb(new Error("model3d: unsupported file type"));
+    return MODEL_EXTENSIONS.includes(ext)
+      ? cb(null, true)
+      : cb(uploadError("3D model must be a .glb file."));
   }
-
-  return cb(new Error("Unknown field"));
+  return cb(uploadError(`Unexpected file field: ${file.fieldname}`));
 };
 
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: 50 * 1024 * 1024, files: 2 },
-});
+  limits: { fileSize: MAX_MODEL_BYTES, files: 2 },
+}).fields([
+  { name: "image",   maxCount: 1 },
+  { name: "model3d", maxCount: 1 },
+]);
+
+/** multer + понятные ошибки вместо 500; при ошибке записанное удаляется. */
+function handleUpload(req, res, next) {
+  upload(req, res, (err) => {
+    if (!err) return next();
+    removeFiles(uploadedFiles(req).map((f) => f.path));
+
+    if (err instanceof multer.MulterError) {
+      if (err.code === "LIMIT_FILE_SIZE") {
+        return res.status(413).json({ message: "File is too large (maximum 50 MB)." });
+      }
+      return res.status(400).json({ message: `Upload error: ${err.message}` });
+    }
+    if (err.status === 400) return res.status(400).json({ message: err.message });
+    return next(err);
+  });
+}
+
+/** Товар из :id, если он принадлежит текущему продавцу. Иначе 404 / 403. */
+async function loadOwnProduct(req, res, next) {
+  try {
+    const { id } = req.params;
+    if (!mongoose.isValidObjectId(id)) return res.status(404).json({ message: "Product not found." });
+
+    const product = await Product.findById(id);
+    if (!product) return res.status(404).json({ message: "Product not found." });
+    if (String(product.owner) !== req.user.id) {
+      return res.status(403).json({ message: "You can only change your own products." });
+    }
+
+    req.product = product;
+    next();
+  } catch (err) {
+    next(err);
+  }
+}
 
 const router = express.Router();
+const sellerOnly = [requireAuth, requireRole("seller")];
 
 /**
  * Монтировать так: app.use("/api/products", productRoutes)
- * Пути:
- *   POST /api/products
- *   GET  /api/products
- *   GET  /api/products/:id
+ *   GET    /api/products          — каталог, открыт всем
+ *   GET    /api/products/mine     — товары текущего продавца
+ *   GET    /api/products/:id      — открыт всем
+ *   POST   /api/products          — только продавец
+ *   PATCH  /api/products/:id      — только владелец товара
+ *   DELETE /api/products/:id      — только владелец товара
+ *
+ * Права проверяются ДО multer: файлы от покупателя или чужого продавца
+ * не успевают записаться на диск.
  */
-router.post(
-  "/",
-  upload.fields([
-    { name: "image",   maxCount: 1 },
-    { name: "model3d", maxCount: 1 },
-  ]),
-  addProduct
-);
-
 router.get("/", getAllProducts);
+router.get("/mine", ...sellerOnly, getMyProducts);
 router.get("/:id", getProductById);
+
+router.post("/", ...sellerOnly, handleUpload, addProduct);
+router.patch("/:id", ...sellerOnly, loadOwnProduct, handleUpload, updateProduct);
+router.delete("/:id", ...sellerOnly, loadOwnProduct, deleteProduct);
 
 export default router;

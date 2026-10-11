@@ -1,16 +1,20 @@
 // server/routes/authRoutes.js
 //
-//   POST /api/auth/register  { username, password } → 201 { token, user }
-//   POST /api/auth/login     { username, password } → 200 { token, user }
-//   GET  /api/auth/me        (Bearer)               → 200 { id, username }
+//   POST /api/auth/register       { username, password, accountType?, storeName? } → 201 { token, user }
+//   POST /api/auth/login          { username, password }                          → 200 { token, user }
+//   GET  /api/auth/me             (Bearer)                                        → 200 user
+//   POST /api/auth/become-seller  (Bearer) { storeName }                          → 200 { user }
 //
+// user = { id, username, role: 'buyer' | 'seller', storeName }
 // Сообщения об ошибках видит покупатель — поэтому они на английском.
 
 import express from 'express';
 import bcrypt from 'bcryptjs';
 import rateLimit from 'express-rate-limit';
-import User, { USERNAME_RE, normalizeUsername } from '../models/User.js';
-import { requireAuth, signToken } from '../middleware/requireAuth.js';
+import User, {
+  USERNAME_RE, ROLES, normalizeUsername, normalizeStoreName, isValidStoreName,
+} from '../models/User.js';
+import { requireAuth, signToken, publicUser } from '../middleware/requireAuth.js';
 
 const router = express.Router();
 
@@ -45,12 +49,21 @@ async function getDummyHash() {
   return dummyHash;
 }
 
-const publicUser = (u) => ({ id: String(u._id), username: u.username });
+const STORE_NAME_RULE = 'Store name must be 2–60 characters.';
 
 router.post('/register', registerLimiter, async (req, res, next) => {
   try {
     const username = normalizeUsername(req.body?.username);
     const password = String(req.body?.password ?? '');
+    const role = String(req.body?.accountType || 'buyer');
+    const storeName = normalizeStoreName(req.body?.storeName);
+
+    if (!ROLES.includes(role)) {
+      return res.status(400).json({ message: 'Account type must be buyer or seller.' });
+    }
+    if (role === 'seller' && !isValidStoreName(storeName)) {
+      return res.status(400).json({ message: STORE_NAME_RULE });
+    }
 
     if (!USERNAME_RE.test(username)) {
       return res.status(400).json({
@@ -71,7 +84,12 @@ router.post('/register', registerLimiter, async (req, res, next) => {
     const passwordHash = await bcrypt.hash(password, BCRYPT_COST);
     let user;
     try {
-      user = await User.create({ username, passwordHash });
+      user = await User.create({
+        username,
+        passwordHash,
+        role,
+        ...(role === 'seller' ? { storeName } : {}),
+      });
     } catch (err) {
       // два одновременных запроса с одним именем
       if (err?.code === 11000) {
@@ -106,6 +124,29 @@ router.post('/login', loginLimiter, async (req, res, next) => {
 
 router.get('/me', requireAuth, (req, res) => {
   res.json(req.user);
+});
+
+/** Покупатель открывает магазин, не заводя второй аккаунт. Токен не меняется. */
+router.post('/become-seller', requireAuth, async (req, res, next) => {
+  try {
+    if (req.user.role === 'seller') {
+      return res.status(409).json({ message: 'You already have a seller account.' });
+    }
+    const storeName = normalizeStoreName(req.body?.storeName);
+    if (!isValidStoreName(storeName)) {
+      return res.status(400).json({ message: STORE_NAME_RULE });
+    }
+
+    const user = await User.findByIdAndUpdate(
+      req.user.id,
+      { $set: { role: 'seller', storeName } },
+      { new: true, runValidators: true },
+    ).lean();
+
+    res.json({ user: publicUser(user) });
+  } catch (err) {
+    next(err);
+  }
 });
 
 export default router;

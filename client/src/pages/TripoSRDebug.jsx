@@ -1,5 +1,6 @@
 // client/src/pages/TripoSRDebug.jsx
 import React, { useState } from "react";
+import { authFetch } from "../utils/auth";
 
 const API_BASE = "http://localhost:5050"; // ЯВНО ходим на Node-сервер
 
@@ -28,7 +29,7 @@ const TripoSRDebug = () => {
     setError("");
     setStatus("");
     try {
-      const res = await fetch(`${API_BASE}/api/ai/healthz`);
+      const res = await authFetch(`${API_BASE}/api/ai/healthz`);
       const text = await res.text();
       setHealthText(`HTTP ${res.status}\n` + text);
     } catch (err) {
@@ -53,7 +54,7 @@ const TripoSRDebug = () => {
       formData.append("image", file);
 
       // ВАЖНО: ходим строго на http://localhost:5050, а не на порт 3000
-      const res = await fetch(
+      const res = await authFetch(
         `${API_BASE}/api/ai/triposr?resolution=160`,
         {
           method: "POST",

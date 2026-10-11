@@ -3,10 +3,8 @@ import express from 'express';
 import mongoose from 'mongoose';
 import cors from 'cors';
 import dotenv from 'dotenv';
-import path from 'path';
-import fs from 'fs';
-import { fileURLToPath } from 'url';
 
+import { UPLOADS_DIR } from './config/paths.js';
 import productRoutes from './routes/productRoutes.js';
 import wardrobeRoutes from './routes/wardrobeRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
@@ -55,12 +53,8 @@ app.use('/api/ai', aiRoutes);
 app.use(express.json({ limit: '10mb' }));
 app.use(express.urlencoded({ extended: true }));
 
-/* 3) Статика /uploads */
-const __filename = fileURLToPath(import.meta.url);
-const __dirname  = path.dirname(__filename);
-const uploadsDir = path.join(__dirname, 'uploads');
-if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
-app.use('/uploads', express.static(uploadsDir));
+/* 3) Статика /uploads (папка — config/paths.js, переносится через UPLOADS_DIR) */
+app.use('/uploads', express.static(UPLOADS_DIR));
 
 /* 4) API-роуты */
 app.use('/api/auth', authRoutes);
