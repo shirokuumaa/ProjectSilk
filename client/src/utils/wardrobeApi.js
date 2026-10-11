@@ -1,20 +1,22 @@
 // client/src/utils/wardrobeApi.js
+// Серверный гардероб. Пользователь определяется по токену (authFetch).
+import { authFetch, isLoggedIn } from './auth';
+
 const API = process.env.REACT_APP_API || 'http://localhost:5050';
-const U = () => localStorage.getItem('loggedInUser') || '';
 
 export async function listWardrobeApi() {
-  const user = U(); if (!user) return null;
+  if (!isLoggedIn()) return null;
   try {
-    const r = await fetch(`${API}/api/wardrobe?user=${encodeURIComponent(user)}`);
+    const r = await authFetch(`${API}/api/wardrobe`);
     if (!r.ok) throw new Error('list failed');
     return await r.json();
   } catch { return null; }
 }
 
 export async function addWardrobeApi(item) {
-  const user = U(); if (!user) return null;
+  if (!isLoggedIn()) return null;
   try {
-    const r = await fetch(`${API}/api/wardrobe?user=${encodeURIComponent(user)}`, {
+    const r = await authFetch(`${API}/api/wardrobe`, {
       method: 'POST',
       headers: { 'Content-Type':'application/json' },
       body: JSON.stringify(item),
@@ -24,9 +26,9 @@ export async function addWardrobeApi(item) {
 }
 
 export async function removeWardrobeApi(productId) {
-  const user = U(); if (!user) return null;
+  if (!isLoggedIn()) return null;
   try {
-    const r = await fetch(`${API}/api/wardrobe/${encodeURIComponent(productId)}?user=${encodeURIComponent(user)}`, {
+    const r = await authFetch(`${API}/api/wardrobe/${encodeURIComponent(productId)}`, {
       method: 'DELETE'
     });
     return r.ok;
@@ -34,9 +36,9 @@ export async function removeWardrobeApi(productId) {
 }
 
 export async function clearWardrobeApi() {
-  const user = U(); if (!user) return null;
+  if (!isLoggedIn()) return null;
   try {
-    const r = await fetch(`${API}/api/wardrobe?user=${encodeURIComponent(user)}`, { method:'DELETE' });
+    const r = await authFetch(`${API}/api/wardrobe`, { method:'DELETE' });
     return r.ok;
   } catch { return false; }
 }

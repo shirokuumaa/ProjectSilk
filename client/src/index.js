@@ -3,6 +3,10 @@ import ReactDOM from 'react-dom/client';
 import './index.css';
 import App from './App';
 import reportWebVitals from './reportWebVitals';
+import { cleanupLegacyAuth } from './utils/auth';
+
+// старый вход хранил пароль в localStorage 'user' — убираем до первого рендера
+cleanupLegacyAuth();
 
 const root = ReactDOM.createRoot(document.getElementById('root'));
 root.render(

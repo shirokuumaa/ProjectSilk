@@ -1,46 +1,57 @@
 import React, { useState } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
+import { login } from '../utils/auth';
 
 export default function LoginPage() {
-  // State to store input fields
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
+  const [error, setError] = useState('');
+  const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
 
-  // Function to handle login logic
-  const handleLogin = () => {
-    const savedUser = JSON.parse(localStorage.getItem('user'));
-
-    if (!savedUser) {
-      alert('No user found. Please register first.');
+  const handleLogin = async (e) => {
+    e.preventDefault();
+    setError('');
+    if (!username.trim() || !password) {
+      setError('Please enter your username and password.');
       return;
     }
 
-    if (savedUser.username === username && savedUser.password === password) {
-      localStorage.setItem('loggedInUser', username);
-      alert('Login successful!');
+    setBusy(true);
+    try {
+      await login(username, password);
       navigate('/');
-    } else {
-      alert('Wrong username or password.');
+    } catch (err) {
+      setError(err.message);
+    } finally {
+      setBusy(false);
     }
   };
 
   return (
     <div style={{ padding: '20px' }}>
-      <h2>Login</h2>
-      <input
-        type="text"
-        placeholder="Enter username"
-        value={username}
-        onChange={(e) => setUsername(e.target.value)}
-      /><br /><br />
-      <input
-        type="password"
-        placeholder="Enter password"
-        value={password}
-        onChange={(e) => setPassword(e.target.value)}
-      /><br /><br />
-      <button onClick={handleLogin}>Login</button>
+      <h2>Sign in</h2>
+      <form onSubmit={handleLogin}>
+        <input
+          type="text"
+          placeholder="Username"
+          autoComplete="username"
+          value={username}
+          onChange={(e) => setUsername(e.target.value)}
+        /><br /><br />
+        <input
+          type="password"
+          placeholder="Password"
+          autoComplete="current-password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        /><br /><br />
+        {error && <p role="alert" style={{ color: '#c92a2a', margin: '0 0 12px' }}>{error}</p>}
+        <button type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
+      </form>
+      <p style={{ marginTop: 16 }}>
+        No account yet? <Link to="/register">Create one</Link>
+      </p>
     </div>
   );
 }

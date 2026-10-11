@@ -1,7 +1,8 @@
-import React, { useState, useRef } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import styles from './TopBar.module.css';
 import MegaMenu from './MegaMenu';
+import { AUTH_EVENT, getUsername, logout } from '../utils/auth';
 
 export default function TopBar({ search, setSearch, cartItems }) {
   const [showProfile, setShowProfile] = useState(false);
@@ -11,7 +12,14 @@ export default function TopBar({ search, setSearch, cartItems }) {
   const navigate = useNavigate();
 
   const totalItems = (cartItems || []).reduce((s, i) => s + (i.quantity || 0), 0);
-  const loggedInUser = localStorage.getItem('loggedInUser');
+  const [loggedInUser, setLoggedInUser] = useState(getUsername);
+
+  // вход/выход в другом месте (в т.ч. автоматический выход при истёкшем токене)
+  useEffect(() => {
+    const sync = () => setLoggedInUser(getUsername());
+    window.addEventListener(AUTH_EVENT, sync);
+    return () => window.removeEventListener(AUTH_EVENT, sync);
+  }, []);
 
   const handleMouseEnter = () => { clearTimeout(closeTimer.current); setShowMenu(true); };
   const handleMouseLeave = () => { closeTimer.current = setTimeout(() => setShowMenu(false), 300); };
@@ -33,7 +41,7 @@ export default function TopBar({ search, setSearch, cartItems }) {
   };
 
   const handleLogout = () => {
-    localStorage.removeItem('loggedInUser');
+    logout();
     window.location.reload();
   };
 

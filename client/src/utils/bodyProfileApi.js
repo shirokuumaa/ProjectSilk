@@ -2,15 +2,15 @@
 //
 // Работа с профилем тела покупателя: сохранение в БД и чтение.
 // Профиль — это обмеры, из которых строится аватар и считается подбор размера.
+// Сервер определяет владельца по токену, поэтому имя в запросы не кладём.
+
+import { authFetch, getUsername } from './auth';
 
 const API = process.env.REACT_APP_API || 'http://localhost:5050';
 
-/**
- * Текущий пользователь — только имя из 'loggedInUser'.
- * Ключ 'user' не читаем: RegisterPage хранит там JSON с паролем.
- */
+/** Имя вошедшего пользователя (есть токен) или null. */
 export function getCurrentUser() {
-  const name = localStorage.getItem('loggedInUser');
+  const name = getUsername();
   const trimmed = typeof name === 'string' ? name.trim() : '';
   return trimmed || null;
 }
@@ -59,7 +59,8 @@ export async function saveBodyProfile(m) {
     return null;
   }
 
-  const payload = toBodyProfile(m, user);
+  // без user: сервер берёт владельца из токена
+  const payload = toBodyProfile(m);
 
   // минимальный набор для расчёта посадки
   const required = ['heightCm', 'chest', 'waist', 'hips'];
@@ -69,7 +70,7 @@ export async function saveBodyProfile(m) {
   }
 
   try {
-    const r = await fetch(`${API}/api/body-profile`, {
+    const r = await authFetch(`${API}/api/body-profile`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -102,7 +103,7 @@ export async function loadBodyProfile() {
 
   if (user) {
     try {
-      const r = await fetch(`${API}/api/body-profile/${encodeURIComponent(user)}`);
+      const r = await authFetch(`${API}/api/body-profile/me`);
       if (r.ok) {
         const profile = await r.json();
         if (profile) {

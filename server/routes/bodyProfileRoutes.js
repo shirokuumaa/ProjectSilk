@@ -1,16 +1,20 @@
 // server/routes/bodyProfileRoutes.js
+//
+// Все маршруты требуют токен. Пользователь берётся из токена (req.user);
+// имя в URL или теле оставлено для совместимости — если оно чужое, 403.
 import express from 'express';
 import BodyProfile from '../models/BodyProfile.js';
+import { requireAuth, isOtherUser } from '../middleware/requireAuth.js';
 
 const router = express.Router();
 
-/**
- * GET /api/body-profile/:user
- * Вернуть профиль тела покупателя (или null, если ещё не заполнен).
- */
-router.get('/:user', async (req, res) => {
+router.use(requireAuth);
+
+const FORBIDDEN = { message: 'You can only access your own body profile' };
+
+async function sendProfile(req, res) {
   try {
-    const profile = await BodyProfile.findOne({ user: req.params.user });
+    const profile = await BodyProfile.findOne({ user: req.user.username });
     if (!profile) return res.json(null);
 
     res.json({
@@ -21,19 +25,39 @@ router.get('/:user', async (req, res) => {
     console.error('bodyProfile GET error:', err);
     res.status(500).json({ message: 'Не удалось загрузить профиль тела' });
   }
+}
+
+async function deleteProfile(req, res) {
+  try {
+    await BodyProfile.deleteOne({ user: req.user.username });
+    res.json({ ok: true });
+  } catch (err) {
+    console.error('bodyProfile DELETE error:', err);
+    res.status(500).json({ message: 'Не удалось удалить профиль тела' });
+  }
+}
+
+/**
+ * GET /api/body-profile/me
+ * GET /api/body-profile/:user   (только свой)
+ * Вернуть профиль тела покупателя (или null, если ещё не заполнен).
+ */
+router.get('/me', sendProfile);
+router.get('/:user', (req, res) => {
+  if (isOtherUser(req, req.params.user)) return res.status(403).json(FORBIDDEN);
+  return sendProfile(req, res);
 });
 
 /**
  * POST /api/body-profile
- * Создать или обновить профиль. Тело запроса: { user, heightCm, chest, ... }
+ * Создать или обновить свой профиль. Тело запроса: { heightCm, chest, ... }
  */
 router.post('/', async (req, res) => {
   try {
-    const { user, ...data } = req.body || {};
+    const { user: claimed, ...data } = req.body || {};
+    if (isOtherUser(req, claimed)) return res.status(403).json(FORBIDDEN);
 
-    if (!user) {
-      return res.status(400).json({ message: 'Не указан пользователь' });
-    }
+    const user = req.user.username;
 
     const required = ['heightCm', 'chest', 'waist', 'hips'];
     const missing = required.filter((key) => data[key] == null);
@@ -45,7 +69,7 @@ router.post('/', async (req, res) => {
 
     const profile = await BodyProfile.findOneAndUpdate(
       { user },
-      { $set: { user, ...data } },
+      { $set: { ...data, user } },
       { new: true, upsert: true, runValidators: true, setDefaultsOnInsert: true }
     );
 
@@ -66,16 +90,13 @@ router.post('/', async (req, res) => {
 });
 
 /**
- * DELETE /api/body-profile/:user
+ * DELETE /api/body-profile/me
+ * DELETE /api/body-profile/:user   (только свой)
  */
-router.delete('/:user', async (req, res) => {
-  try {
-    await BodyProfile.deleteOne({ user: req.params.user });
-    res.json({ ok: true });
-  } catch (err) {
-    console.error('bodyProfile DELETE error:', err);
-    res.status(500).json({ message: 'Не удалось удалить профиль тела' });
-  }
+router.delete('/me', deleteProfile);
+router.delete('/:user', (req, res) => {
+  if (isOtherUser(req, req.params.user)) return res.status(403).json(FORBIDDEN);
+  return deleteProfile(req, res);
 });
 
 export default router;

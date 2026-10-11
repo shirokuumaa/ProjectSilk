@@ -40,15 +40,15 @@ export default function MeasurementsPreview({ m, onSaved }) {
       if (res?.incomplete) {
         setStatus({
           ok: false,
-          text: `Не хватает обмеров: ${res.missing.join(', ')}`,
+          text: `Missing measurements: ${res.missing.join(', ')}`,
         });
       } else if (res) {
-        setStatus({ ok: true, text: 'Обмеры сохранены' });
+        setStatus({ ok: true, text: 'Measurements saved' });
         if (typeof onSaved === 'function') setTimeout(onSaved, 700);
       } else {
         setStatus({
           ok: false,
-          text: 'Не удалось сохранить. Проверьте, что вы вошли в аккаунт.',
+          text: 'Could not save. Make sure you are signed in.',
         });
       }
     } finally {

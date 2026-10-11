@@ -11,8 +11,8 @@ import productRoutes from './routes/productRoutes.js';
 import wardrobeRoutes from './routes/wardrobeRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
 import avatarRoutes from './routes/avatarRoutes.js';
-import avatarPersistRoutes from "./routes/avatarPersistRoutes.js";
 import bodyProfileRoutes from './routes/bodyProfileRoutes.js';
+import authRoutes from './routes/authRoutes.js';
 
 
 dotenv.config();
@@ -21,11 +21,22 @@ const app   = express();
 const PORT  = Number(process.env.PORT) || 5050;
 const MONGO = process.env.MONGODB_URI || 'mongodb://127.0.0.1:27017/silk';
 
+/* Без секрета токены подписывать нечем — не стартуем вовсе */
+if (String(process.env.JWT_SECRET || '').length < 32) {
+  console.error('❌ JWT_SECRET не задан или короче 32 символов. Добавьте его в server/.env (см. server/.env.example).');
+  process.exit(1);
+}
+
 mongoose.set('strictQuery', true);
 
-/* 0) CORS — ставим самым первым */
+/* 0) CORS — ставим самым первым.
+   CORS_ORIGINS (через запятую) — для второго экземпляра, например тестового. */
+const CORS_ORIGINS = process.env.CORS_ORIGINS
+  ? process.env.CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean)
+  : ['http://localhost:3000', 'http://127.0.0.1:3000'];
+
 app.use(cors({
-  origin: ['http://localhost:3000', 'http://127.0.0.1:3000'],
+  origin: CORS_ORIGINS,
   methods: ['GET','POST','PUT','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization'],
   credentials: false,
@@ -52,26 +63,22 @@ if (!fs.existsSync(uploadsDir)) fs.mkdirSync(uploadsDir, { recursive: true });
 app.use('/uploads', express.static(uploadsDir));
 
 /* 4) API-роуты */
+app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/wardrobe', wardrobeRoutes); // ← добавили гардероб
 app.use('/api/body-profile', bodyProfileRoutes);
 
-/* Health & debug */
-app.get('/healthz', (_req, res) => res.json({ ok: true }));
-app.get('/_debug/mongo', (_req, res) =>
-  res.json({ uri: MONGO, state: mongoose.connection.readyState })
-);
+//test front avatar
+app.use('/api/avatar', avatarRoutes);
 
-/* Глобальный обработчик ошибок */
+/* Health */
+app.get('/healthz', (_req, res) => res.json({ ok: true }));
+
+/* Глобальный обработчик ошибок — последним, после всех роутов */
 app.use((err, _req, res, _next) => {
   console.error('API error:', err);
   res.status(500).json({ message: 'Server error', error: String(err?.message || err) });
 });
-
-//test front avatar
-app.use('/api/avatar', avatarRoutes);
-
-app.use("/api/avatar", avatarPersistRoutes);
 
 /* 5) Подключаем Mongo и стартуем HTTP */
 (async () => {

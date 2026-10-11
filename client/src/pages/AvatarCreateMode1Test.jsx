@@ -1,6 +1,7 @@
 // client/src/pages/AvatarCreateMode1Test.jsx
 import React, { useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { authFetch } from '../utils/auth';
 
 const API_BASE = process.env.REACT_APP_API || 'http://localhost:5050';
 
@@ -148,7 +149,7 @@ export default function AvatarCreateMode1Test() {
    */
   const persistExportToLocal = async (export_url) => {
     pushLog('POST /api/avatar/persist  (save to /uploads/avatars)');
-    const r = await fetch(`${API_BASE}/api/avatar/persist`, {
+    const r = await authFetch(`${API_BASE}/api/avatar/persist`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url: export_url }),

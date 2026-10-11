@@ -6,6 +6,7 @@ import crypto from "crypto";
 import { fileURLToPath } from "url";
 import { pipeline } from "stream/promises";
 import "dotenv/config";
+import { requireAuth } from "../middleware/requireAuth.js";
 
 const router = express.Router();
 
@@ -35,10 +36,10 @@ const __dirname = path.dirname(__filename);
 const avatarsDir = path.join(__dirname, "..", "uploads", "avatars");
 fs.mkdirSync(avatarsDir, { recursive: true });
 
-// POST /api/avatar/persist
+// POST /api/avatar/persist   (нужен токен: сервер скачивает и хранит файл)
 // body: { url: "/static/mesh/xxx.obj" } OR { url: "https://...obj" }
 // also accepts: { export_url: "..." }
-router.post("/persist", express.json(), async (req, res) => {
+router.post("/persist", requireAuth, express.json(), async (req, res) => {
   try {
     const url = req.body?.url || req.body?.export_url;
     if (!url) return res.status(400).json({ message: "url (or export_url) is required" });

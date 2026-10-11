@@ -24,6 +24,7 @@ import AvatarCreateMode1Test from './pages/AvatarCreateMode1Test';
 
 // ⬇️ единый слой ассистента (панель + шарик + голос)
 import AssistantLayer from './components/AssistantLayer';
+import { isLoggedIn } from './utils/auth';
 
 function App() {
   const [search, setSearch] = useState('');
@@ -39,8 +40,7 @@ function App() {
   }, [cartItems]);
 
   const handleAddToCart = (product) => {
-    const loggedInUser = localStorage.getItem('loggedInUser');
-    if (!loggedInUser) {
+    if (!isLoggedIn()) {
       alert('Please log in to add items to the cart.');
       return;
     }
