@@ -33,5 +33,6 @@ run "$HERE/render_check.py" -- stretch shoulder -1,-1.5,-2,-2.5
 
 echo "== 4/4 renders: test figures"
 run "$HERE/render_check.py" -- figures
+run "$HERE/render_check.py" -- underwear
 
 echo "done: see $HERE/out/report.md"

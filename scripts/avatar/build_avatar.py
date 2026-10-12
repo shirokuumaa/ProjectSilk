@@ -31,6 +31,8 @@ from bl_ext.blender_org.mpfb.services.targetservice import TargetService  # noqa
 from bl_ext.blender_org.mpfb.services.locationservice import LocationService  # noqa: E402
 from bl_ext.blender_org.mpfb.entities.objectproperties import HumanObjectProperties  # noqa: E402
 
+ARM_BONES = ("upperarm", "lowerarm", "hand", "thumb", "index", "middle", "ring", "pinky")
+
 
 def log(*args):
     print("[build]", *args, flush=True)
@@ -168,6 +170,39 @@ def section_by_x(pts, tris, x):
     return np.concatenate(out)
 
 
+def underwear_sdf(obj, marks):
+    """Маска белья: расстояние со знаком до края (м), > 0 — внутри белья.
+
+    Топ-бандо — пояс вокруг груди; трусы — от линии ниже талии до паха с
+    вырезами на бёдрах. Руки и кисти исключены (в A-позе кисти на уровне бёдер).
+    Значение по вершинам; в шейдере из него получается чёткий край.
+    """
+    cfg = config.UNDERWEAR
+    n = len(obj.data.vertices)
+    co = get_coords(obj.data.vertices, n)
+    x, y, z = co[:, 0], co[:, 1], co[:, 2]
+
+    arm_groups = {g.index for g in obj.vertex_groups if g.name.split("_")[0] in ARM_BONES}
+    arm = np.array([sum(g.weight for g in v.groups if g.group in arm_groups) > 0.5 for v in obj.data.vertices])
+
+    nipple_z = 0.5 * (marks["nipple_l"][1] + marks["nipple_r"][1])     # glTF Y = Blender Z
+    crotch_z = marks["crotch"][1]
+    crotch_y = -marks["crotch"][2]                                       # glTF Z = −Blender Y
+    span = nipple_z - crotch_z
+
+    top = np.minimum(nipple_z + cfg["top_above_nipple"] - z, z - (nipple_z - cfg["top_below_nipple"]))
+
+    # вырез на бедре: от паха у средней линии поднимается к боку; сзади ниже
+    ramp = np.clip((np.abs(x) - cfg["brief_gusset"]) / (cfg["brief_side_x"] - cfg["brief_gusset"]), 0.0, 1.0)
+    rise = cfg["brief_side_frac"] * span * np.where(y > crotch_y, cfg["brief_back_factor"], 1.0)
+    leg_line = crotch_z - 0.01 + ramp * (rise + 0.01)
+    brief = np.minimum(crotch_z + cfg["brief_top_frac"] * span - z, z - leg_line)
+
+    sdf = np.maximum(top, brief)
+    sdf[arm] = -cfg["clamp"]
+    return np.clip(sdf, -cfg["clamp"], cfg["clamp"])
+
+
 def make_skin_material():
     mat = bpy.data.materials.new("skin")
     mat.use_nodes = True
@@ -187,6 +222,9 @@ def main():
                                     feet_on_ground=True, scale=0.1, macro_detail_dict=macros)
     for mod in list(obj.modifiers):
         obj.modifiers.remove(mod)
+    targets_dir = LocationService.get_mpfb_data("targets")
+    for rel, weight in config.NEUTRAL_DETAIL_TARGETS.items():
+        TargetService.load_target(obj, os.path.join(targets_dir, f"{rel}.target.gz"), weight=weight)
     body = vertex_group_members(obj, "body")
     log("basemesh verts", len(obj.data.vertices), "body verts", int(body.sum()))
 
@@ -237,6 +275,12 @@ def main():
     if unweighted:
         raise RuntimeError(f"{unweighted} body vertices have no bone weights")
 
+    # маска белья — атрибут «_UNDERWEAR» (glTF экспортирует атрибуты с подчёркиванием)
+    sdf = underwear_sdf(obj, landmarks)
+    attr = obj.data.attributes.new("_UNDERWEAR", "FLOAT", "POINT")
+    attr.data.foreach_set("value", sdf.astype(np.float32))
+    log(f"underwear: {(sdf > 0).sum()} of {len(sdf)} vertices inside")
+
     obj.name = obj.data.name = "base_avatar"
     armature.name = armature.data.name = "base_avatar_rig"
     obj.data.materials.clear()
@@ -264,6 +308,7 @@ def main():
         export_morph=True,
         export_morph_normal=True,
         export_try_sparse_sk=True,
+        export_attributes=True,
         export_skins=True,
         export_influence_nb=4,
         export_all_influences=False,
@@ -298,6 +343,8 @@ def validate(tris_blender):
     wsum = body["weights"].sum(1)
     if np.abs(wsum - 1).max() > 0.01:
         problems.append(f"skin weights do not sum to 1 (min {wsum.min():.3f})")
+    if body["underwear"] is None or not (body["underwear"] > 0).any():
+        problems.append("underwear mask attribute _UNDERWEAR missing")
     if problems:
         raise RuntimeError("GLB check failed: " + "; ".join(problems))
 

@@ -7,6 +7,10 @@ import { useNavigate } from 'react-router-dom';
 import { saveBodyProfile, loadBodyProfile } from '../utils/bodyProfileApi';
 import MeasurementsPreview from '../components/MeasurementsPreview';
 import { authFetch } from '../utils/auth';
+import {
+  SKIN_TONES, DEFAULT_SKIN_TONE, resolveSkinTone, skinToneLabel, skinToneVar,
+} from '../utils/skinTones';
+import styles from './AvatarCreate.module.css';
 
 const API_BASE = process.env.REACT_APP_API || 'http://localhost:5050';
 const toPublicUrl = (s = '') =>
@@ -106,9 +110,10 @@ export default function AvatarCreate() {
     hips: '',
     shoulders: '',
     inseam: '',
+    armLength: '',
     shoe: '',
     bodyType: 'regular',
-    skinTone: '#f1c27d',
+    skinTone: DEFAULT_SKIN_TONE,
     hair: 'straight_mid',
     style: 'realistic',
   });
@@ -127,7 +132,8 @@ export default function AvatarCreate() {
         hips: saved.hips ?? prev.hips,
         shoulders: saved.shoulderWidth ?? prev.shoulders,
         inseam: saved.inseam ?? prev.inseam,
-        skinTone: saved.skinTone ?? prev.skinTone,
+        armLength: saved.armLength ?? prev.armLength,
+        skinTone: resolveSkinTone(saved.skinTone ?? prev.skinTone),
         hair: saved.hairStyle ?? prev.hair,
       }));
     })();
@@ -139,7 +145,7 @@ export default function AvatarCreate() {
       if (raw) {
         const d = JSON.parse(raw);
         if (d.shots) setShots(d.shots);
-        if (d.m) setM(d.m);
+        if (d.m) setM({ ...d.m, skinTone: resolveSkinTone(d.m.skinTone) });
         if (d.step) setStep(d.step);
         if (d.activeKey) setActiveKey(d.activeKey);
         if (d.turnFrames) setTurnFrames(d.turnFrames);
@@ -223,7 +229,7 @@ export default function AvatarCreate() {
         };
         tick();
       } catch {
-        alert('Камера недоступна. Используй загрузку фото.');
+        alert('Camera is not available. Please upload photos instead.');
         setUseCamera(false);
       }
     };
@@ -373,13 +379,14 @@ export default function AvatarCreate() {
           hips: Math.round(h * 0.55 * k),
           shoulders: Math.round(h * 0.24 * k),
           inseam: Math.round(h * 0.46),
+          armLength: Math.round(h * 0.345),
         }));
         alert(
-          'Stub-оценка от роста/типа тела. С GPU заменим на фотометрическую оценку.'
+          'Rough estimate from your height and body type. Photo-based estimation is coming soon.'
         );
       } else {
         alert(
-          'GPU-роут ещё не подключён — пока используем stub.'
+          'Photo-based estimation is not available yet.'
         );
       }
     } finally {
@@ -428,8 +435,8 @@ export default function AvatarCreate() {
         <section style={card}>
           <h3>Step 1 · Photos (Optional)</h3>
           <p style={note}>
-            ℹ️ Фото нужны только если хочешь узнать свои обмеры автоматически.
-            Можешь их пропустить и ввести обмеры вручную на Шаге 2.
+            ℹ️ Photos are only needed to estimate your measurements automatically.
+            You can skip them and enter your measurements by hand in Step 2.
           </p>
 
           <div
@@ -489,7 +496,7 @@ export default function AvatarCreate() {
               style={{ display: 'none' }}
             />
             <span style={note}>
-              Ракурс:{' '}
+              Angle:{' '}
               <strong>
                 {
                   ANGLES.find(
@@ -665,7 +672,7 @@ export default function AvatarCreate() {
           <div style={{ marginTop: 24 }}>
             <h4>Turnaround video (optional)</h4>
             <p style={note}>
-              Загрузите 10–15 сек видео
+              Upload a 10–15 s video
             </p>
             <button onClick={onPickVideo}>
               Upload video
@@ -749,7 +756,7 @@ export default function AvatarCreate() {
         <section style={card}>
           <h3>Step 2 · Your Measurements</h3>
           <p style={note}>
-            ✅ Главное: введи обмеры и нажми "Сохранить обмеры" → твоё тело готово!
+            ✅ Enter your measurements and press "Save measurements" — your body is ready.
           </p>
           <div
             style={{
@@ -775,6 +782,7 @@ export default function AvatarCreate() {
                 }
                 style={input}
               />
+              <small className={styles.hint}>Without shoes, standing straight.</small>
             </label>
             <label>
               Chest / Bust (cm) <span style={{ color: 'red' }}>*</span>
@@ -789,6 +797,7 @@ export default function AvatarCreate() {
                 }
                 style={input}
               />
+              <small className={styles.hint}>Around the fullest part, over the nipples, tape level.</small>
             </label>
             <label>
               Waist (cm) <span style={{ color: 'red' }}>*</span>
@@ -803,6 +812,7 @@ export default function AvatarCreate() {
                 }
                 style={input}
               />
+              <small className={styles.hint}>At your natural waist, the narrowest part above the navel.</small>
             </label>
             <label>
               Hips (cm) <span style={{ color: 'red' }}>*</span>
@@ -817,6 +827,7 @@ export default function AvatarCreate() {
                 }
                 style={input}
               />
+              <small className={styles.hint}>Around the fullest part of your buttocks, feet together.</small>
             </label>
             <label>
               Shoulder width (cm)
@@ -831,6 +842,22 @@ export default function AvatarCreate() {
                 }
                 style={input}
               />
+              <small className={styles.hint}>Across your back, from one shoulder point to the other.</small>
+            </label>
+            <label>
+              Arm length (cm)
+              <input
+                type="number"
+                value={m.armLength}
+                onChange={(e) =>
+                  setM({
+                    ...m,
+                    armLength: e.target.value,
+                  })
+                }
+                style={input}
+              />
+              <small className={styles.hint}>From the shoulder point over a slightly bent elbow to the wrist bone.</small>
             </label>
             <label>
               Inseam (cm)
@@ -845,6 +872,7 @@ export default function AvatarCreate() {
                 }
                 style={input}
               />
+              <small className={styles.hint}>From the crotch straight down to the floor.</small>
             </label>
             <label>
               Shoe size
@@ -877,20 +905,24 @@ export default function AvatarCreate() {
                 <option value="curvy">Curvy</option>
               </select>
             </label>
-            <label>
-              Skin tone
-              <input
-                type="color"
-                value={m.skinTone}
-                onChange={(e) =>
-                  setM({
-                    ...m,
-                    skinTone: e.target.value,
-                  })
-                }
-                style={{ ...input, height: 40 }}
-              />
-            </label>
+            <div className={styles.toneField}>
+              <span>Skin tone</span>
+              <div className={styles.tones} role="radiogroup" aria-label="Skin tone">
+                {SKIN_TONES.map((key) => (
+                  <button
+                    key={key}
+                    type="button"
+                    role="radio"
+                    aria-checked={m.skinTone === key}
+                    aria-label={skinToneLabel(key)}
+                    title={skinToneLabel(key)}
+                    className={`${styles.tone} ${m.skinTone === key ? styles.toneOn : ''}`}
+                    style={{ background: skinToneVar(key) }}
+                    onClick={() => setM({ ...m, skinTone: key })}
+                  />
+                ))}
+              </div>
+            </div>
             <label>
               Hair
               <select
@@ -935,7 +967,7 @@ export default function AvatarCreate() {
                 : 'Auto-estimate from photos'}
             </button>
             <span style={note}>
-              (Если загрузил фото на Шаге 1)
+              (If you uploaded photos in Step 1)
             </span>
           </div>
 

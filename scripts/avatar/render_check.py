@@ -4,12 +4,14 @@
 #   keys     — каждый морф на −1 и +1, спереди и сбоку (out/keys_front.png, out/keys_side.png)
 #   stretch  — выбранные морфы за пределами ±1, чтобы найти, где начинаются изломы
 #   figures  — тестовые фигуры из avatarCalibration.json спереди и сбоку с линиями обмеров
+#   underwear — маска белья на светлом, среднем и тёмном тоне (цвета из tokens.css)
 #
-# Запуск: Blender -b --python-exit-code 1 --python scripts/avatar/render_check.py -- keys|stretch|figures
+# Запуск: Blender -b --python-exit-code 1 --python scripts/avatar/render_check.py -- keys|stretch|figures|underwear
 
 import json
 import math
 import os
+import re
 import sys
 
 import bpy
@@ -36,13 +38,21 @@ def log(*args):
     print("[render]", *args, flush=True)
 
 
+def css_color(name):
+    """Цвет токена из client/src/styles/tokens.css → линейный RGB для Blender."""
+    text = (config.REPO / "client" / "src" / "styles" / "tokens.css").read_text()
+    match = re.search(rf"{re.escape(name)}:\s*#([0-9A-Fa-f]{{6}})", text)
+    srgb = np.array([int(match.group(1)[i:i + 2], 16) / 255 for i in (0, 2, 4)])
+    return np.where(srgb <= 0.04045, srgb / 12.92, ((srgb + 0.055) / 1.055) ** 2.4).tolist()
+
+
 def to_blender(co):
     co = np.asarray(co)
     return np.stack([co[..., 0], -co[..., 2], co[..., 1]], axis=-1)
 
 
 class Scene:
-    def __init__(self, body):
+    def __init__(self, body, vertex_colors=False):
         self.body = body
         # вершины glTF дублируются на швах UV — сшиваем, чтобы не было швов в затенении
         _, first, inverse = np.unique(np.round(body.base, 6), axis=0, return_index=True, return_inverse=True)
@@ -54,19 +64,25 @@ class Scene:
         scene.render.engine = "BLENDER_WORKBENCH"
         shading = scene.display.shading
         shading.light = "STUDIO"
-        shading.color_type = "OBJECT"
+        shading.color_type = "VERTEX" if vertex_colors else "OBJECT"
         shading.show_cavity = True
-        scene.world.color = (1, 1, 1)
+        scene.world.color = (0.75, 0.75, 0.75) if vertex_colors else (1, 1, 1)
         scene.view_settings.view_transform = "Standard"
         self.extent = [np.inf, -np.inf, np.inf, -np.inf]   # x min/max, z min/max
         self.row_top = {}                                   # низ ряда → рост самой высокой фигуры
 
-    def add_body(self, u, x, z, view, label, lines=False):
+    def add_body(self, u, x, z, view, label, lines=False, tone=None):
         res, geometry, co = self.body.measure(u, with_geometry=True)
         pts = to_blender(co[self.unique])
         mesh = bpy.data.meshes.new("body")
         mesh.from_pydata(pts.tolist(), [], self.faces.tolist())
         mesh.polygons.foreach_set("use_smooth", [True] * len(mesh.polygons))
+        if tone is not None:                        # кожа + бельё по маске, цвета из tokens.css
+            skin, cloth = np.array(tone), np.array(css_color("--underwear"))
+            mask = np.clip(self.body.underwear[self.unique] / 0.003 * 0.5 + 0.5, 0, 1)[:, None]
+            rgb = skin * (1 - mask) + cloth * mask
+            attr = mesh.color_attributes.new("tone", "FLOAT_COLOR", "POINT")
+            attr.data.foreach_set("color", np.hstack([rgb, np.ones((len(rgb), 1))]).ravel())
         obj = bpy.data.objects.new("body", mesh)
         obj.color = (*BODY_COLOR, 1)
         bpy.context.scene.collection.objects.link(obj)
@@ -75,8 +91,8 @@ class Scene:
             for name, poly in geometry.items():
                 parts.append(self.polyline(to_blender(poly), LINE_COLORS[name], closed=name in ("bust", "waist", "hips")))
         for part in parts:
-            if view == "side":                      # поворачиваем фигуру правым боком к камере
-                part.rotation_euler = (0, 0, math.pi / 2)
+            if view in ("side", "back"):            # правым боком или спиной к камере
+                part.rotation_euler = (0, 0, math.pi / 2 if view == "side" else math.pi)
             part.location = (x, 0, z)
         self.text(label, x, z - 0.12)
         self.extent = [min(self.extent[0], x - 0.55), max(self.extent[1], x + 0.55),
@@ -144,15 +160,15 @@ def load_body():
     return measure.Body(glb.load_body(config.GLB_PATH), info["landmarks"])
 
 
-def sheet(body, rows, path, lines=False):
-    """rows: [[(label, u, view) | None, ...], ...]; None — пустая клетка."""
-    sc = Scene(body)
+def sheet(body, rows, path, lines=False, vertex_colors=False):
+    """rows: [[(label, u, view[, tone]) | None, ...], ...]; None — пустая клетка."""
+    sc = Scene(body, vertex_colors)
     for r, row in enumerate(rows):
         z = -r * ROW
         for c, item in enumerate(row):
             if item is not None:
-                label, u, view = item
-                sc.add_body(u, c * COLUMN, z, view, label, lines=lines)
+                label, u, view, *tone = item
+                sc.add_body(u, c * COLUMN, z, view, label, lines=lines, tone=tone[0] if tone else None)
     sc.grid()
     sc.render(path)
 
@@ -191,6 +207,18 @@ def figures_sheet(body):
     sheet(body, rows, config.OUT_DIR / "figures.png", lines=True)
 
 
+def underwear_sheet(body):
+    cal = json.loads(config.CALIBRATION_PATH.read_text())
+    large = np.array([cal["validation"]["testFigures"]["large"]["controls"][c] for c in config.CONTROL_NAMES])
+    figures = [("skin-1", np.zeros(len(config.CONTROL_NAMES)), "--skin-1"),
+               ("skin-5", np.zeros(len(config.CONTROL_NAMES)), "--skin-5"),
+               ("skin-10", np.zeros(len(config.CONTROL_NAMES)), "--skin-10"),
+               ("large, skin-7", large, "--skin-7")]
+    rows = [[(f"{label} {view}", u, view, css_color(token)) for label, u, token in figures]
+            for view in ("front", "side", "back")]
+    sheet(body, rows, config.OUT_DIR / "underwear.png", vertex_colors=True)
+
+
 def main():
     args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else ["keys"]
     config.OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -204,6 +232,8 @@ def main():
         stretch_sheet(body, names, values)
     elif mode == "figures":
         figures_sheet(body)
+    elif mode == "underwear":
+        underwear_sheet(body)
     else:
         raise SystemExit(f"unknown mode {mode}")
 

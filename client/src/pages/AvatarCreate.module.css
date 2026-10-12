@@ -1,0 +1,36 @@
+/* Форма обмеров: подсказки под полями и выбор тона кожи. Цвета — только токены. */
+
+.hint {
+  display: block;
+  margin-top: 4px;
+  color: var(--muted);
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+}
+
+.toneField {
+  grid-column: 1 / -1;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.tones {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.tone {
+  width: 28px;
+  height: 28px;
+  padding: 0;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line-strong);
+  cursor: pointer;
+}
+
+.toneOn {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}

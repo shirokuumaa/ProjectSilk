@@ -18,7 +18,9 @@ import React, { Suspense, useLayoutEffect, useMemo, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, useGLTF, Html } from '@react-three/drei';
 import * as THREE from 'three';
-import BodyAvatar, { getBodyLandmarks } from './BodyAvatar';
+import { getBodyLandmarks } from './BodyAvatar';
+import AvatarBody from './AvatarBody';
+import BodyStage from './BodyStage';
 import FitCamera from './FitCamera';
 import { drapeGarment } from '../utils/garmentDrape';
 
@@ -218,10 +220,16 @@ export default function GlbViewer({
     <div style={{ width: '100%', height, borderRadius: 12, overflow: 'hidden', background }}>
       <Canvas dpr={[1, 2]} camera={{ position: [0, 1, 3], fov: 40 }}>
         <color attach="background" args={[background]} />
-        <ambientLight intensity={0.82} />
-        <directionalLight intensity={0.95} position={[2, 4, 2]} />
-        <directionalLight intensity={0.28} position={[-2, 2, -2]} />
-        <directionalLight intensity={0.18} position={[0, 1, -3]} />
+        {hasBody ? (
+          <BodyStage />
+        ) : (
+          <>
+            <ambientLight intensity={0.82} />
+            <directionalLight intensity={0.95} position={[2, 4, 2]} />
+            <directionalLight intensity={0.28} position={[-2, 2, -2]} />
+            <directionalLight intensity={0.18} position={[0, 1, -3]} />
+          </>
+        )}
 
         <Suspense
           fallback={
@@ -234,7 +242,7 @@ export default function GlbViewer({
         >
           {hasBody ? (
             <>
-              <BodyAvatar profile={profile} stressMap={stressMap} />
+              <AvatarBody profile={profile} stressMap={stressMap} hasGarments={items.length > 0} />
               {items.map((g, i) => (
                 <GlbGarment
                   key={`${g.url}-${i}`}

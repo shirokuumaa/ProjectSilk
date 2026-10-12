@@ -1,0 +1,13 @@
+.footer {
+  max-width: var(--page-max);
+  margin: 24px auto 0;
+  padding: 14px 20px 20px;
+  border-top: 1px solid var(--line-2);
+  color: var(--muted-2);
+  font: 400 var(--fs-xs) / 1.5 var(--font-ui);
+  text-align: center;
+}
+
+.footer a {
+  color: var(--muted);
+}

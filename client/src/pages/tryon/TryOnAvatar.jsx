@@ -37,7 +37,9 @@ import { OrbitControls } from '@react-three/drei';
 import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
-import BodyAvatar, { getBodyLandmarks } from '../../components/BodyAvatar';
+import { getBodyLandmarks } from '../../components/BodyAvatar';
+import AvatarBody from '../../components/AvatarBody';
+import BodyStage from '../../components/BodyStage';
 import { drapeGarment } from '../../utils/garmentDrape';
 import { loadBodyProfile, isProfileComplete } from '../../utils/bodyProfileApi';
 import { findBestSize, getStressMap } from '../../utils/fitCalculator';
@@ -404,11 +406,15 @@ export default function TryOnAvatar() {
               camera={{ position: [0, camY, 3.1], fov: 42, near: 0.1, far: 100 }}
             >
               <color attach="background" args={['#FBFAF8']} />
-              <ambientLight intensity={0.75} />
-              <directionalLight intensity={0.95} position={[2, 4, 2]} castShadow />
-              <directionalLight intensity={0.25} position={[-2, 2, -2]} />
+              <BodyStage shadows />
 
-              {showBody && <BodyAvatar profile={profile} stressMap={stressMap} />}
+              {showBody && (
+                <AvatarBody
+                  profile={profile}
+                  stressMap={stressMap}
+                  hasGarments={worn.some((w) => w.item.model3d)}
+                />
+              )}
 
               {worn
                 .filter((w) => w.item.model3d)

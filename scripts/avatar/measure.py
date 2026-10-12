@@ -107,6 +107,7 @@ class Body:
         self.base = data["positions"]
         self.tris = data["triangles"]
         self.deltas = np.stack([data["morphs"][name] for name in config.KEY_NAMES])   # (16, V, 3)
+        self.underwear = data.get("underwear")       # маска белья (расстояние до края, м) или None
 
         names = data["joint_names"]
         arm_joint = np.array([n.split("_")[0] in ARM_BONES for n in names])

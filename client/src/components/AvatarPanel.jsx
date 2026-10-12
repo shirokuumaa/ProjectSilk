@@ -16,7 +16,8 @@ import { useNavigate } from 'react-router-dom';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 
-import BodyAvatar from './BodyAvatar';
+import AvatarBody from './AvatarBody';
+import BodyStage from './BodyStage';
 import FitCamera from './FitCamera';
 import { loadBodyProfile, isProfileComplete } from '../utils/bodyProfileApi';
 import { findBestSize } from '../utils/fitCalculator';
@@ -91,11 +92,9 @@ export default function AvatarPanel() {
             <div className={styles.tzfigInner}>
             <Canvas dpr={[1, 2]} camera={{ fov: 38, position: [0, 1, 3] }}>
               <color attach="background" args={['#FDFCFB']} />
-              <ambientLight intensity={0.84} />
-              <directionalLight intensity={0.92} position={[2, 4, 2]} />
-              <directionalLight intensity={0.26} position={[-2, 2, -2]} />
+              <BodyStage />
 
-              <BodyAvatar profile={profile} />
+              <AvatarBody profile={profile} />
 
               <FitCamera
                 controlsRef={controlsRef}

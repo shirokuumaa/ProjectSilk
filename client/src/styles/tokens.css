@@ -50,7 +50,25 @@
     --fit-warn-bg:   #FFF4E6;
     --fit-bad:       #E03131;
     --fit-bad-bg:    #FFF0F0;
-  
+
+    /* ── тело аватара ────────────────────────────────────────
+     * Тон кожи — шкала Monk Skin Tone, 10 тонов от светлого к тёмному.
+     * "Monk Skin Tone Scale" by Dr. Ellis Monk, Google LLC, CC BY 4.0
+     * (https://skintone.google). Атрибуция на сайте — в подвале (Credits).
+     * Ключ тона в профиле: skin-1 … skin-10 (utils/skinTones.js).
+     */
+    --skin-1:        #F6EDE4;
+    --skin-2:        #F3E7DB;
+    --skin-3:        #F7EAD0;
+    --skin-4:        #EADABA;
+    --skin-5:        #D7BD96;
+    --skin-6:        #A07E56;
+    --skin-7:        #825C43;
+    --skin-8:        #604134;
+    --skin-9:        #3A312A;
+    --skin-10:       #292420;
+    --underwear:     #9EA3AA;   /* бельё аватара: мягкий серый, не сливается ни с одним тоном */
+
     /* ── типографика ─────────────────────────────────────────
      * Шрифты подключаются в client/public/index.html:
      * <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">

@@ -71,7 +71,7 @@ def load_body(path):
     mesh = meshes[0]
     names = mesh.get("extras", {}).get("targetNames", [])
 
-    positions, triangles, joints, weights = [], [], [], []
+    positions, triangles, joints, weights, underwear = [], [], [], [], []
     morphs = {name: [] for name in names}
     base = 0
     for prim in mesh["primitives"]:
@@ -82,6 +82,8 @@ def load_body(path):
         if "JOINTS_0" in prim["attributes"]:
             joints.append(accessor(doc, binary, prim["attributes"]["JOINTS_0"]).astype(np.int64))
             weights.append(accessor(doc, binary, prim["attributes"]["WEIGHTS_0"]).astype(np.float64))
+        if "_UNDERWEAR" in prim["attributes"]:
+            underwear.append(accessor(doc, binary, prim["attributes"]["_UNDERWEAR"]).astype(np.float64).reshape(-1))
         for name, target in zip(names, prim.get("targets", [])):
             morphs[name].append(accessor(doc, binary, target["POSITION"]).astype(np.float64))
         base += len(pos)
@@ -96,5 +98,6 @@ def load_body(path):
         "morphs": {name: np.concatenate(parts) for name, parts in morphs.items()},
         "joints": np.concatenate(joints) if joints else None,
         "weights": np.concatenate(weights) if weights else None,
+        "underwear": np.concatenate(underwear) if underwear else None,
         "joint_names": joint_names,
     }

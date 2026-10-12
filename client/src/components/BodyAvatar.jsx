@@ -11,8 +11,10 @@
 //   <BodyAvatar profile={{ heightCm: 170, chest: 92, waist: 76, hips: 98 }} />
 //   <BodyAvatar profile={p} stressMap={{ chest: '#e03131' }} />
 
-import React, { useMemo } from 'react';
+import React, { useEffect, useLayoutEffect, useMemo } from 'react';
 import * as THREE from 'three';
+import { createBodyMaterial, setSkinTone, setUnderwearBands } from '../utils/bodyMaterial';
+import { resolveSkinTone } from '../utils/skinTones';
 
 // ── геометрия сечений ──────────────────────────────────────────
 
@@ -21,7 +23,7 @@ import * as THREE from 'three';
  * ratio = глубина / ширина (тело не круглое в сечении).
  * Периметр эллипса — приближение Рамануджана.
  */
-function ellipseFromPerimeter(perimeterCm, ratio = 0.72) {
+export function ellipseFromPerimeter(perimeterCm, ratio = 0.72) {
   const p = perimeterCm / 100; // в метры
   // подбираем a так, чтобы периметр совпал
   let a = p / (2 * Math.PI); // начальное приближение (круг)
@@ -150,9 +152,17 @@ function resolveProfile(p = {}) {
 
 const SEG = 32;
 
+/**
+ * Пояса белья по высоте, м: [низ трусов, верх трусов, низ топа, верх топа].
+ * Трусы заходят на бёдра ниже стыка ног с торсом, топ — из-под груди до подмышек.
+ */
+function underwearBands(y) {
+  return [y.hips - 0.07, y.hips + 0.06, y.chest - 0.06, y.chest + 0.05];
+}
+
 export default function BodyAvatar({
   profile = {},
-  color = '#d8c3a5',
+  color,                 // явный цвет поверх тона кожи (по умолчанию — тон из профиля)
   stressMap = null,      // { chest: '#e03131', waist: '#2f9e44', ... }
   wireframe = false,
 }) {
@@ -228,37 +238,41 @@ export default function BodyAvatar({
     profile?.skinTone, // <- добавлено
   ]);
 
-  const skin = profile.skinTone && profile.skinTone.startsWith('#')
-    ? profile.skinTone
-    : color;
+  // Один материал на торс и ноги (с бельём по поясам), второй — на руки, шею
+  // и голову (без белья). Тот же материал, что у болванки: оба тела в одном стиле.
+  const tone = resolveSkinTone(profile.skinTone);
+  const mats = useMemo(() => {
+    const body = createBodyMaterial({ underwear: 'bands' });
+    const plain = createBodyMaterial({ underwear: 'none' });
+    body.side = plain.side = THREE.DoubleSide;
+    return { body, plain };
+  }, []);
 
-  const mat = (c = skin) => (
-    <meshStandardMaterial
-      color={c}
-      roughness={0.85}
-      metalness={0.02}
-      wireframe={wireframe}
-      side={THREE.DoubleSide}
-    />
-  );
+  useLayoutEffect(() => {
+    [mats.body, mats.plain].forEach((m) => {
+      if (color) m.color.set(color);
+      else setSkinTone(m, tone);
+      m.wireframe = wireframe;
+    });
+    setUnderwearBands(mats.body, underwearBands(parts.heights));
+  }, [mats, tone, color, wireframe, parts]);
+
+  useEffect(() => () => { mats.body.dispose(); mats.plain.dispose(); }, [mats]);
 
   return (
     <group>
-      <mesh geometry={parts.torso} castShadow receiveShadow>{mat()}</mesh>
-      <mesh geometry={parts.legL} castShadow>{mat()}</mesh>
-      <mesh geometry={parts.legR} castShadow>{mat()}</mesh>
-      <mesh geometry={parts.armL} castShadow>{mat()}</mesh>
-      <mesh geometry={parts.armR} castShadow>{mat()}</mesh>
+      <mesh geometry={parts.torso} material={mats.body} castShadow receiveShadow />
+      <mesh geometry={parts.legL} material={mats.body} castShadow />
+      <mesh geometry={parts.legR} material={mats.body} castShadow />
+      <mesh geometry={parts.armL} material={mats.plain} castShadow />
+      <mesh geometry={parts.armR} material={mats.plain} castShadow />
 
       {/* шея */}
-      <mesh position={[0, parts.neckY + 0.03, 0]}>
+      <mesh position={[0, parts.neckY + 0.03, 0]} material={mats.plain}>
         <cylinderGeometry args={[parts.neckR, parts.neckR * 1.1, 0.09, 20]} />
-        {mat()}
       </mesh>
 
-      <mesh geometry={parts.head} position={[0, parts.headY, 0]} castShadow>
-        {mat()}
-      </mesh>
+      <mesh geometry={parts.head} position={[0, parts.headY, 0]} material={mats.plain} castShadow />
 
       {/* Кольца натяжения: подсветка проблемных зон при примерке */}
       {stressMap && Object.entries(stressMap).map(([key, hex]) => {

@@ -24,6 +24,7 @@ import AvatarCreateMode1Test from './pages/AvatarCreateMode1Test';
 
 // ⬇️ единый слой ассистента (панель + шарик + голос)
 import AssistantLayer from './components/AssistantLayer';
+import SiteFooter from './components/SiteFooter';
 import { isLoggedIn } from './utils/auth';
 
 function App() {
@@ -118,6 +119,8 @@ function App() {
 
         {/* Роут /assistant не нужен — ассистент как глобальный слой */}
       </Routes>
+
+      <SiteFooter />
 
       {/* Глобальный слой ассистента поверх всех страниц */}
       <AssistantLayer />

@@ -1,6 +1,8 @@
 // server/models/BodyProfile.js
 import mongoose from 'mongoose';
 
+export const SKIN_TONES = Array.from({ length: 10 }, (_, i) => `skin-${i + 1}`);
+
 /**
  * Профиль тела покупателя.
  *
@@ -30,7 +32,9 @@ const bodyProfileSchema = new mongoose.Schema({
 
   // --- внешний вид аватара (на посадку не влияет) ---
   bodyType: { type: String, enum: ['F', 'M', 'N'], default: 'N' },
-  skinTone: { type: String, default: 'neutral' },
+  // ключ тона кожи: шкала Monk Skin Tone, токены --skin-1 … --skin-10 в клиенте.
+  // Старые профили могут хранить цвет (#rrggbb) — клиент переводит его в ближайший тон.
+  skinTone: { type: String, enum: SKIN_TONES, default: 'skin-5' },
   hairStyle: { type: String, default: 'none' },
 
   // источник данных: ручной ввод или оценка по фото (на будущее)

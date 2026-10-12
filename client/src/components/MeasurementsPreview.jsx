@@ -9,7 +9,8 @@
 import React, { useState } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
-import BodyAvatar from './BodyAvatar';
+import AvatarBody from './AvatarBody';
+import BodyStage from './BodyStage';
 import { saveBodyProfile } from '../utils/bodyProfileApi';
 
 export default function MeasurementsPreview({ m, onSaved }) {
@@ -24,6 +25,7 @@ export default function MeasurementsPreview({ m, onSaved }) {
     hips: Number(m.hips) || undefined,
     shoulderWidth: Number(m.shoulders) || undefined,
     inseam: Number(m.inseam) || undefined,
+    armLength: Number(m.armLength) || undefined,
     skinTone: m.skinTone,
   };
 
@@ -61,10 +63,8 @@ export default function MeasurementsPreview({ m, onSaved }) {
       <div style={s.viewer}>
         <Canvas camera={{ position: [0, camY, 3.0], fov: 42, near: 0.1, far: 100 }}>
           <color attach="background" args={['#f9fafb']} />
-          <ambientLight intensity={0.75} />
-          <directionalLight intensity={0.9} position={[2, 4, 2]} />
-          <directionalLight intensity={0.25} position={[-2, 2, -2]} />
-          <BodyAvatar profile={profile} />
+          <BodyStage />
+          <AvatarBody profile={profile} />
           <gridHelper args={[3, 12, '#e5e7eb', '#f3f4f6']} />
           <OrbitControls
             target={[0, camY, 0]}
@@ -76,24 +76,24 @@ export default function MeasurementsPreview({ m, onSaved }) {
       </div>
 
       <div style={s.side}>
-        <div style={s.title}>Ваше тело</div>
+        <div style={s.title}>Your body</div>
 
         <p style={s.note}>
-          Тело строится прямо из ваших обмеров — обхват груди {profile.chest || '—'} см
-          даёт сечение ровно такого размера. Меняйте цифры слева, фигура обновляется сразу.
+          The body is built straight from your measurements: a {profile.chest || '—'} cm bust
+          gives a body exactly that size. Change the numbers and the figure updates at once.
         </p>
 
         <div style={s.rows}>
-          <Row label="Рост" value={profile.heightCm} unit="см" />
-          <Row label="Грудь" value={profile.chest} unit="см" />
-          <Row label="Талия" value={profile.waist} unit="см" />
-          <Row label="Бёдра" value={profile.hips} unit="см" />
+          <Row label="Height" value={profile.heightCm} unit="cm" />
+          <Row label="Bust" value={profile.chest} unit="cm" />
+          <Row label="Waist" value={profile.waist} unit="cm" />
+          <Row label="Hips" value={profile.hips} unit="cm" />
         </div>
 
         {!complete && (
           <div style={s.warn}>
-            Для подбора размера нужны все три обхвата: грудь, талия, бёдра.
-            Незаполненные оцениваются от роста — фигура будет приблизительной.
+            Size advice needs all three girths: bust, waist and hips.
+            Missing ones are estimated from your height, so the figure is approximate.
           </div>
         )}
 
@@ -106,7 +106,7 @@ export default function MeasurementsPreview({ m, onSaved }) {
             cursor: saving ? 'wait' : 'pointer',
           }}
         >
-          {saving ? 'Сохраняю…' : 'Сохранить обмеры'}
+          {saving ? 'Saving…' : 'Save measurements'}
         </button>
 
         {status && (
@@ -116,8 +116,8 @@ export default function MeasurementsPreview({ m, onSaved }) {
         )}
 
         <p style={s.hint}>
-          Обмеры сохраняются как числа, а не как 3D-файл — поэтому загружаются
-          мгновенно и работают на любом устройстве.
+          Measurements are saved as numbers, not as a 3D file, so they load
+          instantly and work on any device.
         </p>
       </div>
     </div>
@@ -129,7 +129,7 @@ function Row({ label, value, unit }) {
     <div style={s.row}>
       <span style={s.rowLabel}>{label}</span>
       <span style={{ ...s.rowValue, color: value ? '#111827' : '#c1c7cf' }}>
-        {value ? `${value} ${unit}` : 'не указано'}
+        {value ? `${value} ${unit}` : 'not set'}
       </span>
     </div>
   );
