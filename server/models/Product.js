@@ -53,6 +53,10 @@ const ProductSchema = new mongoose.Schema({
     default: 'top',
   },
 
+  // подсказка для низа: брюки (две штанины) или юбка. Необязательна — без неё
+  // примерка определяет это по геометрии вещи (client/src/utils/garmentDrape.js).
+  legs: { type: String, enum: ['split', 'joined'] },
+
   // порядок слоёв при примерке нескольких вещей (меньше = ближе к телу)
   layer: { type: Number, default: 1 },
 

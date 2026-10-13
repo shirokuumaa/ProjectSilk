@@ -212,8 +212,13 @@ def make_skin_material():
     return mat
 
 
-def main():
-    config.OUT_DIR.mkdir(parents=True, exist_ok=True)
+def create_keyed_human():
+    """Нейтральная фигура MPFB со всей вспомогательной геометрией и нашими 16 ключами (все на 0).
+
+    Возвращает (obj, body, neutral, deltas, feet_shift, macros). Нужна и сборке
+    болванки, и скрипту тестовой одежды: MPFB надевает вещи на «колготки» и
+    «юбку» из вспомогательной геометрии, поэтому ключи есть и у них.
+    """
     clear_scene()
 
     macros = dict(config.NEUTRAL_MACROS)
@@ -252,6 +257,12 @@ def main():
         key = obj.shape_key_add(name=key_name, from_mix=False)
         key.data.foreach_set("co", (neutral + deltas[key_name]).ravel())
         key.slider_min, key.slider_max, key.value = 0.0, 3.0, 0.0
+    return obj, body, neutral, deltas, feet_shift, macros
+
+
+def main():
+    config.OUT_DIR.mkdir(parents=True, exist_ok=True)
+    obj, body, neutral, deltas, feet_shift, macros = create_keyed_human()
 
     armature = HumanService.add_builtin_rig(obj, "game_engine", import_weights=True)
     if armature is None:

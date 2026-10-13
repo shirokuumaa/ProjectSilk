@@ -18,11 +18,11 @@ import React, { Suspense, useLayoutEffect, useMemo, useRef } from 'react';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls, useGLTF, Html } from '@react-three/drei';
 import * as THREE from 'three';
-import { getBodyLandmarks } from './BodyAvatar';
 import AvatarBody from './AvatarBody';
 import BodyStage from './BodyStage';
 import FitCamera from './FitCamera';
-import { drapeGarment } from '../utils/garmentDrape';
+import { drapeGarment, restoreGeometry, snapshotGeometry } from '../utils/garmentDrape';
+import { useAvatarBody } from '../utils/avatarBody';
 
 /** Приводит модель к целевому росту, ставит ступни на y=0. */
 function normalizeModel(object, targetHeight = 1.7) {
@@ -56,15 +56,21 @@ function bodyWidthAt(profile, key) {
 
 function GarmentOnBody({
   garmentScene, profile, garmentType = 'top',
-  layerOffset = 0, fit = 'regular', drape = true,
+  layerOffset = 0, fit = 'regular', drape = true, size = null, legs = null,
 }) {
   const ref = useRef();
+  // тело и его форма — те же, что у AvatarBody в этой сцене
+  const { shape } = useAvatarBody(profile);
 
   useLayoutEffect(() => {
-    if (!garmentScene || !ref.current) return;
+    if (!garmentScene || !ref.current || !shape) return;
+
+    // прижатие считается с исходной вещи, а не с уже прижатой
+    snapshotGeometry(garmentScene);
+    restoreGeometry(garmentScene);
 
     const rule = FIT_RULES[garmentType] || FIT_RULES.top;
-    const marks = getBodyLandmarks(profile);
+    const marks = shape.landmarks;
 
     ref.current.scale.setScalar(1);
     ref.current.position.set(0, 0, 0);
@@ -93,13 +99,14 @@ function GarmentOnBody({
 
     if (drape && ['top', 'dress', 'outerwear', 'bottom'].includes(garmentType)) {
       try {
-        drapeGarment(ref.current, profile, { fit, layer: layerOffset });
+        drapeGarment(ref.current, shape, { fit, layer: layerOffset, size, garmentType, legs });
       } catch (e) {
         console.warn('[drape] could not fit garment to body:', e.message);
       }
     }
-  }, [garmentScene, profile, garmentType, layerOffset, fit, drape]);
+  }, [garmentScene, profile, garmentType, layerOffset, fit, drape, shape, size, legs]);
 
+  if (!shape) return null;   // болванка ещё грузится
   return <group ref={ref}><primitive object={garmentScene} /></group>;
 }
 
@@ -134,7 +141,7 @@ function GarmentFitter({ avatarScene, garmentScene }) {
   return <group ref={garmentRef}><primitive object={garmentScene} /></group>;
 }
 
-function GlbGarment({ url, profile, garmentType, layerOffset, fit, drape }) {
+function GlbGarment({ url, profile, garmentType, layerOffset, fit, drape, size, legs }) {
   const { scene } = useGLTF(url);
 
   // Клон с копией геометрии: drape меняет вершины, без клона
@@ -155,6 +162,8 @@ function GlbGarment({ url, profile, garmentType, layerOffset, fit, drape }) {
       layerOffset={layerOffset}
       fit={fit}
       drape={drape}
+      size={size}
+      legs={legs}
     />
   );
 }
@@ -181,7 +190,8 @@ function AvatarWithGarment({ avatarUrl, garmentUrl }) {
  * GlbViewer
  *
  * Аватар: profile — тело из обмеров (файл не нужен); url — GLB-модель.
- * garments — [{ url, garmentType, layer, fit }]
+ * garments — [{ url, garmentType, layer, fit, size?, legs? }]; size — обмеры выбранного
+ * размера изделия ({ chest, waist, hips }, см), legs — подсказка 'split' | 'joined'
  */
 export default function GlbViewer({
   url,
@@ -242,7 +252,7 @@ export default function GlbViewer({
         >
           {hasBody ? (
             <>
-              <AvatarBody profile={profile} stressMap={stressMap} hasGarments={items.length > 0} />
+              <AvatarBody profile={profile} stressMap={stressMap} />
               {items.map((g, i) => (
                 <GlbGarment
                   key={`${g.url}-${i}`}
@@ -252,6 +262,8 @@ export default function GlbViewer({
                   layerOffset={i}
                   fit={g.fit || 'regular'}
                   drape={drape}
+                  size={g.size || null}
+                  legs={g.legs || null}
                 />
               ))}
             </>

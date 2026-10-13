@@ -1,0 +1,294 @@
+{
+ "source": "MPFB 2.0.18 / MakeHuman system assets (CC0); dress \u2014 our photo-generation stub",
+ "items": [
+  {
+   "id": "tee",
+   "name": "Test tee",
+   "garmentType": "top",
+   "fit": "regular",
+   "stretch": 5,
+   "legs": null,
+   "file": "/models/test-garments/tee.glb",
+   "sellerFile": "/models/test-garments/tee_seller.glb",
+   "sizeChart": [
+    {
+     "size": "S",
+     "chest": 90,
+     "waist": 86,
+     "hips": 92,
+     "fit": "regular",
+     "stretch": 5
+    },
+    {
+     "size": "M",
+     "chest": 96,
+     "waist": 92,
+     "hips": 98,
+     "fit": "regular",
+     "stretch": 5
+    },
+    {
+     "size": "L",
+     "chest": 102,
+     "waist": 98,
+     "hips": 104,
+     "fit": "regular",
+     "stretch": 5
+    }
+   ],
+   "source": "MPFB female_casualsuit01 (top)",
+   "license": "CC0"
+  },
+  {
+   "id": "jeans",
+   "name": "Test jeans",
+   "garmentType": "bottom",
+   "fit": "regular",
+   "stretch": 2,
+   "legs": "split",
+   "file": "/models/test-garments/jeans.glb",
+   "sellerFile": "/models/test-garments/jeans_seller.glb",
+   "sizeChart": [
+    {
+     "size": "S",
+     "waist": 66,
+     "hips": 92,
+     "fit": "regular",
+     "stretch": 2
+    },
+    {
+     "size": "M",
+     "waist": 72,
+     "hips": 98,
+     "fit": "regular",
+     "stretch": 2
+    },
+    {
+     "size": "L",
+     "waist": 78,
+     "hips": 104,
+     "fit": "regular",
+     "stretch": 2
+    }
+   ],
+   "source": "MPFB female_casualsuit01 (bottom)",
+   "license": "CC0"
+  },
+  {
+   "id": "shorts",
+   "name": "Test shorts",
+   "garmentType": "bottom",
+   "fit": "regular",
+   "stretch": 2,
+   "legs": "split",
+   "file": "/models/test-garments/shorts.glb",
+   "sellerFile": "/models/test-garments/shorts_seller.glb",
+   "sizeChart": [
+    {
+     "size": "S",
+     "waist": 66,
+     "hips": 92,
+     "fit": "regular",
+     "stretch": 2
+    },
+    {
+     "size": "M",
+     "waist": 72,
+     "hips": 98,
+     "fit": "regular",
+     "stretch": 2
+    },
+    {
+     "size": "L",
+     "waist": 78,
+     "hips": 104,
+     "fit": "regular",
+     "stretch": 2
+    }
+   ],
+   "source": "MPFB female_casualsuit02 (bottom)",
+   "license": "CC0"
+  },
+  {
+   "id": "blouse",
+   "name": "Test blouse",
+   "garmentType": "top",
+   "fit": "regular",
+   "stretch": 0,
+   "legs": null,
+   "file": "/models/test-garments/blouse.glb",
+   "sellerFile": "/models/test-garments/blouse_seller.glb",
+   "sizeChart": [
+    {
+     "size": "S",
+     "chest": 88,
+     "waist": 74,
+     "hips": 92,
+     "fit": "regular",
+     "stretch": 0
+    },
+    {
+     "size": "M",
+     "chest": 94,
+     "waist": 80,
+     "hips": 98,
+     "fit": "regular",
+     "stretch": 0
+    },
+    {
+     "size": "L",
+     "chest": 100,
+     "waist": 86,
+     "hips": 104,
+     "fit": "regular",
+     "stretch": 0
+    }
+   ],
+   "source": "MPFB female_elegantsuit01 (top)",
+   "license": "CC0"
+  },
+  {
+   "id": "skirt",
+   "name": "Test skirt",
+   "garmentType": "bottom",
+   "fit": "regular",
+   "stretch": 2,
+   "legs": "joined",
+   "file": "/models/test-garments/skirt.glb",
+   "sellerFile": "/models/test-garments/skirt_seller.glb",
+   "sizeChart": [
+    {
+     "size": "S",
+     "waist": 66,
+     "hips": 92,
+     "fit": "regular",
+     "stretch": 2
+    },
+    {
+     "size": "M",
+     "waist": 72,
+     "hips": 98,
+     "fit": "regular",
+     "stretch": 2
+    },
+    {
+     "size": "L",
+     "waist": 78,
+     "hips": 104,
+     "fit": "regular",
+     "stretch": 2
+    }
+   ],
+   "source": "MPFB female_elegantsuit01 (bottom)",
+   "license": "CC0"
+  },
+  {
+   "id": "croptop",
+   "name": "Test crop top",
+   "garmentType": "top",
+   "fit": "tight",
+   "stretch": 20,
+   "legs": null,
+   "file": "/models/test-garments/croptop.glb",
+   "sellerFile": "/models/test-garments/croptop_seller.glb",
+   "sizeChart": [
+    {
+     "size": "S",
+     "chest": 80,
+     "waist": 66,
+     "fit": "tight",
+     "stretch": 20
+    },
+    {
+     "size": "M",
+     "chest": 86,
+     "waist": 72,
+     "fit": "tight",
+     "stretch": 20
+    },
+    {
+     "size": "L",
+     "chest": 92,
+     "waist": 78,
+     "fit": "tight",
+     "stretch": 20
+    }
+   ],
+   "source": "MPFB female_sportsuit01 (top)",
+   "license": "CC0"
+  },
+  {
+   "id": "leggings",
+   "name": "Test leggings",
+   "garmentType": "bottom",
+   "fit": "tight",
+   "stretch": 30,
+   "legs": "split",
+   "file": "/models/test-garments/leggings.glb",
+   "sellerFile": "/models/test-garments/leggings_seller.glb",
+   "sizeChart": [
+    {
+     "size": "S",
+     "waist": 60,
+     "hips": 84,
+     "fit": "tight",
+     "stretch": 30
+    },
+    {
+     "size": "M",
+     "waist": 66,
+     "hips": 90,
+     "fit": "tight",
+     "stretch": 30
+    },
+    {
+     "size": "L",
+     "waist": 72,
+     "hips": 96,
+     "fit": "tight",
+     "stretch": 30
+    }
+   ],
+   "source": "MPFB female_sportsuit01 (bottom)",
+   "license": "CC0"
+  },
+  {
+   "id": "dress",
+   "name": "Test dress (photo generation)",
+   "garmentType": "dress",
+   "fit": "regular",
+   "stretch": 2,
+   "legs": "joined",
+   "file": "/uploads/stub/dress.glb",
+   "sellerFile": "/uploads/stub/dress.glb",
+   "sizeChart": [
+    {
+     "size": "S",
+     "chest": 88,
+     "waist": 72,
+     "hips": 96,
+     "fit": "regular",
+     "stretch": 2
+    },
+    {
+     "size": "M",
+     "chest": 94,
+     "waist": 78,
+     "hips": 102,
+     "fit": "regular",
+     "stretch": 2
+    },
+    {
+     "size": "L",
+     "chest": 100,
+     "waist": 84,
+     "hips": 108,
+     "fit": "regular",
+     "stretch": 2
+    }
+   ],
+   "source": "photo-generation stub (ImageToStl)",
+   "license": "project"
+  }
+ ]
+}

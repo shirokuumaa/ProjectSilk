@@ -41,8 +41,10 @@ fastapi_app/static/mesh/
 gpu-infer/venv/
 *.glb
 !client/public/models/base_avatar.glb
+!client/public/models/test-garments/*.glb
 *.gltf
 scripts/avatar/out/
+scripts/garments/out/
 .env
 .DS_Store
 __pycache__/

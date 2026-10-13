@@ -7,18 +7,15 @@
 // Модель в метрах, ступни на полу, центр на оси — как у BodyAvatar, поэтому
 // normalizeModel к ней не применяется: масштаб сломал бы калибровку.
 //
-// Решает, показывать ли болванку, AvatarBody.jsx: вне калиброванного
-// диапазона и при надетой одежде там остаётся BodyAvatar.
+// Решает, показывать ли болванку, utils/avatarBody.js: вне калиброванного
+// диапазона там остаётся BodyAvatar.
 
 import React, { useEffect, useLayoutEffect, useMemo, useState } from 'react';
-import { useGLTF } from '@react-three/drei';
 import * as THREE from 'three';
 import { clone as cloneSkinned } from 'three/examples/jsm/utils/SkeletonUtils.js';
 import { createBodyMaterial, setSkinTone } from '../utils/bodyMaterial';
 import { avatarLevels } from '../utils/avatarMorphs';
 import { ellipseFromPerimeter } from './BodyAvatar';
-
-export const BASE_AVATAR_URL = '/models/base_avatar.glb';
 
 const _p = new THREE.Vector3();
 
@@ -60,8 +57,8 @@ function torsoCentersZ(mesh, root, levels) {
   return Object.fromEntries(Object.entries(range).map(([k, [a, b]]) => [k, Number.isFinite(a) ? (a + b) / 2 : 0]));
 }
 
-export default function BaseAvatar({ solution, skinTone, profile, stressMap = null, onHeight }) {
-  const { scene } = useGLTF(BASE_AVATAR_URL);
+export default function BaseAvatar({ body, solution, skinTone, profile, stressMap = null, onHeight }) {
+  const { scene } = body;      // загружена один раз (utils/avatarBody.js)
 
   // свой экземпляр на каждое окно: морфы у нескольких аватаров на странице не мешают друг другу
   const { root, mesh, material } = useMemo(() => {

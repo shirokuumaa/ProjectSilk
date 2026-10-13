@@ -112,6 +112,7 @@ export default function WardrobePage() {
         model3d: c.model3d || it.model3d,
         garmentType: c.garmentType || it.garmentType || guessType(c.category || it.category),
         sizeChart: Array.isArray(c.sizeChart) && c.sizeChart.length ? c.sizeChart : it.sizeChart,
+        legs: c.legs || it.legs || null,
       };
     });
   }, [items, catalog]);
@@ -130,6 +131,15 @@ export default function WardrobePage() {
     () => (rings && shown ? getStressMap(shown) : null),
     [rings, shown],
   );
+
+  // вещи на фигуре — в своём размере: у выбранной вещи выбранный, у остальных рекомендованный
+  const garments = useMemo(() => worn.map((w) => {
+    const item = view.find((i) => i.id === w.id);
+    if (!item?.sizeChart?.length || !ready) return w;
+    const result = findBestSize(profile, item.sizeChart, w.id === activeId ? chosenSize : null);
+    const name = (result.chosen || result.recommended)?.size;
+    return { ...w, size: item.sizeChart.find((s) => s.size === name) || null, legs: item.legs || null };
+  }), [worn, view, profile, ready, activeId, chosenSize]);
 
   const wornPrice = worn.reduce((sum, w) => sum + Number(w.price || 0), 0);
 
@@ -387,7 +397,7 @@ export default function WardrobePage() {
                 <div className={styles.canvasBox}>
                   <GlbViewer
                     profile={profile}
-                    garments={worn}
+                    garments={garments}
                     stressMap={stressMap}
                     height="100%"
                     background="#FDFCFB"

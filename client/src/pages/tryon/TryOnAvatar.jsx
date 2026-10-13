@@ -34,13 +34,13 @@ import React, {
 import { useNavigate } from 'react-router-dom';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
-import * as THREE from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
-import { getBodyLandmarks } from '../../components/BodyAvatar';
 import AvatarBody from '../../components/AvatarBody';
 import BodyStage from '../../components/BodyStage';
-import { drapeGarment } from '../../utils/garmentDrape';
+import { drapeGarment, restoreGeometry, snapshotGeometry } from '../../utils/garmentDrape';
+import { useAvatarBody } from '../../utils/avatarBody';
+import { placeByHeight } from '../../utils/garmentPlacement';
 import { loadBodyProfile, isProfileComplete } from '../../utils/bodyProfileApi';
 import { findBestSize, getStressMap } from '../../utils/fitCalculator';
 import { getWardrobe } from '../../utils/wardrobeStorage';
@@ -109,47 +109,6 @@ function readSizes() {
 //  Размещение вещи на теле
 // ─────────────────────────────────────────────────────────────
 
-/**
- * Куда садится вещь: верхняя граница и высота, обе в метрах от пола.
- * Считается от реальных обмеров — на высокой фигуре платье длиннее.
- */
-function placementFor(garmentType, L) {
-  switch (garmentType) {
-    case 'dress':     return { top: L.shoulder,        height: L.shoulder - L.knee };
-    case 'outerwear': return { top: L.shoulder + 0.02, height: L.shoulder - L.thighTop };
-    case 'bottom':    return { top: L.waist,           height: L.waist - L.ankle };
-    case 'shoes':     return { top: L.ankle * 1.6,     height: L.ankle * 1.6 };
-    case 'accessory': return { top: L.neck + 0.06,     height: 0.14 };
-    case 'top':
-    default:          return { top: L.shoulder,        height: L.shoulder - L.hips };
-  }
-}
-
-/** Запомнить исходные вершины, чтобы прижатие можно было пересчитывать. */
-function snapshotGeometry(root) {
-  root.traverse((child) => {
-    const pos = child.isMesh && child.geometry?.attributes?.position;
-    if (pos && !child.geometry.userData.__pristine) {
-      child.geometry.userData.__pristine = Float32Array.from(pos.array);
-    }
-  });
-}
-
-/** Вернуть вершины в исходное состояние перед новым прижатием. */
-function restoreGeometry(root) {
-  root.traverse((child) => {
-    const pos = child.isMesh && child.geometry?.attributes?.position;
-    const pristine = child.isMesh && child.geometry?.userData?.__pristine;
-    if (pos && pristine) {
-      pos.array.set(pristine);
-      pos.needsUpdate = true;
-      child.geometry.computeVertexNormals();
-      child.geometry.computeBoundingBox();
-      child.geometry.computeBoundingSphere();
-    }
-  });
-}
-
 function disposeTree(root) {
   root.traverse((child) => {
     if (!child.isMesh) return;
@@ -166,7 +125,9 @@ function disposeTree(root) {
 /**
  * Одна вещь на теле: грузит GLB, ставит по росту и прижимает к фигуре.
  */
-function Garment({ url, profile, garmentType, fit, layer, onStatus }) {
+function Garment({ url, profile, garmentType, fit, layer, size = null, legs = null, onStatus }) {
+  // тело и его форма — те же, что у AvatarBody в этой сцене
+  const { shape } = useAvatarBody(profile);
   const groupRef = useRef(null);
   const [root, setRoot] = useState(null);
 
@@ -200,7 +161,7 @@ function Garment({ url, profile, garmentType, fit, layer, onStatus }) {
 
   useLayoutEffect(() => {
     const group = groupRef.current;
-    if (!root || !group) return;
+    if (!root || !group || !shape) return;
 
     // 1. откатываем прошлое прижатие — иначе деформации накапливаются
     restoreGeometry(root);
@@ -209,31 +170,14 @@ function Garment({ url, profile, garmentType, fit, layer, onStatus }) {
     group.updateWorldMatrix(true, true);
 
     // 2. масштаб по росту фигуры
-    const box = new THREE.Box3().setFromObject(group);
-    const size = box.getSize(new THREE.Vector3());
-    const center = box.getCenter(new THREE.Vector3());
-    if (size.y < 1e-6) return;
-
-    const L = getBodyLandmarks(profile);
-    const place = placementFor(garmentType, L);
-    const scale = place.height / size.y;
-
-    group.scale.setScalar(scale);
-    group.position.set(
-      -center.x * scale,
-      place.top - box.max.y * scale,
-      -center.z * scale,
-    );
-    group.updateWorldMatrix(true, true);
+    if (!placeByHeight(group, garmentType, shape.landmarks)) return;
 
     // 3. прижимаем ткань к телу
-    drapeGarment(group, profile, { fit, layer });
+    drapeGarment(group, shape, { fit, layer, size, garmentType, legs });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [root, garmentType, fit, layer,
-      profile?.heightCm, profile?.chest, profile?.waist,
-      profile?.hips, profile?.shoulderWidth]);
+  }, [root, garmentType, fit, layer, shape, size, legs]);
 
-  return <group ref={groupRef}>{root && <primitive object={root} />}</group>;
+  return <group ref={groupRef}>{root && shape && <primitive object={root} />}</group>;
 }
 
 // ─────────────────────────────────────────────────────────────
@@ -306,6 +250,7 @@ export default function TryOnAvatar() {
         garmentType: p.garmentType || 'top',
         layer: typeof p.layer === 'number' ? p.layer : 1,
         sizeChart: Array.isArray(p.sizeChart) ? p.sizeChart : [],
+        legs: p.legs || null,
       };
     });
   }, [wardrobe, catalog]);
@@ -332,6 +277,14 @@ export default function TryOnAvatar() {
   }, [fitResult]);
 
   /** Крой выбранного размера — от него зависит зазор при прижатии. */
+  // обмеры размера, в котором вещь показана: выбранный покупателем или рекомендованный
+  const sizeRowOf = useCallback((item) => {
+    if (!item.sizeChart?.length || !isProfileComplete(profile)) return null;
+    const result = findBestSize(profile, item.sizeChart, chosenSizes[item.id] || null);
+    const name = (result.chosen || result.recommended)?.size;
+    return item.sizeChart.find((s) => s.size === name) || null;
+  }, [profile, chosenSizes]);
+
   const fitOf = useCallback((item) => {
     const size = chosenSizes[item.id];
     const row = item.sizeChart.find((s) => s.size === size);
@@ -412,7 +365,6 @@ export default function TryOnAvatar() {
                 <AvatarBody
                   profile={profile}
                   stressMap={stressMap}
-                  hasGarments={worn.some((w) => w.item.model3d)}
                 />
               )}
 
@@ -426,6 +378,8 @@ export default function TryOnAvatar() {
                     garmentType={w.item.garmentType}
                     fit={fitOf(w.item)}
                     layer={w.item.layer}
+                    size={sizeRowOf(w.item)}
+                    legs={w.item.legs}
                     onStatus={(url, st) => setGlbStatus((s) => ({ ...s, [url]: st }))}
                   />
                 ))}

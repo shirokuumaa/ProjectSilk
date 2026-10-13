@@ -2,84 +2,51 @@
 //
 // Тело аватара для любой 3D-сцены: процедурное BodyAvatar или болванка BaseAvatar.
 //
-// По умолчанию — BodyAvatar. Болванка включается для проверки параметром
-// ?avatar=base (см. utils/avatarMode.js) и показывается, только если:
-//   • обмеры в калиброванном диапазоне (иначе обещанные сантиметры не сойдутся);
-//   • на теле нет одежды: подгонка вещей пока сделана под BodyAvatar;
-//   • файл болванки загрузился.
-// В режиме проверки в углу сцены плашка: что показано и почему.
+// Какое тело показывать, решает utils/avatarBody.js (то же решение берёт
+// одежда, чтобы садиться на то же тело в той же фигуре). По умолчанию —
+// BodyAvatar; болванка включается для проверки параметром ?avatar=base
+// (utils/avatarMode.js) и показывается, если обмеры в калиброванном диапазоне
+// и файл болванки загрузился. В режиме проверки в углу сцены плашка: что
+// показано и почему.
 
-import React, { Component, Suspense, useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import { Html } from '@react-three/drei';
 import BodyAvatar from './BodyAvatar';
 import BaseAvatar from './BaseAvatar';
 import { useAvatarMode } from '../utils/avatarMode';
-import { solveAvatar } from '../utils/avatarMorphs';
+import { useAvatarBody } from '../utils/avatarBody';
 import { resolveSkinTone } from '../utils/skinTones';
 import styles from './AvatarBody.module.css';
 
 const FALLBACK_LABEL = {
-  garments: 'Standard body · garments on',
   range: 'Standard body · out of calibrated range',
   missing: 'Standard body · measurements incomplete',
   error: 'Standard body · base avatar failed to load',
 };
 
-class LoadBoundary extends Component {
-  state = { failed: false };
-
-  static getDerivedStateFromError() {
-    return { failed: true };
-  }
-
-  componentDidCatch(error) {
-    console.warn('[avatar] base avatar failed to load:', error?.message);
-    this.props.onFail();
-  }
-
-  render() {
-    return this.state.failed ? this.props.fallback : this.props.children;
-  }
-}
-
-export default function AvatarBody({ profile, stressMap = null, hasGarments = false }) {
+export default function AvatarBody({ profile, stressMap = null }) {
   const mode = useAvatarMode();
-  const [failed, setFailed] = useState(false);
+  const avatar = useAvatarBody(profile);
   const [height, setHeight] = useState(null);
 
-  const measures = [
-    profile?.heightCm, profile?.chest, profile?.waist, profile?.hips,
-    profile?.shoulderWidth, profile?.armLength, profile?.inseam,
-  ].join('|');
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const solution = useMemo(() => (mode === 'base' ? solveAvatar(profile) : null), [mode, measures]);
+  if (mode !== 'base') return <BodyAvatar profile={profile} stressMap={stressMap} />;
 
-  const standard = <BodyAvatar profile={profile} stressMap={stressMap} />;
-  if (mode !== 'base') return standard;
-
-  const reason = hasGarments ? 'garments'
-    : failed ? 'error'
-    : !solution.inRange ? solution.reason
-    : null;
-
-  const label = reason
-    ? FALLBACK_LABEL[reason]
-    : `Base avatar · ${height != null ? `${height.toFixed(1)} cm` : 'loading…'}`;
+  const label = avatar.kind === 'standard'
+    ? FALLBACK_LABEL[avatar.reason]
+    : `Base avatar · ${avatar.kind === 'base' && height != null ? `${height.toFixed(1)} cm` : 'loading…'}`;
 
   return (
     <>
-      {reason ? standard : (
-        <LoadBoundary fallback={standard} onFail={() => setFailed(true)}>
-          <Suspense fallback={null}>
-            <BaseAvatar
-              solution={solution}
-              skinTone={resolveSkinTone(profile?.skinTone)}
-              profile={profile}
-              stressMap={stressMap}
-              onHeight={setHeight}
-            />
-          </Suspense>
-        </LoadBoundary>
+      {avatar.kind === 'standard' && <BodyAvatar profile={profile} stressMap={stressMap} />}
+      {avatar.kind === 'base' && (
+        <BaseAvatar
+          body={avatar.body}
+          solution={avatar.solution}
+          skinTone={resolveSkinTone(profile?.skinTone)}
+          profile={profile}
+          stressMap={stressMap}
+          onHeight={setHeight}
+        />
       )}
       {/* слой во весь холст: центр слоя — центр холста, а не проекция точки сцены */}
       <Html
@@ -88,7 +55,7 @@ export default function AvatarBody({ profile, stressMap = null, hasGarments = fa
         zIndexRange={[10, 0]}
         className={styles.layer}
       >
-        <div className={styles.badge} data-avatar-mode={reason ? 'standard' : 'base'}>{label}</div>
+        <div className={styles.badge} data-avatar-mode={avatar.kind === 'base' ? 'base' : avatar.kind}>{label}</div>
       </Html>
     </>
   );

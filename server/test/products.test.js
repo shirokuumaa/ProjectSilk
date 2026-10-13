@@ -125,6 +125,17 @@ describe('products', () => {
       assert.equal(r.json.owner, sellerA.user.id);
     });
 
+    it('подсказка legs: split/joined сохраняется, чужое значение → 400, пусто снимает', async () => {
+      const patch = (legs) => api('PATCH', `/api/products/${product._id}`, { token: sellerA.token, body: { legs } });
+      const r = await patch('split');
+      assert.equal(r.status, 200);
+      assert.equal(r.json.legs, 'split');
+      assert.equal((await patch('trousers')).status, 400);
+      const cleared = await patch('');
+      assert.equal(cleared.status, 200);
+      assert.equal(cleared.json.legs, undefined);
+    });
+
     it('замена картинки удаляет старый файл', async () => {
       const current = (await api('GET', `/api/products/${product._id}`)).json;
       const oldPath = srv.diskPath(current.image);

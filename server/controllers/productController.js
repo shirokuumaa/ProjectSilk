@@ -183,6 +183,7 @@ export const addProduct = async (req, res) => {
       category: String(category || 'Clothes'),
       garmentType: String(garmentType || 'top'),
       sizeChart: parseSizeChart(req.body.sizeChart) ?? [],
+      legs: req.body.legs || undefined,
       image: `/uploads/images/${imageFile.filename}`,
       model3d: model3dUrl,
       rating: 0,
@@ -232,6 +233,7 @@ export const updateProduct = async (req, res) => {
     if (b.category !== undefined) product.category = String(b.category);
     if (b.garmentType !== undefined) product.garmentType = String(b.garmentType);
     if (b.sizeChart !== undefined) product.sizeChart = parseSizeChart(b.sizeChart);
+    if (b.legs !== undefined) product.legs = b.legs || undefined;   // пусто — снять подсказку
 
     const imageFile = req.files?.image?.[0];
     if (imageFile) {
