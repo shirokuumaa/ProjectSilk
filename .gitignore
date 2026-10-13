@@ -48,3 +48,6 @@ scripts/garments/out/
 .env
 .DS_Store
 __pycache__/
+
+# Фото и замеры чужих вещей для внутреннего исследования — не публикуем
+research/photos/
