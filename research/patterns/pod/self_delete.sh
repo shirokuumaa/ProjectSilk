@@ -26,6 +26,9 @@ echo "runpodctl: $(command -v runpodctl || echo 'not installed') $(runpodctl ver
 code=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $RUNPOD_API_KEY" \
   "https://rest.runpod.io/v1/pods/$RUNPOD_POD_ID")
 echo "read check (GET rest.runpod.io/v1/pods/<id>): HTTP $code"
+code2=$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $RUNPOD_API_KEY" \
+  "https://api.runpod.io/v2/pods/$RUNPOD_POD_ID")
+echo "read check (GET api.runpod.io/v2/pods/<id>): HTTP $code2"
 
 delete_pod() {
   # Try every documented way; stop at the first that succeeds.
@@ -39,7 +42,11 @@ delete_pod() {
     echo "DELETE $url -> HTTP $c"
     case "$c" in 2*) return 0 ;; esac
   done
-  return 1
+  # GraphQL: the pod key is accepted there for reads (checked 2026-10-14)
+  r=$(curl -s -H "Content-Type: application/json" -H "Authorization: Bearer $RUNPOD_API_KEY" \
+    -d "{\"query\":\"mutation { podTerminate(input: {podId: \\\"$RUNPOD_POD_ID\\\"}) }\"}" https://api.runpod.io/graphql)
+  echo "graphql podTerminate -> $r"
+  case "$r" in *error*) return 1 ;; *) return 0 ;; esac
 }
 export -f delete_pod
 export RUNPOD_POD_ID RUNPOD_API_KEY
