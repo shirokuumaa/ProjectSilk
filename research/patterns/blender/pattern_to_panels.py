@@ -11,7 +11,8 @@ re-implemented with numpy + svgpathtools so Blender does not need pygarment:
 
 Output panels.json:
   {"units": "cm", "res": 1.0,
-   "panels": {name: {"R": 3x3, "t": [3], "boundary": [[x,y]...], "interior": [[x,y]...]}},
+   "panels": {name: {"R": 3x3, "t": [3], "boundary": [[x,y]...], "interior": [[x,y]...],
+                     "edges": [[boundary idx...] per pattern edge]}},
    "stitches": [[[panelA, [boundary idx...]], [panelB, [boundary idx...]]], ...]}
 
 Usage: python pattern_to_panels.py spec.json out.json [--res 1.0]
@@ -121,6 +122,7 @@ def convert(spec, res):
             "t": list(map(float, p.get("translation", [0, 0, 0]))),
             "boundary": boundary.tolist(),
             "interior": interior_points(boundary, res).tolist(),
+            "edges": [edge_idx[(name, i)] for i in range(len(p["edges"]))],  # boundary indices per edge
         }
 
     stitches = []
