@@ -16,6 +16,9 @@ Pictures: Blender workbench front/side per case + one sheet. Cost: 3 sizes × 8 
 
 Usage: python simtest_report.py [--results runs/simtest/results] [--price 0.40] [--no-render]
   -> runs/simtest/report.md, runs/simtest/sheet.png, runs/simtest/renders/
+Another simulator on the same box meshes (Newton): --results runs/newtontest/results --out runs/newtontest
+  --title "..." --compare runs/simtest/results — adds the distance to GarmentCode's result per case (same
+  box mesh, same vertex order: per-vertex mean / 95th percentile, cm). --price 0: no GPU, report CPU time.
 """
 import argparse
 import json
@@ -58,16 +61,24 @@ def chamfer(a, b, n=50000):
     return float((cKDTree(p2).query(p1)[0].mean() + cKDTree(p1).query(p2)[0].mean()) / 2)
 
 
+def read_v(path):
+    return np.array([[float(x) for x in l.split()[1:4]] for l in open(path) if l.startswith("v ")])
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--results", default=str(SIM / "results"))
     ap.add_argument("--inputs", default=str(SIM / "inputs"))
     ap.add_argument("--price", type=float, default=0.40)
     ap.add_argument("--no-render", action="store_true")
+    ap.add_argument("--out", default=str(SIM))
+    ap.add_argument("--title", default="Тест симулятора GarmentCode (их форк Warp) на видеокарте")
+    ap.add_argument("--compare", help="results dir of another simulator on the same box meshes")
+    ap.add_argument("--compare-name", default="GarmentCode")
     a = ap.parse_args()
-    res_dir, inputs = Path(a.results), Path(a.inputs)
+    res_dir, inputs, out = Path(a.results), Path(a.inputs), Path(a.out)
     cases = json.load(open(inputs / "cases.json"))
-    rdir = SIM / "renders"
+    rdir = out / "renders"
     rdir.mkdir(parents=True, exist_ok=True)
     rows = []
     for c in cases:
@@ -99,6 +110,14 @@ def main():
                "move_max_cm": moved, "inside_pct": round(ins, 2), "inside_depth_p99_cm": round(depth99, 2),
                "obj_mb": round(sim_p.stat().st_size / 2 ** 20, 2), "glb_mb": round(glb.stat().st_size / 2 ** 20, 2),
                "triangles": len(g.faces)}
+        if a.compare:
+            other = Path(a.compare) / c["case"] / f"{c['case']}_sim.obj"
+            if other.exists():
+                va, vb = read_v(sim_p), read_v(other)
+                if va.shape == vb.shape:
+                    dd = np.linalg.norm(va - vb, axis=1)
+                    row["vs_mean_cm"], row["vs_p95_cm"] = round(float(dd.mean()), 2), round(float(np.percentile(dd, 95)), 2)
+                row["vs_chamfer_cm"] = round(chamfer(gw, trimesh.load(other, process=False, force="mesh")), 2)
         ref = inputs / "reference" / f"{c['case']}_sim.ply"
         if ref.exists():   # control: judged by the authors' own result (its hood starts upright, drops 16 cm)
             row["chamfer_to_reference_cm"] = round(chamfer(gw, trimesh.load(ref, process=False, force="mesh")), 2)
@@ -125,7 +144,7 @@ def main():
         sheet = Image.new("RGB", (500 * cols, 410 * ((len(tiles) + cols - 1) // cols)), "white")
         for k, t in enumerate(tiles):
             sheet.paste(t, ((k % cols) * 500, (k // cols) * 410))
-        sheet.save(SIM / "sheet.png")
+        sheet.save(out / "sheet.png")
 
     ours = [r for r in rows if r.get("item") not in (None, "gcd_control") and r.get("wall_s")]
     t_mean = float(np.mean([r["wall_s"] + (r["box_s"] or 0) for r in ours])) if ours else float("nan")
@@ -138,9 +157,10 @@ def main():
             timings[p[0]] = float(p[3])
     setup_s = sum(v for k, v in timings.items() if not k.startswith("sim_"))
 
-    L = ["# Тест симулятора GarmentCode (их форк Warp) на видеокарте\n",
-         "| Вещь | Размер | Болванка | Держится | Время, с (кадров, с/кадр) | Верх сполз, см | Ткань внутри тела, % (p99 глубина, см) | OBJ / GLB, МБ | Треугольников | Отбраковка GarmentCode |",
-         "|---|---|---|---|---|---|---|---|---|---|"]
+    vs = f" | До {a.compare_name}, см (по вершинам: среднее / p95; Chamfer)" if a.compare else ""
+    L = [f"# {a.title}\n",
+         "| Вещь | Размер | Болванка | Держится | Время, с (кадров, с/кадр) | Верх сполз, см | Ткань внутри тела, % (p99 глубина, см) | OBJ / GLB, МБ | Треугольников | Отбраковка" + vs + " |",
+         "|---|---|---|---|---|---|---|---|---|---|" + ("---|" if a.compare else "")]
     for r in rows:
         if "wall_s" not in r:
             L.append(f"| {r['case']} | | | {r['status']} | | | | | | |")
@@ -148,14 +168,21 @@ def main():
         ctrl = f" (контроль; до их результата {r['chamfer_to_reference_cm']} см)" if "chamfer_to_reference_cm" in r else ""
         L.append(f"| {r['item']}{ctrl} | {r['size']} | {r['body']} | {'да' if r['holds'] else 'НЕТ'} | "
                  f"{r['wall_s']:.0f} ({r['frames']}, {r['s_per_frame']:.3f}) | {r['top_drop_cm']} | "
-                 f"{r['inside_pct']} ({r['inside_depth_p99_cm']}) | {r['obj_mb']} / {r['glb_mb']} | {r['triangles']} | {r['fails']} |")
-    L += ["", f"**Стоимость товара** ({SIZES} размера × {FIGURES} фигур = {SIZES * FIGURES} симуляций): "
-          f"{SIZES * FIGURES} × {t_mean:.0f} с × ${a.price}/ч = **${per_product:.3f}** за товар "
-          f"(среднее время наших вещей, вместе с построением сетки).",
-          f"Разовая установка на свежей машине (apt, окружение, сборка форка): {setup_s / 60:.1f} мин ≈ "
-          f"${setup_s / 3600 * a.price:.2f} — на пачку товаров, не на товар."]
-    (SIM / "report.md").write_text("\n".join(L) + "\n")
-    json.dump(rows, open(SIM / "report.json", "w"), indent=1)
+                 f"{r['inside_pct']} ({r['inside_depth_p99_cm']}) | {r['obj_mb']} / {r['glb_mb']} | {r['triangles']} | {r['fails']}"
+                 + (f" | {r.get('vs_mean_cm', '—')} / {r.get('vs_p95_cm', '—')}; {r.get('vs_chamfer_cm', '—')}" if a.compare else "")
+                 + " |")
+    if a.price > 0:
+        L += ["", f"**Стоимость товара** ({SIZES} размера × {FIGURES} фигур = {SIZES * FIGURES} симуляций): "
+              f"{SIZES * FIGURES} × {t_mean:.0f} с × ${a.price}/ч = **${per_product:.3f}** за товар "
+              f"(среднее время наших вещей, вместе с построением сетки).",
+              f"Разовая установка на свежей машине (apt, окружение, сборка форка): {setup_s / 60:.1f} мин ≈ "
+              f"${setup_s / 3600 * a.price:.2f} — на пачку товаров, не на товар."]
+    else:
+        L += ["", f"**Время на товар без видеокарты** ({SIZES} × {FIGURES} = {SIZES * FIGURES} симуляций, "
+              f"по одной на ядро процессора): {SIZES * FIGURES} × {t_mean / 60:.1f} мин = "
+              f"{SIZES * FIGURES * t_mean / 3600:.1f} ч процессорного времени."]
+    (out / "report.md").write_text("\n".join(L) + "\n")
+    json.dump(rows, open(out / "report.json", "w"), indent=1)
     print("\n".join(L))
 
 
