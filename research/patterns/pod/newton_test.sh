@@ -5,7 +5,8 @@
 # (runs/simtest/inputs). Each case: pod/newton_case.py, one process each, in parallel.
 #
 # Mac (CPU):  bash pod/newton_test.sh               # PARALLEL=7, DEVICE=cpu
-# GPU pod:    DEVICE=cuda:0 PARALLEL=1 bash pod/newton_test.sh   (pip install newton==1.7.0 pyyaml first)
+# GPU pod:    DEVICE=cuda:0 PARALLEL=1 bash pod/newton_test.sh   (pip install newton==1.7.0 pyyaml first; with a
+#             CUDA 12 driver (< 580) also the cu12 warp-lang wheel from NVIDIA's GitHub release, see README)
 # Output: runs/newtontest/results/<case>/ + logs/, summary.tsv; then on the Mac:
 #   python simtest_report.py --results runs/newtontest/results --out runs/newtontest --price 0 \
 #       --title "Newton (SolverStyle3D) на CPU Mac" --compare runs/simtest/results
