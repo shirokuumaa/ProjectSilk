@@ -12,6 +12,8 @@ GARMENTCODERC_REPO=https://github.com/biansy000/GarmentCodeRC.git
 GARMENTCODERC_COMMIT=e3d4476d6f9bcb0af5ee0eccd18b0433e3df398a   # 2025-04-28, MIT
 GARMENTCODE_REPO=https://github.com/maria-korosteleva/GarmentCode.git
 GARMENTCODE_COMMIT=d449629979028123a5c4dc9e732a2ec19b7fce31     # 2025-06-29, MIT
+WARP_GC_REPO=https://github.com/maria-korosteleva/NvidiaWarp-GarmentCode.git
+WARP_GC_COMMIT=63baf6855efdd89b2834b74640f84b3bb0d86b50          # 2024-09-02, Warp 1.0.0-beta.6 fork, NVIDIA Source Code License: non-commercial (research / evaluation only)
 
 # Torch builds (CUDA 12.1 wheels carry their own CUDA libs; only the driver comes from the host)
 TORCH_INDEX=https://download.pytorch.org/whl/cu121
