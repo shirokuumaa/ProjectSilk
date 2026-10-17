@@ -103,7 +103,7 @@ class Pattern:
         """specs: list of GarmentCode spec dicts (ChatGarment may give upper + lower)."""
         self.panels, self.links, self.seams = {}, [], []
         for k, spec in enumerate(specs):
-            data = convert(spec, 0.5)
+            data = convert(spec, 0.5, interior=False)  # measuring needs only the outlines
             pre = f"{k}:" if len(specs) > 1 else ""
             for name, p in data["panels"].items():
                 self.panels[pre + name] = {"name": name, "cls": panel_class(name), "R": np.array(p["R"]),
@@ -121,8 +121,9 @@ class Pattern:
     def front(self, key):
         return self.panels[key]["t"][2] > 0
 
-    def width_at(self, key, h):
-        """Length of the panel's cut by the plane y = h (sum of inside segments)."""
+    def width_at(self, key, h, extent=False):
+        """Length of the panel's cut by the plane y = h (sum of inside segments). extent=True: from the
+        first to the last crossing — across a horizontal (side) dart, which closes length, not width."""
         w = self.world(key)
         b = self.panels[key]["b"]
         y = w[:, 1]
@@ -140,6 +141,8 @@ class Pattern:
         axis = axis / (np.linalg.norm(axis) or 1)
         order = np.argsort(d @ axis)
         pts = pts[order]
+        if extent:
+            return float(np.linalg.norm(pts[-1] - pts[0]))
         return float(sum(np.linalg.norm(pts[i + 1] - pts[i]) for i in range(0, len(pts) - 1, 2)))
 
     def partners(self, key, e):
@@ -204,13 +207,13 @@ class Pattern:
     def keys(self, classes):
         return [k for k, p in self.panels.items() if p["cls"] in classes]
 
-    def circumference(self, keys, h):
+    def circumference(self, keys, h, extent=False):
         """Torso/waistband: horizontal cut. Skirt/pants panels: along the fabric at the same
         depth below their waist edge. GarmentCode's pre-drape placement leaves gaps between
         stitched pieces; a level that falls into the gap above a skirt is measured at its top."""
         upper = [k for k in keys if self.panels[k]["cls"] not in ("skirt", "pants")]
         covered = any(self.width_at(k, h) > 0 for k in upper)
-        total = sum(self.width_at(k, h) for k in upper)
+        total = sum(self.width_at(k, h, extent) for k in upper)
         for k in keys:
             if self.panels[k]["cls"] in ("skirt", "pants"):
                 d = self.skirt_top_y(k) - h

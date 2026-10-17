@@ -91,7 +91,7 @@ def interior_points(boundary, res):
     return pts[d >= 0.6 * res]
 
 
-def convert(spec, res):
+def convert(spec, res, interior=True):
     pattern = spec["pattern"]
     panels = pattern["panels"]
 
@@ -121,7 +121,7 @@ def convert(spec, res):
             "R": euler_xyz_to_R(p.get("rotation", [0, 0, 0])).tolist(),
             "t": list(map(float, p.get("translation", [0, 0, 0]))),
             "boundary": boundary.tolist(),
-            "interior": interior_points(boundary, res).tolist(),
+            "interior": interior_points(boundary, res).tolist() if interior else [],
             "edges": [edge_idx[(name, i)] for i in range(len(p["edges"]))],  # boundary indices per edge
         }
 

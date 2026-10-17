@@ -33,8 +33,10 @@ TEMPLATES = {
     "skirt_flared": {"type": "skirt", "title": "Юбка клёш / солнце",
                      "meta": (None, "StraightWB", "SkirtCircle"), "set": {}},
     # tops (tees are tops)
+    # Shirt with little ease, not FittedShirt: FittedShirt always ends at the waist (no length knob), so a
+    # cropped or long fitted tee could not be built (day 7)
     "top_fitted": {"type": "top", "title": "Топ / футболка прилегающая",
-                   "meta": ("FittedShirt", None, None), "set": {}},
+                   "meta": ("Shirt", None, None), "set": {"shirt.width": 1.0, "shirt.flare": 0.95}},
     "top_loose": {"type": "top", "title": "Топ / футболка / блузка прямая",
                   "meta": ("Shirt", None, None), "set": {}},
 }
@@ -46,6 +48,7 @@ LENGTH = {"skirt": {"mini": 0.25, "knee": 0.45, "midi": 0.65, "maxi": 0.9},
 FLARE = {"PencilSkirt": ("pencil-skirt.flare", {"low": 0.9, "mid": 1.05, "high": 1.2}),
          "Skirt2": ("skirt.flare", {"low": 5, "mid": 10, "high": 18}),
          "SkirtCircle": ("flare-skirt.suns", {"low": 0.35, "mid": 0.6, "high": 1.0})}
+NECK_DEPTH = {"high": 0.3, "round": 0.4, "square": 0.6, "v": 1.0}
 NECK = {"round": "CircleNeckHalf", "v": "VNeckHalf", "square": "SquareNeckHalf", "high": "CircleNeckHalf"}
 DEFAULT_KNOBS = {"dress": {"sleeve": "short", "length": "knee", "flare": "mid", "neckline": "round", "slit": False},
                  "skirt": {"length": "knee", "flare": "mid", "slit": False},
@@ -75,9 +78,12 @@ def design(gc_dir, name, **knobs):
         neck = NECK[k["neckline"]]
         _set(d, "collar.f_collar", neck)
         _set(d, "collar.b_collar", "CircleNeckHalf")
-        _set(d, "collar.fc_depth", 0.4 if k["neckline"] == "high" else 1.0)
+        # front neck depth (GarmentCode default 0.4, min 0.3); day 6 had 1.0 for "round" — a scoop down to the bust
+        _set(d, "collar.fc_depth", NECK_DEPTH[k["neckline"]])
         if bottom is None:
             _set(d, "shirt.length", LENGTH["top"][k["length"]])
+        else:
+            _set(d, "shirt.length", 1.0)  # dress: the bodice ends at the waist (GarmentCode default 1.2 = below it)
     if bottom:
         frac = LENGTH["skirt"][k["length"]]
         prefix = {"PencilSkirt": "pencil-skirt", "Skirt2": "skirt", "SkirtCircle": "flare-skirt"}[bottom]
