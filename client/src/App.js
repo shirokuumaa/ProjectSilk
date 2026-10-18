@@ -20,10 +20,6 @@ import OrderPage from "./pages/OrderPage";
 import OrdersList from "./pages/OrdersList";
 import DevOnly from './components/DevOnly';
 
-// служебные страницы — только в режиме разработки (DevOnly), код грузится лениво
-const Metrics = lazy(() => import('./pages/Metrics'));
-const TripoSRDebug = lazy(() => import('./pages/TripoSRDebug'));
-const AvatarCreateMode1Test = lazy(() => import('./pages/AvatarCreateMode1Test'));
 
 
 // ⬇️ единый слой ассистента (панель + шарик + голос)
@@ -31,6 +27,11 @@ import AssistantLayer from './components/AssistantLayer';
 import SiteFooter from './components/SiteFooter';
 import AccountSync from './components/AccountSync';
 import { isLoggedIn } from './utils/auth';
+
+// служебные страницы — только в режиме разработки (DevOnly), код грузится лениво
+const Metrics = lazy(() => import('./pages/Metrics'));
+const TripoSRDebug = lazy(() => import('./pages/TripoSRDebug'));
+const AvatarCreateMode1Test = lazy(() => import('./pages/AvatarCreateMode1Test'));
 
 function App() {
   const [search, setSearch] = useState('');
