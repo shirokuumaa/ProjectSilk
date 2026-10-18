@@ -1,9 +1,13 @@
 // server/routes/authRoutes.js
 //
-//   POST /api/auth/register       { username, password, accountType?, storeName? } → 201 { token, user }
-//   POST /api/auth/login          { username, password }                          → 200 { token, user }
-//   GET  /api/auth/me             (Bearer)                                        → 200 user
-//   POST /api/auth/become-seller  (Bearer) { storeName }                          → 200 { user }
+//   POST /api/auth/register       { username, password, accountType?, storeName? } → 201 { token, user } + cookie
+//   POST /api/auth/login          { username, password }                          → 200 { token, user } + cookie
+//   POST /api/auth/logout                                                         → 200, cookie стёрта
+//   GET  /api/auth/me             (cookie или Bearer)                             → 200 user
+//   POST /api/auth/become-seller  (cookie или Bearer) { storeName }               → 200 { user }
+//
+// Вход в браузере — httpOnly-cookie ps_token (см. middleware/requireAuth.js).
+// token в теле ответа остаётся для клиентов без cookie (тесты, скрипты); сайт его не хранит.
 //
 // user = { id, username, role: 'buyer' | 'seller', storeName }
 // Сообщения об ошибках видит покупатель — поэтому они на английском.
@@ -14,7 +18,9 @@ import rateLimit from 'express-rate-limit';
 import User, {
   USERNAME_RE, ROLES, normalizeUsername, normalizeStoreName, isValidStoreName,
 } from '../models/User.js';
-import { requireAuth, signToken, publicUser } from '../middleware/requireAuth.js';
+import {
+  requireAuth, signToken, publicUser, setAuthCookie, clearAuthCookie,
+} from '../middleware/requireAuth.js';
 
 const router = express.Router();
 
@@ -98,7 +104,9 @@ router.post('/register', registerLimiter, async (req, res, next) => {
       throw err;
     }
 
-    res.status(201).json({ token: signToken(user), user: publicUser(user) });
+    const token = signToken(user);
+    setAuthCookie(res, token); // браузер держит вход в httpOnly-cookie
+    res.status(201).json({ token, user: publicUser(user) });
   } catch (err) {
     next(err);
   }
@@ -116,10 +124,18 @@ router.post('/login', loginLimiter, async (req, res, next) => {
       return res.status(401).json({ message: 'Invalid username or password' });
     }
 
-    res.json({ token: signToken(user), user: publicUser(user) });
+    const token = signToken(user);
+    setAuthCookie(res, token);
+    res.json({ token, user: publicUser(user) });
   } catch (err) {
     next(err);
   }
+});
+
+/** Выход: стираем cookie. Токен не нужен — выйти можно и с истёкшим. */
+router.post('/logout', (_req, res) => {
+  clearAuthCookie(res);
+  res.json({ ok: true });
 });
 
 router.get('/me', requireAuth, (req, res) => {

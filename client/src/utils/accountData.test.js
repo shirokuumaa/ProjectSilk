@@ -11,8 +11,7 @@ const set = (k, v) => localStorage.setItem(k, JSON.stringify(v));
 const get = (k) => JSON.parse(localStorage.getItem(k) || 'null');
 
 function signIn(username = 'alice') {
-  localStorage.setItem('authToken', `token-${username}`);
-  localStorage.setItem('loggedInUser', username);
+  localStorage.setItem('loggedInUser', username); // сам вход — в httpOnly-cookie, её JS не видит
 }
 
 beforeEach(() => {
@@ -29,7 +28,6 @@ describe('logout', () => {
     logout();
     ACCOUNT_KEYS.forEach((k) => expect(localStorage.getItem(k)).toBeNull());
     expect(localStorage.getItem(GUEST_WARDROBE_KEY)).toBeNull();
-    expect(localStorage.getItem('authToken')).toBeNull();
     expect(localStorage.getItem('loggedInUser')).toBeNull();
   });
 
@@ -91,7 +89,7 @@ describe('wardrobe and the server', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  test('a signed-in buyer: add, remove and clear go to /api/wardrobe with the token', async () => {
+  test('a signed-in buyer: add, remove and clear go to /api/wardrobe with the login cookie', async () => {
     signIn('alice');
     global.fetch.mockResolvedValue(ok({}));
 
@@ -109,7 +107,7 @@ describe('wardrobe and the server', () => {
     ]);
     const [, post] = global.fetch.mock.calls[0];
     expect(JSON.parse(post.body)).toEqual({ productId: 'p1', name: 'Tee', price: 10, image: '/uploads/t.jpg', category: 'Tops' });
-    expect(post.headers.get('Authorization')).toBe('Bearer token-alice');
+    expect(post.credentials).toBe('include');
   });
 
   test('pullWardrobe replaces the cache with the account wardrobe', async () => {

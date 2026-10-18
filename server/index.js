@@ -5,6 +5,7 @@ import cors from 'cors';
 import dotenv from 'dotenv';
 
 import { UPLOADS_DIR } from './config/paths.js';
+import { allowedOrigins } from './config/cors.js';
 import productRoutes from './routes/productRoutes.js';
 import wardrobeRoutes from './routes/wardrobeRoutes.js';
 import aiRoutes from './routes/aiRoutes.js';
@@ -27,17 +28,13 @@ if (String(process.env.JWT_SECRET || '').length < 32) {
 
 mongoose.set('strictQuery', true);
 
-/* 0) CORS — ставим самым первым.
-   CORS_ORIGINS (через запятую) — для второго экземпляра, например тестового. */
-const CORS_ORIGINS = process.env.CORS_ORIGINS
-  ? process.env.CORS_ORIGINS.split(',').map((s) => s.trim()).filter(Boolean)
-  : ['http://localhost:3000', 'http://127.0.0.1:3000'];
-
+/* 0) CORS — ставим самым первым. Адреса — config/cors.js (CORS_ORIGINS).
+   credentials: вход хранится в httpOnly-cookie, браузер шлёт её только этим адресам. */
 app.use(cors({
-  origin: CORS_ORIGINS,
+  origin: allowedOrigins(),
   methods: ['GET','POST','PUT','PATCH','DELETE','OPTIONS'],
   allowedHeaders: ['Content-Type','Authorization'],
-  credentials: false,
+  credentials: true,
 }));
 
 /* Лёгкий лог запросов (помогает ловить «Failed to fetch») */

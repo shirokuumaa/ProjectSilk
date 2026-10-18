@@ -1,18 +1,18 @@
 // client/src/utils/auth.js
 //
 // Вход покупателя через сервер (JWT). Единственное место, которое знает,
-// где лежит токен и как его отправлять.
+// как отправлять запросы от имени вошедшего.
 //
-//   authToken     — JWT, уходит в заголовке Authorization: Bearer
-//   loggedInUser  — только имя для показа в интерфейсе, на сервере не используется
-//   userRole, storeName — тоже только для показа; права проверяет сервер
+// Токен живёт в httpOnly-cookie, которую ставит сервер: JS страницы его не видит,
+// и украсть его через внедрённый скрипт нельзя. Браузер прикладывает cookie сам,
+// если запрос идёт с credentials: 'include' (authFetch).
 //
-// Токен лежит в localStorage — это временно, см. отчёт по задаче:
-// до публичного запуска перейти на httpOnly-cookie.
+//   loggedInUser  — имя для показа и признак «вошёл»; права проверяет сервер
+//   userRole, storeName — тоже только для показа
 
 const API = process.env.REACT_APP_API || 'http://localhost:5050';
 
-const TOKEN_KEY = 'authToken';
+const TOKEN_KEY = 'authToken'; // старое хранение токена в localStorage — только чтобы стереть
 const NAME_KEY = 'loggedInUser';
 const ROLE_KEY = 'userRole';
 const STORE_KEY = 'storeName';
@@ -52,15 +52,12 @@ function notify() {
   window.dispatchEvent(new Event(AUTH_EVENT));
 }
 
-export function getToken() {
-  return read(TOKEN_KEY);
-}
-
+/** Вошёл ли пользователь (по данным браузера; если cookie истекла — первый же 401 выйдет). */
 export function isLoggedIn() {
-  return !!getToken();
+  return !!read(NAME_KEY);
 }
 
-/** Имя для показа. Без токена — null, даже если имя где-то осталось. */
+/** Имя для показа. */
 export function getUsername() {
   return isLoggedIn() ? read(NAME_KEY) : null;
 }
@@ -84,8 +81,8 @@ function saveUser(user) {
   write(STORE_KEY, user?.storeName || null);
 }
 
-function saveSession({ token, user }) {
-  write(TOKEN_KEY, token);
+function saveSession({ user }) {
+  // token из ответа не сохраняем: вход держит httpOnly-cookie
   saveUser(user);
   notify();
 }
@@ -122,7 +119,7 @@ function prepareForLogin() {
   write(GUEST_WARDROBE_KEY, guest.length ? JSON.stringify(guest) : null);
 }
 
-export function logout() {
+function forgetUser() {
   write(TOKEN_KEY, null);
   write(NAME_KEY, null);
   write(ROLE_KEY, null);
@@ -132,11 +129,24 @@ export function logout() {
   notify();
 }
 
+/**
+ * Выход: данные в браузере стираются сразу, cookie — запросом к серверу.
+ * Перед перезагрузкой страницы дождитесь промиса.
+ */
+export function logout() {
+  forgetUser();
+  return Promise.resolve()
+    .then(() => fetch(`${API}/api/auth/logout`, { method: 'POST', credentials: 'include', keepalive: true }))
+    .then(() => undefined)
+    .catch(() => undefined); // сервер недоступен — cookie истечёт сама
+}
+
 async function postCredentials(path, body) {
   let r;
   try {
     r = await fetch(`${API}/api/auth/${path}`, {
       method: 'POST',
+      credentials: 'include', // без этого браузер не примет cookie с другого порта
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
     });
@@ -166,16 +176,14 @@ export function login(username, password) {
 }
 
 /**
- * fetch с токеном. На 401 (токен истёк или аккаунт удалён) выходим,
+ * fetch от имени вошедшего: браузер прикладывает cookie входа.
+ * На 401 (cookie истекла или аккаунт удалён) выходим,
  * чтобы интерфейс не показывал имя, под которым ничего не работает.
  */
 export async function authFetch(url, options = {}) {
-  const token = getToken();
-  const headers = new Headers(options.headers || {});
-  if (token) headers.set('Authorization', `Bearer ${token}`);
-
-  const r = await fetch(url, { ...options, headers });
-  if (r.status === 401 && token) logout();
+  const wasLoggedIn = isLoggedIn();
+  const r = await fetch(url, { ...options, credentials: 'include' });
+  if (r.status === 401 && wasLoggedIn) logout();
   return r;
 }
 
@@ -210,12 +218,16 @@ export async function becomeSeller(storeName) {
 /**
  * Вызывается один раз при запуске приложения:
  *   • удаляет старый localStorage 'user' с паролем;
- *   • убирает имя, оставшееся без токена (вход по старой схеме).
+ *   • токен в localStorage (вход до перехода на cookie) стирает вместе с данными
+ *     пользователя: cookie у него ещё нет, нужно войти заново.
  */
 export function cleanupLegacyAuth() {
   write(LEGACY_KEY, null);
-  if (!getToken()) {
-    write(NAME_KEY, null);
+  if (read(TOKEN_KEY)) {
+    forgetUser();
+    return;
+  }
+  if (!read(NAME_KEY)) {
     write(ROLE_KEY, null);
     write(STORE_KEY, null);
   }

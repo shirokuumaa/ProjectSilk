@@ -8,7 +8,6 @@ const ok = (body) => ({ ok: true, status: 200, json: async () => body });
 let serverWardrobe;
 beforeEach(() => {
   localStorage.clear();
-  localStorage.setItem('authToken', 'token-alice');
   localStorage.setItem('loggedInUser', 'alice');
   localStorage.setItem(GUEST_WARDROBE_KEY, JSON.stringify([{ id: 'p1', name: 'Tee' }, { id: 'p2', name: 'Skirt' }]));
   serverWardrobe = [];
@@ -54,6 +53,6 @@ test('items already in the account are not offered again', async () => {
 test('logging out hides the offer', async () => {
   render(<AccountSync />);
   await screen.findByText(/before signing in/);
-  act(() => logout());
+  act(() => { logout(); });
   expect(screen.queryByText(/before signing in/)).not.toBeInTheDocument();
 });

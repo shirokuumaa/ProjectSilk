@@ -40,8 +40,8 @@ export default function TopBar({ search, setSearch, cartItems }) {
     if (f) setSearch(f.name.split('.')[0].replace(/[_-]/g, ' '));
   };
 
-  const handleLogout = () => {
-    logout();
+  const handleLogout = async () => {
+    await logout(); // сначала сервер стирает cookie входа
     window.location.reload();
   };
 
