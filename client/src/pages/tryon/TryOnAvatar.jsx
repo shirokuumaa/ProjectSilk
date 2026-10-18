@@ -44,7 +44,7 @@ import { useAvatarBody } from '../../utils/avatarBody';
 import { placeByHeight } from '../../utils/garmentPlacement';
 import { loadBodyProfile, isProfileComplete } from '../../utils/bodyProfileApi';
 import { findBestSize, getStressMap } from '../../utils/fitCalculator';
-import { getWardrobe, pruneWardrobe } from '../../utils/wardrobeStorage';
+import { getWardrobe, pruneWardrobe, WARDROBE_EVENT } from '../../utils/wardrobeStorage';
 import { templateFor } from '../../utils/garmentTemplates';
 import styles from './TryOnAvatar.module.css';
 
@@ -233,7 +233,12 @@ export default function TryOnAvatar() {
   useEffect(() => {
     const onFocus = () => { if (document.visibilityState === 'visible') refresh(); };
     document.addEventListener('visibilitychange', onFocus);
-    return () => document.removeEventListener('visibilitychange', onFocus);
+    // после входа гардероб приходит с сервера позже, чем открылась страница
+    window.addEventListener(WARDROBE_EVENT, refresh);
+    return () => {
+      document.removeEventListener('visibilitychange', onFocus);
+      window.removeEventListener(WARDROBE_EVENT, refresh);
+    };
   }, [refresh]);
 
   useEffect(() => { localStorage.setItem(SLOTS_KEY, JSON.stringify(slots)); }, [slots]);
