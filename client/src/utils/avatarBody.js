@@ -3,8 +3,8 @@
 // Какое тело в сцене и какой он формы — одно решение на тело и на одежду.
 //
 //   useAvatarBody(profile) → { kind, reason, shape, solution?, body? }
-//     kind 'standard' — процедурное BodyAvatar (режим по умолчанию, фигура вне
-//                       калиброванного диапазона, болванка не загрузилась);
+//     kind 'standard' — процедурное BodyAvatar (фигура вне калиброванного
+//                       диапазона, болванка не загрузилась, ?avatar=standard);
 //     kind 'base'     — болванка base_avatar.glb в фигуре покупателя;
 //     kind 'loading'  — болванка ещё грузится (ни тело, ни одежду не рисуем).
 //   shape — форма тела для подгонки одежды (utils/bodyShape.js).
@@ -52,6 +52,23 @@ export function loadBaseAvatar() {
   return loading;
 }
 
+/**
+ * Не хватает обхватов (форма обмеров ещё заполняется) — оцениваем их по росту,
+ * как процедурное тело (utils/bodyShape.js), чтобы и тогда показывать болванку.
+ * Введённые значения не трогаем.
+ */
+export function withEstimatedGirths(profile) {
+  const h = Number(profile?.heightCm) > 0 ? Number(profile.heightCm) : 170;
+  const own = (k) => (Number(profile?.[k]) > 0 ? Number(profile[k]) : null);
+  return {
+    ...profile,
+    heightCm: h,
+    chest: own('chest') ?? Math.round(h * 0.53),
+    waist: own('waist') ?? Math.round(h * 0.42),
+    hips: own('hips') ?? Math.round(h * 0.55),
+  };
+}
+
 export function profileKey(profile) {
   return [
     profile?.heightCm, profile?.chest, profile?.waist, profile?.hips,
@@ -63,7 +80,7 @@ export function useAvatarBody(profile) {
   const mode = useAvatarMode();
   const key = profileKey(profile);
   /* eslint-disable react-hooks/exhaustive-deps */
-  const solution = useMemo(() => (mode === 'base' ? solveAvatar(profile) : null), [mode, key]);
+  const solution = useMemo(() => (mode === 'base' ? solveAvatar(withEstimatedGirths(profile)) : null), [mode, key]);
   const standard = useMemo(() => proceduralBodyShape(profile), [key]);
   /* eslint-enable react-hooks/exhaustive-deps */
   const [, rerender] = useState(0);

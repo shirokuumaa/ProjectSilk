@@ -4,16 +4,15 @@
 //
 // Какое тело показывать, решает utils/avatarBody.js (то же решение берёт
 // одежда, чтобы садиться на то же тело в той же фигуре). По умолчанию —
-// BodyAvatar; болванка включается для проверки параметром ?avatar=base
-// (utils/avatarMode.js) и показывается, если обмеры в калиброванном диапазоне
-// и файл болванки загрузился. В режиме проверки в углу сцены плашка: что
-// показано и почему.
+// болванка MPFB, если обмеры в калиброванном диапазоне и файл загрузился;
+// иначе — процедурное BodyAvatar. С ?avatarDebug=1 в сцене плашка: что
+// показано и почему (utils/avatarMode.js).
 
 import React, { useState } from 'react';
 import { Html } from '@react-three/drei';
 import BodyAvatar from './BodyAvatar';
 import BaseAvatar from './BaseAvatar';
-import { useAvatarMode } from '../utils/avatarMode';
+import { useAvatarMode, avatarDebugEnabled } from '../utils/avatarMode';
 import { useAvatarBody } from '../utils/avatarBody';
 import { resolveSkinTone } from '../utils/skinTones';
 import styles from './AvatarBody.module.css';
@@ -49,14 +48,16 @@ export default function AvatarBody({ profile, stressMap = null }) {
         />
       )}
       {/* слой во весь холст: центр слоя — центр холста, а не проекция точки сцены */}
-      <Html
-        fullscreen
-        calculatePosition={(el, camera, size) => [size.width / 2, size.height / 2]}
-        zIndexRange={[10, 0]}
-        className={styles.layer}
-      >
-        <div className={styles.badge} data-avatar-mode={avatar.kind === 'base' ? 'base' : avatar.kind}>{label}</div>
-      </Html>
+      {avatarDebugEnabled() && (
+        <Html
+          fullscreen
+          calculatePosition={(el, camera, size) => [size.width / 2, size.height / 2]}
+          zIndexRange={[10, 0]}
+          className={styles.layer}
+        >
+          <div className={styles.badge} data-avatar-mode={avatar.kind === 'base' ? 'base' : avatar.kind}>{label}</div>
+        </Html>
+      )}
     </>
   );
 }
