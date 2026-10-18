@@ -533,6 +533,7 @@ function MyProducts({ reloadKey }) {
   const [items, setItems] = useState(null); // null — ещё грузим
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState(null);
+  const [editingId, setEditingId] = useState(null);
 
   const load = useCallback(async () => {
     setError("");
@@ -582,16 +583,141 @@ function MyProducts({ reloadKey }) {
               {" · "}{p.model3d ? "3D model" : "no 3D model"}
             </div>
           </div>
-          <button
-            style={ui.btnDanger}
-            onClick={() => remove(p)}
-            disabled={deletingId === p._id}
-          >
-            {deletingId === p._id ? "Deleting…" : "Delete"}
-          </button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              style={ui.btn}
+              onClick={() => setEditingId(editingId === p._id ? null : p._id)}
+              aria-expanded={editingId === p._id}
+            >
+              {editingId === p._id ? "Close" : "Edit"}
+            </button>
+            <button
+              style={ui.btnDanger}
+              onClick={() => remove(p)}
+              disabled={deletingId === p._id}
+            >
+              {deletingId === p._id ? "Deleting…" : "Delete"}
+            </button>
+          </div>
+          {editingId === p._id && (
+            <EditProductForm
+              product={p}
+              onCancel={() => setEditingId(null)}
+              onSaved={(updated) => {
+                setItems((list) => list.map((x) => (x._id === updated._id ? updated : x)));
+                setEditingId(null);
+              }}
+            />
+          )}
         </div>
       ))}
     </section>
+  );
+}
+
+/* ───────────────────────── редактирование ───────────────────────── */
+
+// строки сетки с сервера → строки редактора (пустые мерки — '' вместо undefined)
+const toEditorRows = (chart = []) =>
+  chart.map((r) => ({
+    size: r.size,
+    chest: r.chest ?? "", waist: r.waist ?? "", hips: r.hips ?? "",
+    length: r.length ?? "", sleeve: r.sleeve ?? "",
+    fit: r.fit || "regular",
+    stretch: r.stretch ?? 0,
+  }));
+
+function EditProductForm({ product, onCancel, onSaved }) {
+  const [title, setTitle] = useState(product.title || "");
+  const [price, setPrice] = useState(String(product.price ?? ""));
+  const [category, setCategory] = useState(product.category || "Clothes");
+  const [garmentType, setGarmentType] = useState(product.garmentType || "top");
+  const [sizeChart, setSizeChart] = useState(() => toEditorRows(product.sizeChart));
+  const [image, setImage] = useState(null);
+  const [saving, setSaving] = useState(false);
+  const [error, setError] = useState("");
+
+  const pickImage = (file) => {
+    setError("");
+    if (!file) return setImage(null);
+    if (!IMAGE_TYPES.includes(file.type)) return setError("The image must be a JPEG, PNG or WebP file.");
+    if (file.size > MAX_IMAGE_MB * 1024 * 1024) return setError(`The image is too large (maximum ${MAX_IMAGE_MB} MB).`);
+    setImage(file);
+  };
+
+  const save = async () => {
+    if (!title.trim()) return setError("The title cannot be empty.");
+    const priceNum = Number(price);
+    if (price === "" || !Number.isFinite(priceNum) || priceNum < 0) return setError("Price must be a positive number.");
+    setSaving(true);
+    setError("");
+    try {
+      const fd = new FormData();
+      fd.append("title", title.trim());
+      fd.append("price", String(priceNum));
+      fd.append("category", category);
+      fd.append("garmentType", garmentType);
+      fd.append("sizeChart", JSON.stringify(serializeSizeChart(sizeChart)));
+      if (image) fd.append("image", image, image.name);
+      const r = await authFetch(`${API}/api/products/${product._id}`, { method: "PATCH", body: fd });
+      if (!r.ok) throw new Error(await errorMessage(r, "Could not save the changes"));
+      onSaved(await r.json());
+    } catch (e) {
+      setError(e instanceof TypeError
+        ? "Could not reach the server. Please try again."
+        : e.message || "Could not save the changes.");
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div style={ui.editBox}>
+      <div style={{ display: "grid", gap: 10 }}>
+        <label style={ui.label}>
+          Title
+          <input style={ui.input} value={title} onChange={(e) => setTitle(e.target.value)} />
+        </label>
+        <label style={ui.label}>
+          Price, ₸
+          <input style={ui.input} type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} />
+        </label>
+        <label style={ui.label}>
+          Category
+          <select style={ui.input} value={category} onChange={(e) => setCategory(e.target.value)}>
+            <option>Clothes</option>
+            <option>Home</option>
+            <option>Electronics</option>
+          </select>
+        </label>
+
+        <SizeChartEditor
+          value={sizeChart}
+          onChange={setSizeChart}
+          garmentType={garmentType}
+          onGarmentTypeChange={setGarmentType}
+        />
+
+        <label style={ui.label}>
+          New image (optional; JPEG, PNG or WebP, up to {MAX_IMAGE_MB} MB)
+          <input
+            type="file"
+            accept="image/jpeg,image/png,image/webp"
+            style={{ display: "block", marginTop: 6 }}
+            onChange={(e) => pickImage(e.target.files?.[0] || null)}
+          />
+        </label>
+
+        {error && <p role="alert" style={ui.error}>{error}</p>}
+
+        <div style={ui.row}>
+          <button style={ui.btnDark} onClick={save} disabled={saving}>
+            {saving ? "Saving…" : "Save changes"}
+          </button>
+          <button style={ui.btn} onClick={onCancel} disabled={saving}>Cancel</button>
+        </div>
+      </div>
+    </div>
   );
 }
 
@@ -631,7 +757,7 @@ const ui = {
     background: "var(--surface-2)", border: "1px solid var(--line)",
   },
   item: {
-    display: "flex", alignItems: "center", gap: 12, padding: 10, marginBottom: 8,
+    display: "flex", flexWrap: "wrap", alignItems: "center", gap: 12, padding: 10, marginBottom: 8,
     borderRadius: 10, border: "1px solid var(--line)", background: "var(--surface)",
   },
   thumb: {
@@ -639,4 +765,8 @@ const ui = {
     background: "var(--surface-3)", border: "1px solid var(--line-2)",
   },
   meta: { fontSize: 13, color: "var(--muted)", marginTop: 2 },
+  editBox: {
+    flexBasis: "100%", marginTop: 6, paddingTop: 12, borderTop: "1px solid var(--line)",
+  },
+  label: { display: "block", fontSize: 13, color: "var(--muted)" },
 };

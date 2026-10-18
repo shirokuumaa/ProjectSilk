@@ -135,8 +135,8 @@ export default function ProductCardTall({ product, addToCart, onAvatar }) {
       onMouseLeave={stopSlide}
       role="button"
       tabIndex={0}
-      onClick={() => nav('/all-products')}
-      onKeyDown={(e) => e.key === 'Enter' && nav('/all-products')}
+      onClick={() => sku && nav(`/product/${encodeURIComponent(sku)}`)}
+      onKeyDown={(e) => e.key === 'Enter' && sku && nav(`/product/${encodeURIComponent(sku)}`)}
       aria-label={displayName}
     >
       <div className={styles.media}>

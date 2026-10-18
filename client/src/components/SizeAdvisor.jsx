@@ -68,7 +68,7 @@ export default function SizeAdvisor({
           className={styles.linkBtn}
           onClick={(e) => { e.stopPropagation(); nav('/avatar/create'); }}
         >
-          {mode === 'compact' ? 'add' : 'Add measurements'}
+          {mode === 'compact' ? 'add' : 'Add your measurements'}
         </button>
       </div>
     );

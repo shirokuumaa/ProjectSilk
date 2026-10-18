@@ -12,6 +12,7 @@ import TryOnPhoto from './pages/tryon/TryOnPhoto';
 import TryOnAR from './pages/tryon/TryOnAR';
 import TryOnAvatar from './pages/tryon/TryOnAvatar';
 import AllProductsPage from './pages/AllProductsPage';
+import ProductPage from './pages/ProductPage';
 import SellerPanel from './pages/SellerPanel';
 import Product3DViewer from './pages/Product3DViewer';
 import AvatarCreate from './pages/AvatarCreate';
@@ -93,6 +94,10 @@ function App() {
         <Route
           path="/all-products"
           element={<AllProductsPage addToCart={handleAddToCart} />}
+        />
+        <Route
+          path="/product/:id"
+          element={<ProductPage addToCart={handleAddToCart} />}
         />
         <Route
           path="/cart"
