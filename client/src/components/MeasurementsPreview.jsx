@@ -79,8 +79,9 @@ export default function MeasurementsPreview({ m, onSaved }) {
         <div style={s.title}>Your body</div>
 
         <p style={s.note}>
-          The body is built straight from your measurements: a {profile.chest || '—'} cm bust
-          gives a body exactly that size. Change the numbers and the figure updates at once.
+          {profile.chest
+            ? `The body is built from your measurements: a ${profile.chest} cm bust gives a body with that bust, to within about a centimetre. Change the numbers and the figure updates at once.`
+            : 'The body is built from your measurements. Enter your height, bust, waist and hips, and the figure updates as you type.'}
         </p>
 
         <div style={s.rows}>

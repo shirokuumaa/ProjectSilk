@@ -326,7 +326,7 @@ export default function TryOnAvatar() {
           <span className={styles.emptyTitle}>Add your measurements</span>
           <span className={styles.emptyText}>
             The figure is built from four numbers: height, bust, waist, hips.
-            Nothing is generated and nothing is uploaded.
+            No photos are needed.
           </span>
           <button className={`${styles.btn} ${styles.btnDark}`} onClick={() => nav('/avatar/create')}>
             Add measurements
@@ -550,8 +550,8 @@ export default function TryOnAvatar() {
           </div>
 
           <p className={styles.hint} style={{ marginTop: 'auto' }}>
-            The figure is built from your measurements in the browser. Nothing
-            about your body leaves this device.
+            The figure is built from your measurements in the browser. The numbers
+            are saved to your account so they work on any device; no photos are needed.
           </p>
         </aside>
       </div>
