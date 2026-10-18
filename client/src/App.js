@@ -1,5 +1,5 @@
 // client/src/App.js
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, lazy } from 'react';
 import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
 
 import HomePage from './pages/HomePage';
@@ -16,11 +16,14 @@ import ProductPage from './pages/ProductPage';
 import SellerPanel from './pages/SellerPanel';
 import Product3DViewer from './pages/Product3DViewer';
 import AvatarCreate from './pages/AvatarCreate';
-import Metrics from "./pages/Metrics";
 import OrderPage from "./pages/OrderPage"; 
 import OrdersList from "./pages/OrdersList";
-import TripoSRDebug from "./pages/TripoSRDebug";
-import AvatarCreateMode1Test from './pages/AvatarCreateMode1Test';
+import DevOnly from './components/DevOnly';
+
+// служебные страницы — только в режиме разработки (DevOnly), код грузится лениво
+const Metrics = lazy(() => import('./pages/Metrics'));
+const TripoSRDebug = lazy(() => import('./pages/TripoSRDebug'));
+const AvatarCreateMode1Test = lazy(() => import('./pages/AvatarCreateMode1Test'));
 
 
 // ⬇️ единый слой ассистента (панель + шарик + голос)
@@ -116,11 +119,11 @@ function App() {
         <Route path="/seller" element={<SellerPanel />} />
         <Route path="/viewer" element={<Product3DViewer />} />
         <Route path="/avatar/create" element={<AvatarCreate />} />
-        <Route path="/metrics" element={<Metrics/>} />
+        <Route path="/metrics" element={<DevOnly><Metrics /></DevOnly>} />
         <Route path="/orders/:id" element={<OrderPage />} />
         <Route path="/orders" element={<OrdersList sessionId={window.__SESSION_ID__} />} /> 
-        <Route path="/triposr-debug" element={<TripoSRDebug />} />  
-        <Route path="/avatar/mode1-test" element={<AvatarCreateMode1Test />} />
+        <Route path="/triposr-debug" element={<DevOnly><TripoSRDebug /></DevOnly>} />
+        <Route path="/avatar/mode1-test" element={<DevOnly><AvatarCreateMode1Test /></DevOnly>} />
         
 
         {/* Роут /assistant не нужен — ассистент как глобальный слой */}

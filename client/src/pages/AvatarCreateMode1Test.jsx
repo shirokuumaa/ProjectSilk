@@ -22,8 +22,8 @@ const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 export default function AvatarCreateMode1Test() {
   const nav = useNavigate();
 
-  // ✅ NEW: target (AI_MODE / GPU_URL / enabled)
-  const [target, setTarget] = useState(null); // {AI_MODE, AI_ENABLED, GPU_URL}
+  // ✅ NEW: target (AI_MODE / enabled)
+  const [target, setTarget] = useState(null); // {AI_MODE, AI_ENABLED}
   const [aiOnline, setAiOnline] = useState(null); // null|true|false (для UI)
   const [features, setFeatures] = useState(null);
   const [hint, setHint] = useState('');
@@ -285,7 +285,8 @@ export default function AvatarCreateMode1Test() {
   };
 
   const modeLabel = target?.AI_MODE ? String(target.AI_MODE).toUpperCase() : '—';
-  const gpuLabel = target?.GPU_URL ? String(target.GPU_URL) : '—';
+  // адрес видеокарты сервер больше не отдаёт — показываем только, включён ли ИИ
+  const aiLabel = target ? (target.AI_ENABLED ? 'yes' : 'no') : '—';
 
   return (
     <div style={{ padding: 24, display: 'grid', gap: 12 }}>
@@ -299,7 +300,7 @@ export default function AvatarCreateMode1Test() {
 
       <div style={{ fontSize: 13, color: '#374151' }}>
         <div><b>AI_MODE:</b> {modeLabel}</div>
-        <div><b>GPU_URL:</b> {gpuLabel}</div>
+        <div><b>AI enabled:</b> {aiLabel}</div>
 
         {aiOnline === null && <div>Проверяем AI…</div>}
         {aiOnline === true && (

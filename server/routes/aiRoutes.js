@@ -76,19 +76,19 @@ function isAiEnabled() {
 
 // ✅ единый endpoint для фронта (AvatarCreate.jsx ждёт его)
 router.get("/__target", (_req, res) => {
+  // внутренний адрес видеокарты наружу не отдаём никому — только включён ли ИИ
   res.json({
     AI_MODE,
     AI_ENABLED: isAiEnabled() && !!GPU_BASE,
-    GPU_URL: GPU_BASE || null,
   });
 });
 
 // ✅ backward-compat (если где-то ещё осталось)
 router.get("/__config", (_req, res) => {
+  // внутренний адрес видеокарты наружу не отдаём никому — только включён ли ИИ
   res.json({
     AI_MODE,
     AI_ENABLED: isAiEnabled() && !!GPU_BASE,
-    GPU_URL: GPU_BASE || null,
   });
 });
 
@@ -149,12 +149,11 @@ router.use(async (req, res) => {
     if (upstream.body) Readable.fromWeb(upstream.body).pipe(res);
     else res.end();
   } catch (err) {
+    // текст ошибки содержит адрес видеокарты — только в лог сервера
     console.error("AI proxy error:", err);
     res.status(502).json({
-      message: "AI upstream error",
-      error: String(err?.message || err),
+      message: "The AI service is not responding. Please try again later.",
       AI_MODE,
-      GPU_URL: GPU_BASE || null,
     });
   }
 });

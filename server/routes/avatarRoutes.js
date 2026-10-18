@@ -60,7 +60,7 @@ router.post("/persist", requireAuth, express.json(), async (req, res) => {
       const u = new URL(url);
       const allowed = new URL(GPU_BASE);
       if (u.host !== allowed.host) {
-        return res.status(400).json({ message: "Only GPU_URL host is allowed" });
+        return res.status(400).json({ message: "Only files from the avatar service are allowed" });
       }
       src = url;
     } else {
@@ -70,12 +70,10 @@ router.post("/persist", requireAuth, express.json(), async (req, res) => {
     // 2) скачать
     const r = await fetch(src);
     if (!r.ok || !r.body) {
+      // ответ видеокарты (в нём бывают внутренние адреса) — только в лог
       const t = await r.text().catch(() => "");
-      return res.status(502).json({
-        message: "Failed to download",
-        status: r.status,
-        body: t.slice(0, 300),
-      });
+      console.error("persist: download failed", r.status, t.slice(0, 300));
+      return res.status(502).json({ message: "Could not download the avatar file." });
     }
 
     // 3) определить расширение
@@ -96,16 +94,11 @@ router.post("/persist", requireAuth, express.json(), async (req, res) => {
     await pipeline(r.body, fs.createWriteStream(outPath));
 
     // 5) вернуть локальный URL (Node раздаёт /uploads через express.static)
-    return res.json({
-      localUrl: `/uploads/avatars/${fname}`,
-      sourceUrl: src,
-    });
+    // адрес источника (видеокарта) не возвращаем
+    return res.json({ localUrl: `/uploads/avatars/${fname}` });
   } catch (e) {
     console.error("persist error:", e);
-    return res.status(500).json({
-      message: "persist error",
-      error: String(e?.message || e),
-    });
+    return res.status(500).json({ message: "Could not save the avatar file." });
   }
 });
 
