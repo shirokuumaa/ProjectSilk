@@ -36,6 +36,20 @@ export default function AvatarBody({ profile, stressMap = null }) {
 
   return (
     <>
+      {/* болванка (3,3 МБ) ещё грузится — вместо пустой сцены понятная загрузка */}
+      {avatar.kind === 'loading' && (
+        <Html
+          fullscreen
+          calculatePosition={(el, camera, size) => [size.width / 2, size.height / 2]}
+          zIndexRange={[10, 0]}
+          className={styles.layer}
+        >
+          <div className={styles.loading} role="status">
+            <span className={styles.spinner} aria-hidden="true" />
+            Loading your avatar…
+          </div>
+        </Html>
+      )}
       {avatar.kind === 'standard' && <BodyAvatar profile={profile} stressMap={stressMap} />}
       {avatar.kind === 'base' && (
         <BaseAvatar

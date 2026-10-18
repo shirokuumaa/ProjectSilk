@@ -24,6 +24,7 @@ export const BASE_AVATAR_URL = '/models/base_avatar.glb';
 let loading = null;
 let loaded = null;
 let failed = null;
+let loadStats = null;
 
 function prepareFromGltf(gltf) {
   let mesh = null;
@@ -42,10 +43,24 @@ function prepareFromGltf(gltf) {
   });
 }
 
+const clock = () => (typeof performance !== 'undefined' ? performance.now() : Date.now());
+
+/** Сколько грузилась болванка: скачивание файла и подготовка к подгонке, мс. */
+export function getBaseAvatarLoadStats() {
+  return loadStats;
+}
+
 export function loadBaseAvatar() {
   if (!loading) {
+    const t0 = clock();
     loading = new GLTFLoader().loadAsync(BASE_AVATAR_URL).then(
-      (gltf) => { loaded = prepareFromGltf(gltf); return loaded; },
+      (gltf) => {
+        const t1 = clock();
+        loaded = prepareFromGltf(gltf);
+        loadStats = { fetchAndParseMs: Math.round(t1 - t0), prepareMs: Math.round(clock() - t1), totalMs: Math.round(clock() - t0) };
+        console.info(`[avatar] base avatar ready in ${(loadStats.totalMs / 1000).toFixed(2)} s`, loadStats);
+        return loaded;
+      },
       (error) => { failed = error; console.warn('[avatar] base avatar failed to load:', error?.message); throw error; },
     );
   }

@@ -17,3 +17,38 @@
   font: 500 var(--fs-xs) / 1.4 var(--font-ui);
   white-space: nowrap;
 }
+
+/* Загрузка болванки: по центру сцены, пока файл качается и готовится. */
+
+.loading {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink-2);
+  box-shadow: var(--shadow-card);
+  font: 500 var(--fs-sm) / 1.4 var(--font-ui);
+  white-space: nowrap;
+}
+
+.spinner {
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  border: 2px solid var(--line-strong);
+  border-top-color: var(--ink);
+  animation: avatarSpin .8s linear infinite;
+}
+
+@keyframes avatarSpin { to { transform: rotate(360deg); } }
+
+@media (prefers-reduced-motion: reduce) {
+  .spinner { animation-duration: 2.4s; }
+}
