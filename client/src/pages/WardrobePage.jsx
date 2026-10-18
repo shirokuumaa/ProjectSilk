@@ -69,7 +69,9 @@ export default function WardrobePage() {
   const stageRef = useRef(null);
   const canvasRef = useRef(null);
   const [stageImg, setStageImg] = useState(null);
-  const [layers, setLayers] = useState([]);
+  // фото вещей поверх результата примерки по фото; кнопка «2D», которая их добавляла,
+  // убрана: холст появляется только после ИИ-примерки, вещь нельзя двигать
+  const [layers] = useState([]);
 
   const [aiHuman, setAiHuman] = useState(null);
   const [aiGarment, setAiGarment] = useState(null);
@@ -551,13 +553,6 @@ export default function WardrobePage() {
                     <div className={styles.ac}>
                       <button className={`${styles.gbtn} ${styles.sm}`} onClick={() => toggleWear(it)}>
                         {on ? 'Take off' : has3d || template ? 'Wear' : 'Check size'}
-                      </button>
-                      <button
-                        className={`${styles.gbtn} ${styles.sm}`}
-                        onClick={() => setLayers([...layers, { itemId: it.id, x: 100, y: 100, scale: 0.5 }])}
-                        title="Place on the photo"
-                      >
-                        2D
                       </button>
                     </div>
                   </div>

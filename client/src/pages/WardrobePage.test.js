@@ -62,3 +62,11 @@ describe('pruneWardrobe', () => {
     expect(saved()).toEqual(['p1', 'gone']);
   });
 });
+
+test('there is no "2D" button: placing item photos on a photo is not ready', async () => {
+  global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 200, json: async () => [TEE] });
+  renderPage();
+  await waitFor(() => expect(screen.queryByText('Deleted Dress')).not.toBeInTheDocument());
+  expect(screen.queryByRole('button', { name: '2D' })).not.toBeInTheDocument();
+  expect(screen.queryByTitle('Place on the photo')).not.toBeInTheDocument();
+});
