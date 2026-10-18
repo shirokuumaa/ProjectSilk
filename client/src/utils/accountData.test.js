@@ -35,17 +35,29 @@ describe('logout', () => {
     expect(ACCOUNT_KEYS).toEqual(expect.arrayContaining([
       'bodyProfile', 'wardrobeItems', 'wardrobeOutfits',
       'avatarDraft', 'avatarOutfitDraft', 'avatarChosenSizes',
+      'cartItems', 'favorites',
     ]));
+  });
+
+  test('logout empties the cart and favorites, so the next buyer does not see them', () => {
+    signIn('alice');
+    set('cartItems', [{ id: 'p1', quantity: 2 }]);
+    set('favorites', [{ id: 'p2', name: 'Skirt' }]);
+    logout();
+    expect(localStorage.getItem('cartItems')).toBeNull();
+    expect(localStorage.getItem('favorites')).toBeNull();
   });
 });
 
 describe('login', () => {
   const loginResponse = (username) => ok({ token: `token-${username}`, user: { username, role: 'buyer' } });
 
-  test('a guest wardrobe is set aside for the transfer offer; the measurements draft stays', async () => {
+  test('a guest wardrobe is set aside for the transfer offer; the measurements draft, cart and favorites stay', async () => {
     set('wardrobeItems', [{ id: 'p1', name: 'Tee' }, { id: 'p2', name: 'Skirt' }]);
     set('avatarDraft', { m: { heightCm: 170 } });
     set('avatarChosenSizes', { p1: 'M' });
+    set('favorites', [{ id: 'p3', name: 'Coat' }]);
+    set('cartItems', [{ id: 'p3', quantity: 1 }]);
     global.fetch.mockResolvedValue(loginResponse('bob'));
     const onLogin = jest.fn();
     window.addEventListener(LOGIN_EVENT, onLogin);
@@ -58,6 +70,9 @@ describe('login', () => {
     expect(localStorage.getItem('avatarChosenSizes')).toBeNull();
     expect(get(GUEST_WARDROBE_KEY).map((x) => x.id)).toEqual(['p1', 'p2']);
     expect(get('avatarDraft')).toEqual({ m: { heightCm: 170 } });
+    // избранное и корзина гостя — его же, при входе остаются
+    expect(get('favorites')).toEqual([{ id: 'p3', name: 'Coat' }]);
+    expect(get('cartItems')).toEqual([{ id: 'p3', quantity: 1 }]);
   });
 
   test('switching accounts without logging out leaves nothing from the previous user', async () => {

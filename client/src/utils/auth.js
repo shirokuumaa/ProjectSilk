@@ -28,7 +28,11 @@ export const ACCOUNT_KEYS = [
   'avatarOutfitDraft',  // что надето в примерке
   'avatarChosenSizes',  // выбранные в примерке размеры
   'avatarFinal',        // результат тестовой страницы аватара
+  'cartItems',          // корзина
+  'favorites',          // избранное
 ];
+/** Что гость приносит с собой при входе: это его же данные, а не чужой аккаунт. */
+const GUEST_KEEPS = new Set(['avatarDraft', 'cartItems', 'favorites']);
 /** Гардероб гостя, отложенный при входе, пока он не решил — перенести или выбросить. */
 export const GUEST_WARDROBE_KEY = 'guestWardrobe';
 
@@ -114,8 +118,8 @@ function prepareForLogin() {
     seen.add(id);
     return true;
   });
-  // черновик обмеров гостя остаётся: это его же форма, сохранит — уйдёт в аккаунт
-  ACCOUNT_KEYS.filter((k) => k !== 'avatarDraft').forEach((k) => write(k, null));
+  // черновик обмеров, корзина и избранное гостя остаются: это его же данные
+  ACCOUNT_KEYS.filter((k) => !GUEST_KEEPS.has(k)).forEach((k) => write(k, null));
   write(GUEST_WARDROBE_KEY, guest.length ? JSON.stringify(guest) : null);
 }
 

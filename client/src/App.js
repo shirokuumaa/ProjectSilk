@@ -26,7 +26,7 @@ import DevOnly from './components/DevOnly';
 import AssistantLayer from './components/AssistantLayer';
 import SiteFooter from './components/SiteFooter';
 import AccountSync from './components/AccountSync';
-import { isLoggedIn } from './utils/auth';
+import { AUTH_EVENT, isLoggedIn } from './utils/auth';
 
 // служебные страницы — только в режиме разработки (DevOnly), код грузится лениво
 const Metrics = lazy(() => import('./pages/Metrics'));
@@ -45,6 +45,17 @@ function App() {
   useEffect(() => {
     localStorage.setItem('cartItems', JSON.stringify(cartItems));
   }, [cartItems]);
+
+  // вход, выход или смена аккаунта: корзину в localStorage могли стереть —
+  // перечитываем, чтобы корзина прошлого пользователя не вернулась из памяти
+  useEffect(() => {
+    const reload = () => {
+      try { setCartItems(JSON.parse(localStorage.getItem('cartItems') || '[]')); }
+      catch { setCartItems([]); }
+    };
+    window.addEventListener(AUTH_EVENT, reload);
+    return () => window.removeEventListener(AUTH_EVENT, reload);
+  }, []);
 
   const handleAddToCart = (product) => {
     if (!isLoggedIn()) {
