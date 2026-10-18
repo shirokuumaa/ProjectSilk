@@ -15,7 +15,8 @@
 //
 // ВАЖНО: у вещи без model3d всё равно работает вердикт по размеру —
 // он считается из чисел, 3D для него не нужен. Страница обязана быть
-// полезной, пока у товаров нет GLB.
+// полезной, пока у товаров нет GLB. На фигуре такая вещь показывается
+// шаблоном своего типа в выбранном размере (utils/garmentTemplates.js).
 //
 // Что появится позже (сейчас сознательно не сделано):
 //   • болванка от художника с морф-таргетами вместо процедурного тела
@@ -44,6 +45,7 @@ import { placeByHeight } from '../../utils/garmentPlacement';
 import { loadBodyProfile, isProfileComplete } from '../../utils/bodyProfileApi';
 import { findBestSize, getStressMap } from '../../utils/fitCalculator';
 import { getWardrobe, pruneWardrobe } from '../../utils/wardrobeStorage';
+import { templateFor } from '../../utils/garmentTemplates';
 import styles from './TryOnAvatar.module.css';
 
 const API_BASE = process.env.REACT_APP_API || 'http://localhost:5050';
@@ -244,7 +246,7 @@ export default function TryOnAvatar() {
 
     return wardrobe.map((w) => {
       const p = byId.get(String(w.id)) || {};
-      return {
+      const item = {
         id: w.id,
         name: w.name || p.title || 'Item',
         image: toPublicUrl(w.image || p.image),
@@ -256,6 +258,9 @@ export default function TryOnAvatar() {
         sizeChart: Array.isArray(p.sizeChart) ? p.sizeChart : [],
         legs: p.legs || null,
       };
+      // без своей 3D-модели — шаблон того же типа в размере покупателя
+      const template = templateFor(item);
+      return { ...item, template, garmentUrl: item.model3d || template?.url || '' };
     });
   }, [wardrobe, catalog]);
 
@@ -302,7 +307,8 @@ export default function TryOnAvatar() {
   };
 
   const camY = ((profile?.heightCm || 170) / 100) * 0.52;
-  const missing3d = worn.filter((w) => !w.item.model3d).length;
+  const missing3d = worn.filter((w) => !w.item.garmentUrl).length;
+  const generic = worn.filter((w) => w.item.template);
 
   // ── экраны без данных ──
   if (loadingProfile) {
@@ -373,17 +379,17 @@ export default function TryOnAvatar() {
               )}
 
               {worn
-                .filter((w) => w.item.model3d)
+                .filter((w) => w.item.garmentUrl)
                 .map((w) => (
                   <Garment
                     key={w.item.id}
-                    url={w.item.model3d}
+                    url={w.item.garmentUrl}
                     profile={profile}
                     garmentType={w.item.garmentType}
                     fit={fitOf(w.item)}
                     layer={w.item.layer}
                     size={sizeRowOf(w.item)}
-                    legs={w.item.legs}
+                    legs={w.item.template ? w.item.template.legs : w.item.legs}
                     onStatus={(url, st) => setGlbStatus((s) => ({ ...s, [url]: st }))}
                   />
                 ))}
@@ -436,7 +442,9 @@ export default function TryOnAvatar() {
                     <span className={styles.slotName}>
                       {item ? item.name : <span style={{ color: 'var(--muted-2)' }}>empty</span>}
                     </span>
-                    {item && !item.model3d && <span className={styles.no3d}>no 3D</span>}
+                    {item && !item.model3d && (
+                      <span className={styles.no3d}>{item.template ? 'generic shape' : 'no 3D'}</span>
+                    )}
                     {item && (
                       <button
                         className={`${styles.btn} ${styles.btnSm}`}
@@ -451,11 +459,21 @@ export default function TryOnAvatar() {
             </div>
           </div>
 
+          {generic.length > 0 && (
+            <div className={styles.notice}>
+              {generic.map((w) => w.item.name).join(', ')}
+              {generic.length === 1 ? ' has' : ' have'} no 3D model yet, so{' '}
+              {generic.length === 1 ? `it is shown as a generic ${generic[0].item.template.label}` : 'they are shown as generic shapes'}{' '}
+              in your size. The fit follows the seller’s size chart; the real item may look different.
+            </div>
+          )}
+
           {missing3d > 0 && (
             <div className={styles.notice}>
-              {missing3d === 1 ? 'One item has' : `${missing3d} items have`} no 3D model,
-              so they will not appear on the figure. The size verdict still works —
-              it comes from the size chart, not from geometry.
+              {missing3d === 1 ? 'One item has' : `${missing3d} items have`} no 3D model and
+              there is no generic shape for {missing3d === 1 ? 'its' : 'their'} type yet, so{' '}
+              {missing3d === 1 ? 'it does' : 'they do'} not appear on the figure. The size verdict
+              still works — it comes from the size chart, not from geometry.
             </div>
           )}
 
@@ -489,8 +507,8 @@ export default function TryOnAvatar() {
                         <div className={styles.itemName}>{item.name}</div>
                         <div className={styles.itemMeta}>
                           {item.category || '—'}
-                          {item.model3d ? '' : ' · no 3D model'}
-                          {glbStatus[item.model3d] === 'error' ? ' · file failed to load' : ''}
+                          {item.model3d ? '' : item.template ? ` · no 3D model, shown as a generic ${item.template.label}` : ' · no 3D model'}
+                          {glbStatus[item.garmentUrl] === 'error' ? ' · file failed to load' : ''}
                         </div>
 
                         {item.sizeChart.length > 0 && (

@@ -32,6 +32,7 @@ import GlbViewer from '../components/GlbViewer';
 import { getBaseURL } from '../assistant/api';
 import { loadBodyProfile, isProfileComplete } from '../utils/bodyProfileApi';
 import { findBestSize, getStressMap } from '../utils/fitCalculator';
+import { templateFor } from '../utils/garmentTemplates';
 import {
   getWardrobe, saveWardrobe, clearWardrobe, importFromFavorites, addOutfit, WARDROBE_EVENT,
   pruneWardrobe,
@@ -151,7 +152,11 @@ export default function WardrobePage() {
     if (!item?.sizeChart?.length || !ready) return w;
     const result = findBestSize(profile, item.sizeChart, w.id === activeId ? chosenSize : null);
     const name = (result.chosen || result.recommended)?.size;
-    return { ...w, size: item.sizeChart.find((s) => s.size === name) || null, legs: item.legs || null };
+    return {
+      ...w,
+      size: item.sizeChart.find((s) => s.size === name) || null,
+      legs: w.template ? w.legs : item.legs || null, // у шаблона штанины свои
+    };
   }), [worn, view, profile, ready, activeId, chosenSize]);
 
   const wornPrice = worn.reduce((sum, w) => sum + Number(w.price || 0), 0);
@@ -168,18 +173,22 @@ export default function WardrobePage() {
     setChosenSize(null);
 
     // An item with no 3D model can still be selected: the fit verdict comes
-    // from the seller's size chart, geometry is not involved.
-    if (!item.model3d) return;
-
+    // from the seller's size chart, geometry is not involved. If there is a
+    // generic shape for its type, that shape is worn in the buyer's size.
     const type = item.garmentType || guessType(item.category);
+    const template = templateFor({ ...item, garmentType: type });
+    if (!item.model3d && !template) return;
+
     const entry = {
       id: item.id,
       name: item.name,
       price: item.price,
-      url: toPublicUrl(item.model3d),
+      url: item.model3d ? toPublicUrl(item.model3d) : template.url,
       garmentType: type,
       layer: item.layer || (type === 'outerwear' ? 3 : type === 'top' ? 2 : 1),
       fit: item.fit || 'regular',
+      template: !item.model3d,
+      legs: item.model3d ? item.legs || null : template.legs,
     };
 
     setWorn((prev) => {
@@ -526,6 +535,7 @@ export default function WardrobePage() {
             ) : view.map((it) => {
               const on = isWorn(it.id);
               const has3d = !!it.model3d;
+              const template = has3d ? null : templateFor({ ...it, garmentType: it.garmentType || guessType(it.category) });
               return (
                 <div key={it.id} className={`${styles.it} ${activeId === it.id ? styles.itOn : ''}`}>
                   <img className={styles.th} src={toPublicUrl(it.image)} alt="" />
@@ -534,11 +544,13 @@ export default function WardrobePage() {
                     <div className={`${styles.sb} ${has3d ? '' : styles.sbWarn}`}>
                       {has3d
                         ? `${Number(it.price || 0).toLocaleString('en-US')} ₸ · ${it.garmentType || guessType(it.category)}`
-                        : 'No 3D model yet'}
+                        : template
+                          ? `No 3D model yet · worn as a generic ${template.label}`
+                          : 'No 3D model yet'}
                     </div>
                     <div className={styles.ac}>
                       <button className={`${styles.gbtn} ${styles.sm}`} onClick={() => toggleWear(it)}>
-                        {on ? 'Take off' : has3d ? 'Wear' : 'Check size'}
+                        {on ? 'Take off' : has3d || template ? 'Wear' : 'Check size'}
                       </button>
                       <button
                         className={`${styles.gbtn} ${styles.sm}`}
