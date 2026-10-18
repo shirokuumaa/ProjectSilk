@@ -627,7 +627,7 @@ const toEditorRows = (chart = []) =>
     stretch: r.stretch ?? 0,
   }));
 
-function EditProductForm({ product, onCancel, onSaved }) {
+export function EditProductForm({ product, onCancel, onSaved }) {
   const [title, setTitle] = useState(product.title || "");
   const [price, setPrice] = useState(String(product.price ?? ""));
   const [category, setCategory] = useState(product.category || "Clothes");
