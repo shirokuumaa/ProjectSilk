@@ -26,6 +26,7 @@ import AvatarCreateMode1Test from './pages/AvatarCreateMode1Test';
 // ⬇️ единый слой ассистента (панель + шарик + голос)
 import AssistantLayer from './components/AssistantLayer';
 import SiteFooter from './components/SiteFooter';
+import AccountSync from './components/AccountSync';
 import { isLoggedIn } from './utils/auth';
 
 function App() {
@@ -126,6 +127,9 @@ function App() {
       </Routes>
 
       <SiteFooter />
+
+      {/* гардероб и обмеры вошедшего — с сервера; гостевые вещи — предложить перенести */}
+      <AccountSync />
 
       {/* Глобальный слой ассистента поверх всех страниц */}
       <AssistantLayer />

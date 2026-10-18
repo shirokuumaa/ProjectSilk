@@ -1,0 +1,38 @@
+/* client/src/components/AccountSync.module.css — плашка переноса гостевого гардероба; цвета только из tokens.css */
+
+.bar {
+  position: fixed;
+  left: 50%;
+  bottom: 20px;
+  transform: translateX(-50%);
+  z-index: 1000;
+  width: min(560px, calc(100% - 32px));
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px 14px;
+  padding: 14px 16px;
+  background: var(--surface);
+  color: var(--ink);
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-pop);
+  font-size: var(--fs-sm);
+}
+
+.text { flex: 1 1 260px; line-height: 1.4; }
+
+.actions { display: flex; gap: 8px; }
+
+.primary,
+.secondary {
+  padding: 8px 14px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+  border: 1px solid var(--ink);
+}
+.primary { background: var(--ink); color: var(--surface); }
+.secondary { background: var(--surface); color: var(--ink); border-color: var(--line-strong); }
+.primary:disabled,
+.secondary:disabled { opacity: .5; cursor: not-allowed; }

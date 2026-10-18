@@ -1,7 +1,38 @@
 // local-first storage for wardrobe & outfits
+//
+// Гость: гардероб живёт только в этом браузере.
+// Вошедший: источник правды — сервер (/api/wardrobe), localStorage — кэш,
+// чтобы страницы читали гардероб синхронно. Каждое изменение дублируется на сервер.
+// При выходе кэш стирается (auth.logout), при входе — заполняется с сервера (pullWardrobe).
+
+import { GUEST_WARDROBE_KEY, isLoggedIn } from './auth';
+import {
+  listWardrobeApi, addWardrobeApi, removeWardrobeApi, clearWardrobeApi,
+} from './wardrobeApi';
 
 const LS_ITEMS = 'wardrobeItems';
 const LS_OUTFITS = 'wardrobeOutfits';
+
+/** Событие на window: гардероб в кэше заменён (вход, перенос гостевых вещей). */
+export const WARDROBE_EVENT = 'wardrobe-changed';
+
+const toServerItem = (rec) => ({
+  productId: String(rec.id),
+  name: rec.name || 'Item',
+  price: rec.price ?? 0,
+  image: rec.image || '',
+  category: rec.category || 'All',
+});
+
+const fromServerItem = (doc) => ({
+  id: doc.productId,
+  name: doc.name,
+  image: doc.image || '',
+  category: doc.category || 'All',
+  price: doc.price ?? undefined,
+  colorways: [],
+  addedAt: Date.parse(doc.createdAt) || Date.now(),
+});
 
 export function getWardrobe() {
   try { return JSON.parse(localStorage.getItem(LS_ITEMS)) || []; }
@@ -26,14 +57,60 @@ export function addToWardrobe(item) {
     addedAt: now,
   };
   saveWardrobe(exists ? cur : [...cur, rec]);
+  if (!exists && isLoggedIn()) addWardrobeApi(toServerItem(rec));
   return rec;
 }
 export function removeFromWardrobe(id) {
   const cur = getWardrobe().filter(x => (x.id || x._id) !== id);
   saveWardrobe(cur);
+  if (isLoggedIn()) removeWardrobeApi(String(id));
 }
 
-export function clearWardrobe() { saveWardrobe([]); }
+export function clearWardrobe() {
+  saveWardrobe([]);
+  if (isLoggedIn()) clearWardrobeApi();
+}
+
+/**
+ * Вошедший пользователь: заменить кэш гардероба серверным.
+ * @returns {Promise<boolean>} false — сервер не ответил, кэш не тронут
+ */
+export async function pullWardrobe() {
+  const docs = await listWardrobeApi();
+  if (!Array.isArray(docs)) return false;
+  // сервер отдаёт новые сверху, в кэше порядок добавления
+  saveWardrobe(docs.map(fromServerItem).reverse());
+  window.dispatchEvent(new Event(WARDROBE_EVENT));
+  return true;
+}
+
+/** Вещи, которые гость добавил до входа и которых ещё нет в аккаунте. */
+export function getGuestWardrobe() {
+  let guest = [];
+  try { guest = JSON.parse(localStorage.getItem(GUEST_WARDROBE_KEY) || '[]'); } catch {}
+  if (!Array.isArray(guest)) return [];
+  const mine = new Set(getWardrobe().map((x) => String(x.id || x._id)));
+  return guest.filter((x) => !mine.has(String(x.id || x._id)));
+}
+
+export function discardGuestWardrobe() {
+  try { localStorage.removeItem(GUEST_WARDROBE_KEY); } catch {}
+}
+
+/**
+ * Перенести гостевые вещи в аккаунт.
+ * @returns {Promise<number>} сколько вещей сохранено на сервере
+ */
+export async function moveGuestWardrobeToAccount() {
+  const guest = getGuestWardrobe();
+  let moved = 0;
+  for (const rec of guest) {
+    if (await addWardrobeApi(toServerItem({ ...rec, id: rec.id || rec._id }))) moved += 1;
+  }
+  discardGuestWardrobe();
+  await pullWardrobe();
+  return moved;
+}
 
 export function importFromFavorites() {
   let fav = [];
@@ -50,6 +127,7 @@ export function importFromFavorites() {
   const merged = [...cur];
   mapped.forEach(m => { if (!merged.some(x => x.id === m.id)) merged.push(m); });
   saveWardrobe(merged);
+  if (isLoggedIn()) merged.slice(cur.length).forEach((m) => addWardrobeApi(toServerItem(m)));
   return merged.length - cur.length;
 }
 

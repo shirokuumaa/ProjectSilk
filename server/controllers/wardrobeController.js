@@ -22,7 +22,8 @@ export async function listWardrobe(req, res) {
     const items = await WardrobeItem.find({ user }).sort({ createdAt: -1 }).lean();
     res.json(items);
   } catch (e) {
-    res.status(500).json({ message: 'list error', error: String(e?.message || e) });
+    console.error('wardrobe list error:', e);
+    res.status(500).json({ message: 'Could not load the wardrobe.' });
   }
 }
 
@@ -30,9 +31,9 @@ export async function addWardrobeItem(req, res) {
   try {
     const user = pickUser(req, res);
     if (!user) return;
-    const { productId, name, price = 0, image, category = 'Clothes' } = req.body || {};
-    if (!productId || !name || !image) {
-      return res.status(400).json({ message: 'productId, name, image are required' });
+    const { productId, name, price = 0, image = '', category = 'Clothes' } = req.body || {};
+    if (!productId || !name) {
+      return res.status(400).json({ message: 'productId and name are required' });
     }
     const doc = await WardrobeItem.findOneAndUpdate(
       { user, productId },
@@ -41,7 +42,8 @@ export async function addWardrobeItem(req, res) {
     ).lean();
     res.status(201).json(doc);
   } catch (e) {
-    res.status(500).json({ message: 'add error', error: String(e?.message || e) });
+    console.error('wardrobe add error:', e);
+    res.status(500).json({ message: 'Could not save the item.' });
   }
 }
 
@@ -53,7 +55,8 @@ export async function removeWardrobeItem(req, res) {
     await WardrobeItem.deleteOne({ user, productId });
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ message: 'remove error', error: String(e?.message || e) });
+    console.error('wardrobe remove error:', e);
+    res.status(500).json({ message: 'Could not remove the item.' });
   }
 }
 
@@ -64,6 +67,7 @@ export async function clearWardrobe(req, res) {
     await WardrobeItem.deleteMany({ user });
     res.json({ ok: true });
   } catch (e) {
-    res.status(500).json({ message: 'clear error', error: String(e?.message || e) });
+    console.error('wardrobe clear error:', e);
+    res.status(500).json({ message: 'Could not clear the wardrobe.' });
   }
 }

@@ -33,7 +33,7 @@ import { getBaseURL } from '../assistant/api';
 import { loadBodyProfile, isProfileComplete } from '../utils/bodyProfileApi';
 import { findBestSize, getStressMap } from '../utils/fitCalculator';
 import {
-  getWardrobe, saveWardrobe, clearWardrobe, importFromFavorites, addOutfit,
+  getWardrobe, saveWardrobe, clearWardrobe, importFromFavorites, addOutfit, WARDROBE_EVENT,
 } from '../utils/wardrobeStorage';
 
 const API_BASE = process.env.REACT_APP_API || 'http://localhost:5050';
@@ -74,6 +74,13 @@ export default function WardrobePage() {
   const [aiBusy, setAiBusy] = useState(false);
 
   useEffect(() => { saveWardrobe(items); }, [items]);
+
+  // после входа гардероб приходит с сервера — перечитываем кэш
+  useEffect(() => {
+    const reload = () => setItems(getWardrobe().map((i) => ({ ...i, image: toPublicUrl(i.image) })));
+    window.addEventListener(WARDROBE_EVENT, reload);
+    return () => window.removeEventListener(WARDROBE_EVENT, reload);
+  }, []);
 
   useEffect(() => {
     let alive = true;

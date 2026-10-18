@@ -18,8 +18,24 @@ const ROLE_KEY = 'userRole';
 const STORE_KEY = 'storeName';
 const LEGACY_KEY = 'user'; // старая «регистрация»: { username, password } открытым текстом
 
+// Данные покупателя в браузере: при выходе удаляются, следующему не показываем.
+// Источник правды для вошедшего — сервер (гардероб, обмеры), здесь только кэш и черновики.
+export const ACCOUNT_KEYS = [
+  'bodyProfile',        // кэш обмеров с сервера
+  'wardrobeItems',      // кэш гардероба
+  'wardrobeOutfits',    // сохранённые образы
+  'avatarDraft',        // черновик создания аватара: обмеры и фото
+  'avatarOutfitDraft',  // что надето в примерке
+  'avatarChosenSizes',  // выбранные в примерке размеры
+  'avatarFinal',        // результат тестовой страницы аватара
+];
+/** Гардероб гостя, отложенный при входе, пока он не решил — перенести или выбросить. */
+export const GUEST_WARDROBE_KEY = 'guestWardrobe';
+
 /** Событие на window: вход, выход или токен перестал работать. */
 export const AUTH_EVENT = 'auth-changed';
+/** Событие на window: пользователь только что вошёл или зарегистрировался. */
+export const LOGIN_EVENT = 'auth-login';
 
 function read(key) {
   try { return localStorage.getItem(key); } catch { return null; }
@@ -74,13 +90,45 @@ function saveSession({ token, user }) {
   notify();
 }
 
+function clearAccountData() {
+  ACCOUNT_KEYS.forEach((k) => write(k, null));
+  write(GUEST_WARDROBE_KEY, null);
+}
+
+/**
+ * Перед входом: данные прошлого пользователя убираем, а гардероб гостя
+ * откладываем — после входа ему предложат перенести вещи в аккаунт.
+ */
+function prepareForLogin() {
+  if (isLoggedIn()) {
+    clearAccountData();
+    return;
+  }
+  let guest = [];
+  try {
+    const items = JSON.parse(read('wardrobeItems') || '[]');
+    const stashed = JSON.parse(read(GUEST_WARDROBE_KEY) || '[]');
+    guest = [...(Array.isArray(stashed) ? stashed : []), ...(Array.isArray(items) ? items : [])];
+  } catch { /* битый JSON — гостевой гардероб не спасти */ }
+  const seen = new Set();
+  guest = guest.filter((x) => {
+    const id = String(x?.id || x?._id || '');
+    if (!id || seen.has(id)) return false;
+    seen.add(id);
+    return true;
+  });
+  // черновик обмеров гостя остаётся: это его же форма, сохранит — уйдёт в аккаунт
+  ACCOUNT_KEYS.filter((k) => k !== 'avatarDraft').forEach((k) => write(k, null));
+  write(GUEST_WARDROBE_KEY, guest.length ? JSON.stringify(guest) : null);
+}
+
 export function logout() {
   write(TOKEN_KEY, null);
   write(NAME_KEY, null);
   write(ROLE_KEY, null);
   write(STORE_KEY, null);
-  // кэш обмеров принадлежит вышедшему пользователю — следующему не показываем
-  write('bodyProfile', null);
+  // гардероб, обмеры и черновики принадлежат вышедшему пользователю
+  clearAccountData();
   notify();
 }
 
@@ -99,7 +147,9 @@ async function postCredentials(path, body) {
   const data = await r.json().catch(() => ({}));
   if (!r.ok) throw new Error(data.message || `Request failed (HTTP ${r.status})`);
 
+  prepareForLogin();
   saveSession(data);
+  window.dispatchEvent(new Event(LOGIN_EVENT));
   return data.user;
 }
 
