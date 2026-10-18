@@ -1,6 +1,7 @@
 // server/controllers/productController.js
 import mongoose from 'mongoose';
 import Product from '../models/Product.js';
+import WardrobeItem from '../models/WardrobeItem.js';
 import { execFile } from 'child_process';
 import util from 'util';
 import fs from 'fs';
@@ -265,6 +266,8 @@ export const deleteProduct = async (req, res) => {
   try {
     const files = productFilePaths(req.product);
     await req.product.deleteOne();
+    // удалённого товара больше нет ни в одном гардеробе
+    await WardrobeItem.deleteMany({ productId: String(req.product._id) });
     removeFiles(files);
     res.json({ ok: true });
   } catch (e) {

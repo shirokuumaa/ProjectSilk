@@ -43,7 +43,7 @@ import { useAvatarBody } from '../../utils/avatarBody';
 import { placeByHeight } from '../../utils/garmentPlacement';
 import { loadBodyProfile, isProfileComplete } from '../../utils/bodyProfileApi';
 import { findBestSize, getStressMap } from '../../utils/fitCalculator';
-import { getWardrobe } from '../../utils/wardrobeStorage';
+import { getWardrobe, pruneWardrobe } from '../../utils/wardrobeStorage';
 import styles from './TryOnAvatar.module.css';
 
 const API_BASE = process.env.REACT_APP_API || 'http://localhost:5050';
@@ -218,8 +218,12 @@ export default function TryOnAvatar() {
     refresh();
     let alive = true;
     fetch(`${API_BASE}/api/products`)
-      .then((r) => (r.ok ? r.json() : []))
-      .then((list) => { if (alive) setCatalog(Array.isArray(list) ? list : []); })
+      .then((r) => (r.ok ? r.json() : null)) // ошибка ≠ пустой каталог: гардероб не чистим
+      .then((list) => {
+        if (!alive || !Array.isArray(list)) return;
+        setCatalog(list);
+        setWardrobe(pruneWardrobe(list)); // удалённые продавцом товары — из гардероба
+      })
       .catch(() => {});
     return () => { alive = false; };
   }, [refresh]);

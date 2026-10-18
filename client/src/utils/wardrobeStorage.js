@@ -66,6 +66,21 @@ export function removeFromWardrobe(id) {
   if (isLoggedIn()) removeWardrobeApi(String(id));
 }
 
+/**
+ * Убрать из гардероба вещи, которых нет в каталоге (товар удалён продавцом).
+ * Вызывать только с успешно загруженным каталогом: без него не знаем, что удалено.
+ * Сервер свои записи чистит сам (при удалении товара и при чтении гардероба).
+ * @returns {Array} оставшиеся вещи
+ */
+export function pruneWardrobe(catalog) {
+  const cur = getWardrobe();
+  if (!Array.isArray(catalog)) return cur;
+  const ids = new Set(catalog.map((p) => String(p?._id || p?.id)));
+  const kept = cur.filter((x) => ids.has(String(x.id || x._id)));
+  if (kept.length !== cur.length) saveWardrobe(kept);
+  return kept;
+}
+
 export function clearWardrobe() {
   saveWardrobe([]);
   if (isLoggedIn()) clearWardrobeApi();

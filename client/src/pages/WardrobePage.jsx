@@ -34,6 +34,7 @@ import { loadBodyProfile, isProfileComplete } from '../utils/bodyProfileApi';
 import { findBestSize, getStressMap } from '../utils/fitCalculator';
 import {
   getWardrobe, saveWardrobe, clearWardrobe, importFromFavorites, addOutfit, WARDROBE_EVENT,
+  pruneWardrobe,
 } from '../utils/wardrobeStorage';
 
 const API_BASE = process.env.REACT_APP_API || 'http://localhost:5050';
@@ -98,7 +99,12 @@ export default function WardrobePage() {
         const r = await fetch(`${API_BASE}/api/products`);
         if (!r.ok) throw new Error(`HTTP ${r.status}`);
         const data = await r.json();
-        if (alive) setCatalog(Array.isArray(data) ? data : []);
+        if (!alive || !Array.isArray(data)) return;
+        setCatalog(data);
+        // товары, удалённые продавцом, уходят из гардероба и с фигуры
+        const kept = new Set(pruneWardrobe(data).map((i) => String(i.id)));
+        setItems((prev) => prev.filter((i) => kept.has(String(i.id))));
+        setWorn((prev) => prev.filter((w) => kept.has(String(w.id))));
       } catch {
         if (alive) setCatalog([]);
       }

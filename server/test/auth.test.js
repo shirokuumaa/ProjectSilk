@@ -2,7 +2,7 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  startTestServer, api, register, newUser, forgeToken, withTestDb,
+  startTestServer, api, register, newUser, forgeToken, withTestDb, PNG,
 } from './helpers.js';
 
 describe('auth', () => {
@@ -156,7 +156,16 @@ describe('auth', () => {
   });
 
   describe('гардероб', () => {
-    const item = { productId: 'p1', name: 'Dress', image: '/x.png', price: 10 };
+    let item;
+    before(async () => {
+      const seller = await newUser('wardrobeseller', { accountType: 'seller', storeName: 'Dress Shop' });
+      const product = (await api('POST', '/api/products', {
+        token: seller.token,
+        files: { image: ['dress.png', PNG] },
+        fields: { title: 'Dress', price: '10', garmentType: 'dress' },
+      })).json;
+      item = { productId: product._id, name: 'Dress', image: product.image, price: 10 };
+    });
 
     it('без токена → 401', async () => {
       assert.equal((await api('GET', '/api/wardrobe')).status, 401);
@@ -169,7 +178,7 @@ describe('auth', () => {
 
     it('гардеробы не смешиваются', async () => {
       assert.equal((await api('POST', '/api/wardrobe', { token: alice.token, body: item })).status, 201);
-      assert.equal((await api('DELETE', '/api/wardrobe/p1?user=alice', { token: bob.token })).status, 403);
+      assert.equal((await api('DELETE', `/api/wardrobe/${item.productId}?user=alice`, { token: bob.token })).status, 403);
       assert.equal((await api('GET', '/api/wardrobe', { token: alice.token })).json.length, 1);
       assert.equal((await api('GET', '/api/wardrobe', { token: bob.token })).json.length, 0);
     });
