@@ -1,0 +1,81 @@
+/* client/src/pages/Auth.module.css — вход и регистрация; цвета только из tokens.css */
+
+.page {
+  min-height: 70vh;
+  display: grid;
+  place-items: start center;
+  padding: 48px 16px;
+  background: var(--bg);
+  color: var(--ink);
+}
+
+.card {
+  width: 100%;
+  max-width: 400px;
+  display: grid;
+  gap: 16px;
+  padding: 28px 24px;
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.title {
+  margin: 0;
+  font-family: var(--font-display);
+  font-size: var(--fs-xl);
+  font-weight: 600;
+}
+
+.field { display: grid; gap: 6px; }
+
+.label { font-size: var(--fs-sm); font-weight: 500; }
+
+.hint { font-size: var(--fs-xs); color: var(--muted); }
+
+.input {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--ink);
+  font: inherit;
+  font-size: var(--fs-base);
+}
+.input:focus { outline: 2px solid var(--accent-soft); border-color: var(--accent-deep); }
+
+.choices { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; border: 0; padding: 0; margin: 0; }
+.choices legend { padding: 0; margin-bottom: 6px; font-size: var(--fs-sm); font-weight: 500; }
+
+.choice {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--r-md);
+  cursor: pointer;
+  font-size: var(--fs-sm);
+}
+.choiceOn { border-color: var(--ink); background: var(--surface-2); }
+
+.primary {
+  padding: 11px 16px;
+  border: 1px solid var(--ink);
+  border-radius: var(--r-pill);
+  background: var(--ink);
+  color: var(--surface);
+  font: inherit;
+  font-size: var(--fs-md);
+  font-weight: 600;
+  cursor: pointer;
+}
+.primary:disabled { opacity: .5; cursor: wait; }
+
+.error { margin: 0; color: var(--fit-bad); font-size: var(--fs-sm); }
+
+.foot { margin: 0; font-size: var(--fs-sm); color: var(--muted); }
+.foot a { color: var(--ink); font-weight: 500; }

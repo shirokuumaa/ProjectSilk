@@ -432,8 +432,11 @@ function SellerDashboard() {
         {/* Основная колонка — форма */}
         <div>
           <div style={{ margin: "12px 0" }}>
-            <label style={{ display: "block", marginBottom: 6 }}>Product image (JPEG, PNG or WebP, up to {MAX_IMAGE_MB} MB)</label>
+            <label htmlFor="product-image" style={{ display: "block", marginBottom: 6 }}>Product image (JPEG, PNG or WebP, up to {MAX_IMAGE_MB} MB)</label>
             <input
+              id="product-image"
+              key={`image-${listKey}`} /* после сохранения поле файла пустое */
+              style={ui.file}
               type="file"
               accept="image/jpeg,image/png,image/webp"
               onChange={(e) => e.target.files?.[0] && handleImageUpload(e.target.files[0])}
@@ -453,23 +456,33 @@ function SellerDashboard() {
           {processedUrl && (
             <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
               <img src={processedUrl} alt="Product preview" style={ui.preview} />
-              <input
-                value={title}
-                onChange={(e) => setTitle(e.target.value)}
-                placeholder="Product title"
-              />
-              <input
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                type="number"
-                min="0"
-                placeholder="Price, ₸"
-              />
-              <select value={category} onChange={(e) => setCategory(e.target.value)}>
-                <option>Clothes</option>
-                <option>Home</option>
-                <option>Electronics</option>
-              </select>
+              <label style={ui.label}>
+                Title
+                <input
+                  style={ui.input}
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="e.g. Linen shirt"
+                />
+              </label>
+              <label style={ui.label}>
+                Price, ₸
+                <input
+                  style={ui.input}
+                  value={price}
+                  onChange={(e) => setPrice(e.target.value)}
+                  type="number"
+                  min="0"
+                />
+              </label>
+              <label style={ui.label}>
+                Category
+                <select style={ui.input} value={category} onChange={(e) => setCategory(e.target.value)}>
+                  <option>Clothes</option>
+                  <option>Home</option>
+                  <option>Electronics</option>
+                </select>
+              </label>
 
               {/* Компонент размерной сетки */}
               <SizeChartEditor
@@ -481,9 +494,10 @@ function SellerDashboard() {
 
               <div style={{ marginTop: 4 }}>
                 <button
+                  type="button"
                   onClick={handleMake3D}
                   disabled={making3d || !canMake3D}
-                  style={{ padding: "8px 12px" }}
+                  style={{ ...ui.btn, ...(making3d || !canMake3D ? ui.disabled : null) }}
                 >
                   {canMake3D
                     ? (making3d ? "Generating 3D…" : "🧱 Generate 3D (GLB)")
@@ -496,6 +510,7 @@ function SellerDashboard() {
                   Or upload a ready 3D model (.glb, up to {MAX_MODEL_MB} MB, optional)
                 </label>
                 <input
+                  style={ui.file}
                   type="file"
                   accept=".glb,model/gltf-binary"
                   onChange={(e) => handleModelPick(e.target.files?.[0] || null)}
@@ -527,11 +542,12 @@ function SellerDashboard() {
               )}
 
               <button
+                type="button"
                 onClick={handleSave}
                 disabled={saving}
-                style={{ marginTop: 8, padding: "8px 12px" }}
+                style={{ ...ui.btnDark, justifySelf: "start", marginTop: 8, ...(saving ? ui.disabled : null) }}
               >
-                {saving ? "Saving…" : "💾 Save product"}
+                {saving ? "Saving…" : "Save product"}
               </button>
             </div>
           )}
@@ -785,4 +801,9 @@ const ui = {
     flexBasis: "100%", marginTop: 6, paddingTop: 12, borderTop: "1px solid var(--line)",
   },
   label: { display: "block", fontSize: 13, color: "var(--muted)" },
+  disabled: { opacity: 0.5, cursor: "not-allowed" },
+  file: {
+    display: "block", maxWidth: "100%", padding: 8, borderRadius: 8,
+    border: "1px dashed var(--line-strong)", background: "var(--surface)", color: "var(--ink)",
+  },
 };

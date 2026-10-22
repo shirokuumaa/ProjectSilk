@@ -1,11 +1,10 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { register } from '../utils/auth';
+import styles from './Auth.module.css';
 
 const MIN_PASSWORD = 8;
 
-const hint = { color: 'var(--muted)' };
-const errorText = { color: 'var(--fit-bad)', margin: '0 0 12px' };
 
 export default function RegisterPage() {
   const [username, setUsername] = useState('');
@@ -49,73 +48,91 @@ export default function RegisterPage() {
   };
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h2>Create account</h2>
-      <form onSubmit={handleRegister}>
-        <fieldset style={{ border: 'none', padding: 0, margin: '0 0 16px' }}>
-          <legend style={{ marginBottom: 6 }}>Account type</legend>
-          <label style={{ marginRight: 16 }}>
+    <div className={styles.page}>
+      <form className={styles.card} onSubmit={handleRegister}>
+        <h1 className={styles.title}>{isSeller ? 'Create a seller account' : 'Create account'}</h1>
+
+        <fieldset className={styles.choices}>
+          <legend>Account type</legend>
+          <label className={`${styles.choice} ${!isSeller ? styles.choiceOn : ''}`}>
             <input
               type="radio"
               name="accountType"
               value="buyer"
               checked={!isSeller}
               onChange={() => setAccountType('buyer')}
-            />{' '}
+            />
             I want to shop
           </label>
-          <label>
+          <label className={`${styles.choice} ${isSeller ? styles.choiceOn : ''}`}>
             <input
               type="radio"
               name="accountType"
               value="seller"
               checked={isSeller}
               onChange={() => setAccountType('seller')}
-            />{' '}
+            />
             I want to sell
           </label>
         </fieldset>
 
         {isSeller && (
-          <>
-            <input
-              type="text"
-              placeholder="Store name"
-              autoComplete="organization"
-              value={storeName}
-              onChange={(e) => setStoreName(e.target.value)}
-            /><br />
-            <small style={hint}>Shown to buyers on your products. 2–60 characters.</small>
-            <br /><br />
-          </>
+          <div className={styles.field}>
+            <label className={styles.field}>
+              <span className={styles.label}>Store name</span>
+              <input
+                className={styles.input}
+                type="text"
+                autoComplete="organization"
+                aria-describedby="hint-store"
+                value={storeName}
+                onChange={(e) => setStoreName(e.target.value)}
+              />
+            </label>
+            <small id="hint-store" className={styles.hint}>Shown to buyers on your products. 2–60 characters.</small>
+          </div>
         )}
 
-        <input
-          type="text"
-          placeholder="Username"
-          autoComplete="username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-        /><br />
-        <small style={hint}>3–32 characters: letters, digits, dot, dash or underscore.</small>
-        <br /><br />
-        <input
-          type="password"
-          placeholder="Password"
-          autoComplete="new-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        /><br />
-        <small style={hint}>At least {MIN_PASSWORD} characters.</small>
-        <br /><br />
-        {error && <p role="alert" style={errorText}>{error}</p>}
-        <button type="submit" disabled={busy}>
+        <div className={styles.field}>
+          <label className={styles.field}>
+            <span className={styles.label}>Username</span>
+            <input
+              className={styles.input}
+              type="text"
+              autoComplete="username"
+              aria-describedby="hint-user"
+              value={username}
+              onChange={(e) => setUsername(e.target.value)}
+            />
+          </label>
+          <small id="hint-user" className={styles.hint}>3–32 characters: letters, digits, dot, dash or underscore.</small>
+        </div>
+
+        <div className={styles.field}>
+          <label className={styles.field}>
+            <span className={styles.label}>Password</span>
+            <input
+              className={styles.input}
+              type="password"
+              autoComplete="new-password"
+              aria-describedby="hint-pass"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+            />
+          </label>
+          <small id="hint-pass" className={styles.hint}>At least {MIN_PASSWORD} characters.</small>
+        </div>
+
+        {error && <p role="alert" className={styles.error}>{error}</p>}
+
+        <button type="submit" className={styles.primary} disabled={busy}>
           {busy ? 'Creating…' : isSeller ? 'Create seller account' : 'Create account'}
         </button>
+
+        <p className={styles.foot}>
+          Already have an account? <Link to="/login">Sign in</Link>
+        </p>
       </form>
-      <p style={{ marginTop: 16 }}>
-        Already have an account? <Link to="/login">Sign in</Link>
-      </p>
     </div>
   );
 }

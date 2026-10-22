@@ -30,21 +30,21 @@ afterEach(() => { delete global.fetch; });
 test('"Create seller account" (?as=seller) opens registration with the seller role and the store name field', () => {
   renderAt('/register?as=seller');
   expect(screen.getByLabelText('I want to sell')).toBeChecked();
-  expect(screen.getByPlaceholderText('Store name')).toBeInTheDocument();
+  expect(screen.getByLabelText('Store name')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Create seller account' })).toBeInTheDocument();
 });
 
 test('plain /register still starts as a buyer', () => {
   renderAt('/register');
   expect(screen.getByLabelText('I want to shop')).toBeChecked();
-  expect(screen.queryByPlaceholderText('Store name')).not.toBeInTheDocument();
+  expect(screen.queryByLabelText('Store name')).not.toBeInTheDocument();
 });
 
 async function signInAs(role) {
   global.fetch.mockResolvedValue(ok({ token: 't', user: { username: 'sam', role, storeName: role === 'seller' ? 'Sam Shop' : null } }));
   renderAt('/login');
-  fireEvent.change(screen.getByPlaceholderText('Username'), { target: { value: 'sam' } });
-  fireEvent.change(screen.getByPlaceholderText('Password'), { target: { value: 'secret-password' } });
+  fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'sam' } });
+  fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'secret-password' } });
   fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
   await waitFor(() => expect(screen.getByTestId('where')).toBeInTheDocument());
   return screen.getByTestId('where').textContent;
@@ -56,4 +56,11 @@ test('a seller lands on the seller dashboard after signing in', async () => {
 
 test('a buyer lands on the shop after signing in', async () => {
   expect(await signInAs('buyer')).toBe('/');
+});
+
+test('fields have visible labels and the submit control is a real button', () => {
+  renderAt('/login');
+  expect(screen.getByLabelText('Username')).toHaveClass('input');
+  expect(screen.getByLabelText('Password')).toHaveClass('input');
+  expect(screen.getByRole('button', { name: 'Sign in' })).toHaveClass('primary');
 });

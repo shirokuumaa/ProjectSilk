@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { login } from '../utils/auth';
+import styles from './Auth.module.css';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
@@ -30,29 +31,42 @@ export default function LoginPage() {
   };
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h2>Sign in</h2>
-      <form onSubmit={handleLogin}>
-        <input
-          type="text"
-          placeholder="Username"
-          autoComplete="username"
-          value={username}
-          onChange={(e) => setUsername(e.target.value)}
-        /><br /><br />
-        <input
-          type="password"
-          placeholder="Password"
-          autoComplete="current-password"
-          value={password}
-          onChange={(e) => setPassword(e.target.value)}
-        /><br /><br />
-        {error && <p role="alert" style={{ color: 'var(--fit-bad)', margin: '0 0 12px' }}>{error}</p>}
-        <button type="submit" disabled={busy}>{busy ? 'Signing in…' : 'Sign in'}</button>
+    <div className={styles.page}>
+      <form className={styles.card} onSubmit={handleLogin}>
+        <h1 className={styles.title}>Sign in</h1>
+
+        <label className={styles.field}>
+          <span className={styles.label}>Username</span>
+          <input
+            className={styles.input}
+            type="text"
+            autoComplete="username"
+            value={username}
+            onChange={(e) => setUsername(e.target.value)}
+          />
+        </label>
+
+        <label className={styles.field}>
+          <span className={styles.label}>Password</span>
+          <input
+            className={styles.input}
+            type="password"
+            autoComplete="current-password"
+            value={password}
+            onChange={(e) => setPassword(e.target.value)}
+          />
+        </label>
+
+        {error && <p role="alert" className={styles.error}>{error}</p>}
+
+        <button type="submit" className={styles.primary} disabled={busy}>
+          {busy ? 'Signing in…' : 'Sign in'}
+        </button>
+
+        <p className={styles.foot}>
+          No account yet? <Link to="/register">Create one</Link>
+        </p>
       </form>
-      <p style={{ marginTop: 16 }}>
-        No account yet? <Link to="/register">Create one</Link>
-      </p>
     </div>
   );
 }
