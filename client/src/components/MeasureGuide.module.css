@@ -1,0 +1,46 @@
+/* client/src/components/MeasureGuide.module.css — схемы «как мерить»; цвета только из tokens.css */
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 8px;
+  margin: 10px 0;
+}
+
+.card {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+  margin: 0;
+  padding: 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-md);
+  background: var(--surface);
+}
+
+.card figcaption {
+  display: grid;
+  gap: 2px;
+  font-size: var(--fs-xs);
+  line-height: 1.35;
+  color: var(--muted);
+}
+.card figcaption b { color: var(--ink); font-size: var(--fs-sm); }
+
+.svg { flex: 0 0 auto; width: 44px; height: 55px; }
+
+.outline {
+  fill: var(--surface-3);
+  stroke: var(--line-strong);
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+.measure {
+  fill: none;
+  stroke: var(--accent-deep);
+  stroke-width: 2.5;
+  stroke-linecap: round;
+}
+
+.around { stroke-dasharray: 3 2; }

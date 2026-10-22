@@ -1,8 +1,9 @@
 // client/src/components/SizeChartEditor.jsx
 //
 // Ввод размерной сетки товара продавцом.
-// Продавец измеряет РАЗЛОЖЕННОЕ изделие; обхваты вводятся полные (× 2 от замера
-// по столу — подсказки в интерфейсе объясняют это).
+// Продавец измеряет изделие и выбирает, как указаны обхваты: полный обхват или
+// ширина в разложенном виде (половина) — тогда сервер умножает грудь, талию и
+// бёдра на 2. У каждой мерки — схема и подсказка (MeasureGuide).
 //
 // Использование в SellerPanel:
 //   const [sizeChart, setSizeChart] = useState([]);
@@ -15,6 +16,7 @@
 // Весь текст интерфейса — на английском, цвета — из styles/tokens.css.
 
 import React from 'react';
+import MeasureGuide, { measureHint } from './MeasureGuide';
 
 const GARMENT_TYPES = [
   { value: 'top',       label: 'Top (T-shirt, shirt, sweater)' },
@@ -56,13 +58,15 @@ const FIELD_LABELS = {
   sleeve: 'Sleeve',
 };
 
-const FIELD_HINTS = {
-  chest:  'Garment bust: measure flat across, just below the armholes, and multiply by 2',
-  waist:  'Garment waist: flat measurement × 2',
-  hips:   'Garment hips: flat measurement × 2',
-  length: 'Garment length from the highest point of the shoulder to the hem',
-  sleeve: 'Sleeve length from the shoulder seam to the end of the cuff',
-};
+const GIRTH_FIELDS = ['chest', 'waist', 'hips'];
+
+const GIRTH_MODES = [
+  { value: 'circumference', label: 'Full circumference' },
+  { value: 'flat',          label: 'Flat (half) width' },
+];
+
+// обхват взрослой вещи меньше этого — почти наверняка ширина в разложенном виде
+const LOOKS_FLAT_CM = 60;
 
 const PRESETS = {
   letters: ['XS', 'S', 'M', 'L', 'XL', 'XXL'],
@@ -84,8 +88,15 @@ export default function SizeChartEditor({
   onGarmentTypeChange,
   stretch = 'none',
   onStretchChange = () => {},
+  girthMode = 'circumference',
+  onGirthModeChange = () => {},
 }) {
   const fields = FIELDS_BY_TYPE[garmentType] || [];
+  const flat = girthMode === 'flat';
+  const hintOf = (f) => measureHint(f, { mode: girthMode, bottom: garmentType === 'bottom' });
+  // похоже, что ввели ширину в разложенном виде, а выбран полный обхват
+  const looksFlat = !flat && value.some((row) =>
+    GIRTH_FIELDS.some((f) => fields.includes(f) && Number(row[f]) > 0 && Number(row[f]) < LOOKS_FLAT_CM));
   const isAccessory = garmentType === 'accessory';
 
   const updateRow = (index, patch) => {
@@ -146,9 +157,31 @@ export default function SizeChartEditor({
       ) : (
         <>
           <p style={styles.note}>
-            Measure the <b>garment laid flat</b>, not a body. Enter full girths:
-            double the flat measurement. Empty fields are simply left out of the calculation.
+            Measure the <b>garment</b>, not a body. Empty fields are simply left out of the calculation.
           </p>
+
+          <fieldset style={styles.modes}>
+            <legend style={styles.modesLegend}>Bust, waist and hips are given as</legend>
+            {GIRTH_MODES.map((m) => (
+              <label key={m.value} style={{ ...styles.mode, ...(girthMode === m.value ? styles.modeOn : null) }}>
+                <input
+                  type="radio"
+                  name="girthMode"
+                  value={m.value}
+                  checked={girthMode === m.value}
+                  onChange={() => onGirthModeChange(m.value)}
+                />
+                {m.label}
+              </label>
+            ))}
+            <small style={styles.small}>
+              {flat
+                ? 'Many shops list the garment laid flat. We double bust, waist and hips when you save.'
+                : 'The distance all the way around the garment.'}
+            </small>
+          </fieldset>
+
+          <MeasureGuide fields={fields} mode={girthMode} garmentType={garmentType} />
 
           {value.length === 0 && (
             <div style={styles.presets}>
@@ -174,8 +207,8 @@ export default function SizeChartEditor({
                   <tr>
                     <th style={styles.th}>Size</th>
                     {fields.map((f) => (
-                      <th key={f} style={styles.th} title={FIELD_HINTS[f]}>
-                        {FIELD_LABELS[f]}, cm
+                      <th key={f} style={styles.th} title={hintOf(f)}>
+                        {FIELD_LABELS[f]}, cm{flat && GIRTH_FIELDS.includes(f) ? ' (flat)' : ''}
                       </th>
                     ))}
                     <th style={styles.th}></th>
@@ -201,7 +234,8 @@ export default function SizeChartEditor({
                             value={row[f] ?? ''}
                             onChange={(e) => updateRow(i, { [f]: e.target.value })}
                             placeholder="—"
-                            title={FIELD_HINTS[f]}
+                            title={hintOf(f)}
+                            aria-label={`${FIELD_LABELS[f]}, size ${row.size || i + 1}`}
                             style={styles.input}
                           />
                         </td>
@@ -222,6 +256,13 @@ export default function SizeChartEditor({
                 </tbody>
               </table>
             </div>
+          )}
+
+          {looksFlat && (
+            <p role="status" style={styles.warn}>
+              Some girths are under {LOOKS_FLAT_CM} cm — if you measured the garment laid flat,
+              choose “Flat (half) width” above.
+            </p>
           )}
 
           <button type="button" onClick={addRow} style={styles.addBtn}>
@@ -305,5 +346,13 @@ const styles = {
   removeBtn: { border: 'none', background: 'transparent', color: 'var(--fit-bad)', fontSize: 22, lineHeight: 1, cursor: 'pointer', padding: '0 6px' },
   addBtn: { padding: '8px 14px', borderRadius: 8, border: '1px dashed var(--line-strong)', background: 'var(--surface)', cursor: 'pointer', fontSize: 14 },
   fitRow: { display: 'flex', gap: 16, marginTop: 14, flexWrap: 'wrap' },
-  small: { fontSize: 12, fontWeight: 400, color: 'var(--muted)' },
+  small: { fontSize: 12, fontWeight: 400, color: 'var(--muted)', flexBasis: '100%' },
+  modes: { display: 'flex', flexWrap: 'wrap', gap: 8, border: 0, padding: 0, margin: '10px 0' },
+  modesLegend: { fontSize: 14, fontWeight: 500, marginBottom: 6, padding: 0 },
+  mode: {
+    display: 'flex', alignItems: 'center', gap: 6, padding: '7px 12px', borderRadius: 8,
+    border: '1px solid var(--line-strong)', background: 'var(--surface)', fontSize: 14, cursor: 'pointer',
+  },
+  modeOn: { borderColor: 'var(--ink)', background: 'var(--surface-3)' },
+  warn: { fontSize: 13, color: 'var(--fit-warn)', background: 'var(--fit-warn-bg)', padding: '8px 10px', borderRadius: 8, margin: '8px 0' },
 };

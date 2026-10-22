@@ -151,6 +151,7 @@ function SellerDashboard() {
   const [sizeChart, setSizeChart] = useState([]);
   const [garmentType, setGarmentType] = useState("top");
   const [stretch, setStretch] = useState("none");
+  const [girthMode, setGirthMode] = useState("circumference");
 
   const [processedUrl, setProcessedUrl] = useState(null);   // превью (blob URL)
   const [processedBlob, setProcessedBlob] = useState(null); // файл для отправки (Blob/File)
@@ -380,6 +381,7 @@ function SellerDashboard() {
       fd.append("category", category);
       fd.append("garmentType", garmentType);
       fd.append("stretch", stretch);
+      fd.append("girthMode", girthMode); // flat — сервер умножит обхваты на 2
       fd.append("sizeChart", JSON.stringify(serializeSizeChart(sizeChart)));
       // имя файла задаёт расширение на сервере; у исходного File оно своё (jpg/webp)
       fd.append("image", processedBlob, processedBlob.name || "product.png");
@@ -501,6 +503,8 @@ function SellerDashboard() {
                 onGarmentTypeChange={setGarmentType}
                 stretch={stretch}
                 onStretchChange={setStretch}
+                girthMode={girthMode}
+                onGirthModeChange={setGirthMode}
               />
 
               <div style={{ marginTop: 4 }}>
@@ -676,6 +680,8 @@ export function EditProductForm({ product, onCancel, onSaved }) {
   const [category, setCategory] = useState(product.category || "Clothes");
   const [garmentType, setGarmentType] = useState(product.garmentType || "top");
   const [stretch, setStretch] = useState(product.stretch || "none"); // старые товары — «No stretch»
+  // сервер хранит полные обхваты — с ними форма и открывается
+  const [girthMode, setGirthMode] = useState("circumference");
   const [sizeChart, setSizeChart] = useState(() => toEditorRows(product.sizeChart));
   const [image, setImage] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -702,6 +708,7 @@ export function EditProductForm({ product, onCancel, onSaved }) {
       fd.append("category", category);
       fd.append("garmentType", garmentType);
       fd.append("stretch", stretch);
+      fd.append("girthMode", girthMode);
       fd.append("sizeChart", JSON.stringify(serializeSizeChart(sizeChart)));
       if (image) fd.append("image", image, image.name);
       const r = await authFetch(`${API}/api/products/${product._id}`, { method: "PATCH", body: fd });
@@ -743,7 +750,10 @@ export function EditProductForm({ product, onCancel, onSaved }) {
           onGarmentTypeChange={setGarmentType}
           stretch={stretch}
           onStretchChange={setStretch}
+          girthMode={girthMode}
+          onGirthModeChange={setGirthMode}
         />
+        <p style={ui.meta}>Saved measurements are shown as full circumferences.</p>
 
         <label style={ui.label}>
           New image (optional; JPEG, PNG or WebP, up to {MAX_IMAGE_MB} MB)

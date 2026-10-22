@@ -92,3 +92,21 @@ test('the seller picks how much the fabric stretches; it is sent with the produc
   expect(body.get('stretch')).toBe('stretchy');
   expect(JSON.parse(body.get('sizeChart'))[0]).not.toHaveProperty('stretch'); // не строками сетки
 });
+
+test('measured flat: the form sends girthMode=flat and the numbers as entered (the server doubles them)', async () => {
+  authFetch.mockResolvedValue({ ok: true, status: 200, json: async () => PRODUCT });
+  renderForm();
+  fireEvent.click(screen.getByLabelText('Flat (half) width'));
+  fireEvent.change(screen.getByDisplayValue('96'), { target: { value: '48' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+  await waitFor(() => expect(authFetch).toHaveBeenCalled());
+  const body = authFetch.mock.calls[0][1].body;
+  expect(body.get('girthMode')).toBe('flat');
+  expect(JSON.parse(body.get('sizeChart'))[1].chest).toBe(48);
+});
+
+test('editing opens with full circumferences and says so', () => {
+  renderForm();
+  expect(screen.getByLabelText('Full circumference')).toBeChecked();
+  expect(screen.getByText('Saved measurements are shown as full circumferences.')).toBeInTheDocument();
+});

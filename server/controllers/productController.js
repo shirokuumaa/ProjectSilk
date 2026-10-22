@@ -25,18 +25,41 @@ function toNumber(v) {
   return Number.isFinite(n) ? n : NaN;
 }
 
-/** Размерная сетка из тела запроса; undefined — поле не передано. */
-function parseSizeChart(raw) {
+const GIRTHS = ['chest', 'waist', 'hips'];
+const GIRTH_MODES = ['circumference', 'flat'];
+
+/**
+ * Размерная сетка из тела запроса; undefined — поле не передано.
+ * girthMode 'flat' — продавец ввёл ширину изделия в разложенном виде (половину
+ * обхвата): грудь, талию и бёдра умножаем на 2. Длины не трогаем. Хранится
+ * всегда полный обхват.
+ */
+function parseSizeChart(raw, girthMode = 'circumference') {
   if (raw === undefined) return undefined;
   try {
     const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
     if (!Array.isArray(parsed)) return [];
     // каждая строка должна иметь size и хотя бы один обмер
-    return parsed.filter((s) => s && s.size && (s.chest || s.waist || s.hips || s.length || s.sleeve));
+    const rows = parsed.filter((s) => s && s.size && (s.chest || s.waist || s.hips || s.length || s.sleeve));
+    if (girthMode !== 'flat') return rows;
+    return rows.map((r) => {
+      const out = { ...r };
+      GIRTHS.forEach((k) => {
+        const n = Number(r[k]);
+        if (r[k] != null && r[k] !== '' && Number.isFinite(n)) out[k] = Math.round(n * 2 * 10) / 10;
+      });
+      return out;
+    });
   } catch (e) {
     console.warn('sizeChart parse failed:', e.message);
     return [];
   }
+}
+
+/** Как продавец указал обхваты; null — неизвестное значение. */
+function girthModeOf(body) {
+  const mode = body?.girthMode ?? 'circumference';
+  return GIRTH_MODES.includes(mode) ? mode : null;
 }
 
 /** Файлы модели на диске: сама модель и её пара raw ↔ prepared_. */
@@ -165,6 +188,8 @@ export const addProduct = async (req, res) => {
     if (!imageFile) return fail(400, 'Product image is required.');
 
     const { name, category = 'Clothes', garmentType = 'top' } = req.body;
+    const girthMode = girthModeOf(req.body);
+    if (!girthMode) return fail(400, 'Measurements must be given as full circumference or flat width.');
     const title = String(req.body.title ?? '').trim();
     if (!title) return fail(400, 'Product title is required.');
 
@@ -187,7 +212,7 @@ export const addProduct = async (req, res) => {
       category: String(category || 'Clothes'),
       garmentType: String(garmentType || 'top'),
       stretch: req.body.stretch || 'none',
-      sizeChart: parseSizeChart(req.body.sizeChart) ?? [],
+      sizeChart: parseSizeChart(req.body.sizeChart, girthMode) ?? [],
       legs: req.body.legs || undefined,
       image: `/uploads/images/${imageFile.filename}`,
       model3d: model3dUrl,
@@ -238,7 +263,9 @@ export const updateProduct = async (req, res) => {
     if (b.category !== undefined) product.category = String(b.category);
     if (b.garmentType !== undefined) product.garmentType = String(b.garmentType);
     if (b.stretch !== undefined) product.stretch = b.stretch || 'none';
-    if (b.sizeChart !== undefined) product.sizeChart = parseSizeChart(b.sizeChart);
+    const girthMode = girthModeOf(b);
+    if (!girthMode) return fail(400, 'Measurements must be given as full circumference or flat width.');
+    if (b.sizeChart !== undefined) product.sizeChart = parseSizeChart(b.sizeChart, girthMode);
     if (b.legs !== undefined) product.legs = b.legs || undefined;   // пусто — снять подсказку
 
     const imageFile = req.files?.image?.[0];
