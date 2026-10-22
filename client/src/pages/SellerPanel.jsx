@@ -18,7 +18,10 @@ const IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 const MAX_IMAGE_MB = 10;
 const MAX_MODEL_MB = 50;
 
-const AI_OFF_HINT = "AI is offline — the background is kept as is and 3D is unavailable.";
+// одно сообщение на всю страницу — показывается в строке статуса над формой
+const AI_OFF_HINT =
+  "Photo tools are offline right now: the background of your photo stays as it is and 3D models " +
+  "cannot be generated. You can still add products, and upload a ready .glb model if you have one.";
 
 async function errorMessage(r, fallback) {
   const j = await r.json().catch(() => null);
@@ -194,13 +197,24 @@ function SellerDashboard() {
     }
   }, [model3dBlob]);
 
-  // 🔍 Проверка AI через /features (самый честный статус)
+  // 🔍 Проверка AI. Сначала /__target (отвечает 200 и когда ИИ выключен) — так
+  // в консоли нет 503; /features спрашиваем, только если ИИ включён.
   useEffect(() => {
     let aborted = false;
     (async () => {
       try {
         const ctl = new AbortController();
         const t = setTimeout(() => ctl.abort(), 4000);
+
+        const target = await authFetch(`${API}/api/ai/__target`, { signal: ctl.signal })
+          .then((r) => (r.ok ? r.json() : null));
+        if (aborted) return;
+        if (!target?.AI_ENABLED) {
+          clearTimeout(t);
+          setAiOnline(false);
+          setAiFeatures(null);
+          return;
+        }
 
         const r = await authFetch(`${API}/api/ai/features`, { signal: ctl.signal });
         clearTimeout(t);
@@ -209,7 +223,6 @@ function SellerDashboard() {
         if (!r.ok) {
           setAiOnline(false);
           setAiFeatures(null);
-          setAiHint(AI_OFF_HINT);
           return;
         }
 
@@ -217,14 +230,11 @@ function SellerDashboard() {
         setAiFeatures(f);
 
         // heavy-only: считаем "online" только если rembg реально доступен
-        const on = f?.rembg === true;
-        setAiOnline(on);
-        setAiHint(on ? "" : AI_OFF_HINT);
+        setAiOnline(f?.rembg === true);
       } catch (e) {
         if (aborted) return;
         setAiOnline(false);
         setAiFeatures(null);
-        setAiHint(AI_OFF_HINT);
       }
     })();
     return () => {
@@ -235,10 +245,7 @@ function SellerDashboard() {
   // ✅ remove-background: POST -> {image_url} -> GET png
   // heavy-only: если AI off — возвращаем оригинал, без лёгких моделей
   async function tryRemoveBg(file) {
-    if (!aiOnline) {
-      setAiHint("AI is off — the background is kept as is.");
-      return file;
-    }
+    if (!aiOnline) return file; // об этом уже сказано в строке статуса
 
     const fd = new FormData();
     fd.append("image", file); // поле обязательно "image"
@@ -249,8 +256,7 @@ function SellerDashboard() {
     });
 
     if (r.status === 503) {
-      setAiOnline(false);
-      setAiHint("AI is temporarily off (no GPU) — the original background is kept.");
+      setAiOnline(false); // строка статуса покажет AI_OFF_HINT
       return file;
     }
     if (r.status === 429) {
@@ -501,7 +507,7 @@ function SellerDashboard() {
                 >
                   {canMake3D
                     ? (making3d ? "Generating 3D…" : "🧱 Generate 3D (GLB)")
-                    : "🧱 3D unavailable (AI is off)"}
+                    : "🧱 Generate 3D (offline)"}
                 </button>
               </div>
 
