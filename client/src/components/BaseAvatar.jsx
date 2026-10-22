@@ -104,7 +104,8 @@ export default function BaseAvatar({ body, solution, skinTone, profile, stressMa
       <primitive object={root} />
 
       {/* Кольца натяжения — на тех же уровнях, где калибровались обмеры */}
-      {rings && Object.entries(stressMap).map(([key, hex]) => {
+      {/* stressMap мог уже исчезнуть (сняли вещь), а кольца — ещё с прошлого кадра */}
+      {rings && stressMap && Object.entries(stressMap).map(([key, hex]) => {
         const y = rings.levels[key];
         const per = Number(profile?.[key]);
         if (y == null || !per) return null;
