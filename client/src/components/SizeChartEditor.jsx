@@ -25,6 +25,13 @@ const GARMENT_TYPES = [
   { value: 'accessory', label: 'Accessory / jewellery' },
 ];
 
+// тянется ли ткань — на весь товар; проценты и смысл — utils/fitCalculator.js (STRETCH_SHARE)
+const STRETCH_TYPES = [
+  { value: 'none',     label: 'No stretch',     hint: 'Denim, linen, cotton poplin' },
+  { value: 'slight',   label: 'Slight stretch', hint: 'Stretch denim, wovens with 2–3 % elastane' },
+  { value: 'stretchy', label: 'Stretchy',       hint: 'Jersey, knits with elastane, bodycon' },
+];
+
 const FIT_TYPES = [
   { value: 'tight',   label: 'Fitted' },
   { value: 'regular', label: 'Regular' },
@@ -75,6 +82,8 @@ export default function SizeChartEditor({
   onChange,
   garmentType = 'top',
   onGarmentTypeChange,
+  stretch = 'none',
+  onStretchChange = () => {},
 }) {
   const fields = FIELDS_BY_TYPE[garmentType] || [];
   const isAccessory = garmentType === 'accessory';
@@ -235,18 +244,19 @@ export default function SizeChartEditor({
               </label>
 
               <label style={styles.labelInline}>
-                Stretch, %
-                <input
-                  type="number"
-                  min="0"
-                  max="50"
-                  value={value[0]?.stretch ?? 0}
-                  onChange={(e) =>
-                    onChange(value.map((r) => ({ ...r, stretch: Number(e.target.value) })))
-                  }
-                  style={{ ...styles.input, width: 80 }}
-                  title="0 — denim, linen. 15 — cotton with elastane. 30 — jersey knit"
-                />
+                Fabric stretch
+                <select
+                  value={stretch}
+                  onChange={(e) => onStretchChange(e.target.value)}
+                  style={styles.select}
+                >
+                  {STRETCH_TYPES.map((t) => (
+                    <option key={t.value} value={t.value}>{t.label}</option>
+                  ))}
+                </select>
+                <small style={styles.small}>
+                  {STRETCH_TYPES.find((t) => t.value === stretch)?.hint}
+                </small>
               </label>
             </div>
           )}
@@ -261,7 +271,8 @@ export function serializeSizeChart(rows) {
   return (rows || [])
     .filter((r) => r.size && String(r.size).trim())
     .map((r) => {
-      const out = { size: String(r.size).trim(), fit: r.fit || 'regular', stretch: Number(r.stretch) || 0 };
+      // тянучесть ткани уходит полем товара stretch, не строками сетки
+      const out = { size: String(r.size).trim(), fit: r.fit || 'regular' };
       for (const f of ['chest', 'waist', 'hips', 'length', 'sleeve']) {
         const n = Number(r[f]);
         if (r[f] !== '' && r[f] != null && Number.isFinite(n) && n > 0) out[f] = n;
@@ -294,4 +305,5 @@ const styles = {
   removeBtn: { border: 'none', background: 'transparent', color: 'var(--fit-bad)', fontSize: 22, lineHeight: 1, cursor: 'pointer', padding: '0 6px' },
   addBtn: { padding: '8px 14px', borderRadius: 8, border: '1px dashed var(--line-strong)', background: 'var(--surface)', cursor: 'pointer', fontSize: 14 },
   fitRow: { display: 'flex', gap: 16, marginTop: 14, flexWrap: 'wrap' },
+  small: { fontSize: 12, fontWeight: 400, color: 'var(--muted)' },
 };

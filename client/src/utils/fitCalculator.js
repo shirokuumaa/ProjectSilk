@@ -34,6 +34,49 @@ const EASE_TARGETS = {
   loose:   { min: 8,  ideal: 16, max: 30 },  // oversized, coat, hoodie
 };
 
+/**
+ * Fabric stretch, chosen by the seller for the whole product:
+ * how much SMALLER than the body the garment may be, as a share of the body girth.
+ *
+ *   none     0 %  — woven without elastane: denim, linen, poplin;
+ *   slight   5 %  — wovens with 2–3 % elastane, stretch denim: knitting and
+ *                   sewing guides give 3–5 % negative ease for these;
+ *   stretchy 15 % — jersey and knits with elastane. A Zara stretch maxi dress
+ *                   (95 % polyester, 5 % elastane) is 13–15 % smaller than an
+ *                   S figure at the bust and hips and is sold to S — 10 % would
+ *                   call it "will not close".
+ *
+ * Stretch lowers the lowest acceptable ease and the ideal by the allowance
+ * (a knit is designed to sit stretched); the upper limit stays: a stretchy
+ * garment is not looser than a woven one of the same size.
+ *
+ * Old products have no level → 'none'. A number in a size row (the old
+ * "Stretch, %" field) is ignored for the same reason.
+ */
+export const STRETCH_SHARE = { none: 0, slight: 0.05, stretchy: 0.15 };
+
+export const STRETCH_LABELS = {
+  none: 'No stretch',
+  slight: 'Slight stretch',
+  stretchy: 'Stretchy',
+};
+
+/** Shown to the buyer next to the size verdict. */
+export const STRETCH_NOTES = {
+  slight: 'Slight stretch — a little give at the bust, waist and hips',
+  stretchy: 'Stretchy fabric — fits snugly',
+};
+
+export function stretchShare(level) {
+  return typeof level === 'string' ? STRETCH_SHARE[level] ?? 0 : 0;
+}
+
+/** The product's size chart with its fabric stretch on every row. */
+export function sizeChartOf(product) {
+  const level = STRETCH_SHARE[product?.stretch] != null ? product.stretch : 'none';
+  return (product?.sizeChart || []).map((row) => ({ ...row, stretch: level }));
+}
+
 /** Verdict levels, worst to best. */
 export const FIT_LEVELS = {
   TOO_TIGHT:  'too_tight',
@@ -64,45 +107,45 @@ const LEVEL_COLOR = {
  * @param {number} bodyValue    body girth, cm
  * @param {number} garmentValue garment girth, cm
  * @param {string} fit          'tight' | 'regular' | 'loose'
- * @param {number} stretch      fabric stretch, % (0 = no stretch)
+ * @param {string} stretch      'none' | 'slight' | 'stretchy' (see STRETCH_SHARE)
  */
-export function evaluateMeasurement(bodyValue, garmentValue, fit = 'regular', stretch = 0) {
+export function evaluateMeasurement(bodyValue, garmentValue, fit = 'regular', stretch = 'none') {
   if (bodyValue == null || garmentValue == null) return null;
 
-  const target = EASE_TARGETS[fit] || EASE_TARGETS.regular;
+  const base = EASE_TARGETS[fit] || EASE_TARGETS.regular;
   const ease = garmentValue - bodyValue;
 
-  // Stretch fabric tolerates negative ease. Comfortable stretch is roughly
-  // half of what the mill claims.
-  const stretchAllowance = garmentValue * (stretch / 100) * 0.5;
-  const effectiveEase = ease + stretchAllowance;
+  // stretch: the garment may be smaller than the body by this much
+  const allowance = bodyValue * stretchShare(stretch);
+  const target = { min: base.min - allowance, ideal: base.ideal - allowance, max: base.max };
 
   let level;
-  if (effectiveEase < target.min - 3)        level = FIT_LEVELS.TOO_TIGHT;
-  else if (effectiveEase < target.min)       level = FIT_LEVELS.TIGHT;
-  else if (effectiveEase <= target.max)      level = FIT_LEVELS.GOOD;
-  else if (effectiveEase <= target.max + 8)  level = FIT_LEVELS.LOOSE;
-  else                                       level = FIT_LEVELS.TOO_LOOSE;
+  if (ease < target.min - 3)        level = FIT_LEVELS.TOO_TIGHT;
+  else if (ease < target.min)       level = FIT_LEVELS.TIGHT;
+  else if (ease <= target.max)      level = FIT_LEVELS.GOOD;
+  else if (ease <= target.max + 8)  level = FIT_LEVELS.LOOSE;
+  else                              level = FIT_LEVELS.TOO_LOOSE;
 
   return {
     ease: Math.round(ease * 10) / 10,
-    effectiveEase: Math.round(effectiveEase * 10) / 10,
+    // ease with the fabric stretched to its comfortable limit
+    effectiveEase: Math.round((ease + allowance) * 10) / 10,
     level,
     text: LEVEL_TEXT[level],
     color: LEVEL_COLOR[level],
     // distance from ideal — used to pick the best size
-    deviation: Math.abs(effectiveEase - target.ideal),
+    deviation: Math.abs(ease - target.ideal),
   };
 }
 
 /**
  * Score one whole size.
  * @param {object} body body profile { chest, waist, hips, ... }
- * @param {object} size size chart row { size, chest, waist, hips, fit, stretch }
+ * @param {object} size size chart row { size, chest, waist, hips, fit, stretch } — stretch from sizeChartOf()
  */
 export function evaluateSize(body, size) {
   const fit = size.fit || 'regular';
-  const stretch = size.stretch ?? 0;
+  const stretch = size.stretch ?? 'none';
 
   const parts = {};
   let worst = FIT_LEVELS.GOOD;

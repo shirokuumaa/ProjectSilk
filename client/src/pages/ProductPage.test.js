@@ -80,3 +80,34 @@ test('with measurements: the recommended size and the ease per measurement in cm
   expect(screen.getByText('+14 cm')).toBeInTheDocument();  // waist: 84 − 70
   expect(screen.queryByRole('button', { name: 'Add your measurements' })).not.toBeInTheDocument();
 });
+
+test('a stretchy dress smaller than the body is not "too tight", and the buyer sees why', async () => {
+  respond(200, {
+    ...PRODUCT,
+    title: 'Stretch Maxi Dress',
+    garmentType: 'dress',
+    stretch: 'stretchy',
+    sizeChart: [
+      { size: 'S', chest: 73, waist: 62, hips: 80, fit: 'tight' },
+      { size: 'M', chest: 75, waist: 65, hips: 82, fit: 'tight' },
+    ],
+  });
+  loadBodyProfile.mockResolvedValue({ heightCm: 166, chest: 84, waist: 69, hips: 92 });
+  renderAt();
+  expect(await screen.findByText(/^Your size is (S|M)$/)).toBeInTheDocument();
+  expect(screen.getByText('Stretchy fabric — fits snugly')).toBeInTheDocument();
+  expect(screen.queryByText('will not close')).not.toBeInTheDocument();
+  expect(screen.getByText('-7 cm')).toBeInTheDocument(); // талия S: 62 − 69, показана честно
+});
+
+test('without stretch the same dress will not close', async () => {
+  respond(200, {
+    ...PRODUCT,
+    garmentType: 'dress',
+    sizeChart: [{ size: 'S', chest: 73, waist: 62, hips: 80, fit: 'tight' }],
+  });
+  loadBodyProfile.mockResolvedValue({ heightCm: 166, chest: 84, waist: 69, hips: 92 });
+  renderAt();
+  expect(await screen.findByText(/No size will really work/)).toBeInTheDocument();
+  expect(screen.queryByText(/Stretchy fabric/)).not.toBeInTheDocument();
+});

@@ -105,6 +105,9 @@ async function normalizeModel(rawFile) {
   return { url, created };
 }
 
+/** lean() не подставляет значения по умолчанию: у старых товаров нет stretch → 'none'. */
+const withDefaults = (p) => (p ? { stretch: 'none', ...p } : p);
+
 function sendValidationError(res, e) {
   return res.status(400).json({
     message: 'Invalid product data.',
@@ -115,7 +118,7 @@ function sendValidationError(res, e) {
 export const getAllProducts = async (_req, res) => {
   try {
     const items = await Product.find().sort({ createdAt: -1 }).lean();
-    res.json(items);
+    res.json(items.map(withDefaults));
   } catch (e) {
     console.error('getAllProducts error:', e);
     res.status(500).json({ message: 'Ошибка при получении товаров', error: String(e?.message || e) });
@@ -126,7 +129,7 @@ export const getAllProducts = async (_req, res) => {
 export const getMyProducts = async (req, res) => {
   try {
     const items = await Product.find({ owner: req.user.id }).sort({ createdAt: -1 }).lean();
-    res.json(items);
+    res.json(items.map(withDefaults));
   } catch (e) {
     console.error('getMyProducts error:', e);
     res.status(500).json({ message: 'Could not load your products.' });
@@ -138,7 +141,7 @@ export const getProductById = async (req, res) => {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Not found' });
     const item = await Product.findById(req.params.id).lean();
     if (!item) return res.status(404).json({ message: 'Not found' });
-    res.json(item);
+    res.json(withDefaults(item));
   } catch (e) {
     console.error('getProductById error:', e);
     res.status(500).json({ message: 'Ошибка при получении товара', error: String(e?.message || e) });
@@ -183,6 +186,7 @@ export const addProduct = async (req, res) => {
       price: priceNum,
       category: String(category || 'Clothes'),
       garmentType: String(garmentType || 'top'),
+      stretch: req.body.stretch || 'none',
       sizeChart: parseSizeChart(req.body.sizeChart) ?? [],
       legs: req.body.legs || undefined,
       image: `/uploads/images/${imageFile.filename}`,
@@ -233,6 +237,7 @@ export const updateProduct = async (req, res) => {
     }
     if (b.category !== undefined) product.category = String(b.category);
     if (b.garmentType !== undefined) product.garmentType = String(b.garmentType);
+    if (b.stretch !== undefined) product.stretch = b.stretch || 'none';
     if (b.sizeChart !== undefined) product.sizeChart = parseSizeChart(b.sizeChart);
     if (b.legs !== undefined) product.legs = b.legs || undefined;   // пусто — снять подсказку
 

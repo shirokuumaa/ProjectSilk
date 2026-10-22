@@ -4,7 +4,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import WardrobePage from './WardrobePage';
 import { loadBodyProfile } from '../utils/bodyProfileApi';
-import { findBestSize } from '../utils/fitCalculator';
+import { findBestSize, sizeChartOf } from '../utils/fitCalculator';
 
 // сцена не нужна — показываем, какие вещи и в каком размере ушли на фигуру
 jest.mock('../components/GlbViewer', () => ({ garments }) => (
@@ -49,4 +49,26 @@ test('boots (no generic shape) can only be size-checked', async () => {
   await screen.findByText('No 3D model yet · worn as a generic skirt');
   expect(screen.getAllByRole('button', { name: 'Wear' })).toHaveLength(1);
   expect(screen.getByRole('button', { name: 'Check size' })).toBeInTheDocument();
+});
+
+test('a stretchy dress: the wardrobe shows the same size as the product page and drapes it in that size', async () => {
+  const dress = {
+    _id: 'dress', title: 'Stretch Maxi Dress', garmentType: 'dress', stretch: 'stretchy',
+    sizeChart: [
+      { size: 'S', chest: 73, waist: 62, hips: 80, fit: 'tight' },
+      { size: 'M', chest: 75, waist: 65, hips: 82, fit: 'tight' },
+      { size: 'L', chest: 77, waist: 68, hips: 84, fit: 'tight' },
+    ],
+  };
+  localStorage.setItem('wardrobeItems', JSON.stringify([{ id: 'dress', name: 'Stretch Maxi Dress', image: '' }]));
+  global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 200, json: async () => [dress] });
+
+  render(<MemoryRouter><WardrobePage /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Wear' }));
+
+  const expected = findBestSize(PROFILE, sizeChartOf(dress));   // то же, что считает страница товара
+  expect(expected.recommended.wearable).toBe(true);
+  expect(await screen.findByText(expected.message)).toBeInTheDocument();
+  expect(screen.getByText('Stretchy fabric — fits snugly')).toBeInTheDocument();
+  await waitFor(() => expect(screen.getByTestId('worn')).toHaveTextContent(`|${expected.recommended.size}|`));
 });

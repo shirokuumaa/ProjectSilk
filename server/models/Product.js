@@ -24,7 +24,8 @@ const SizeEntrySchema = new mongoose.Schema({
     default: 'regular',
   },
 
-  // эластичность ткани в процентах: 0 = не тянется (джинса), 30 = сильно тянется (трикотаж)
+  // старое поле «Stretch, %» по строкам; подбор размера его больше не читает —
+  // тянучесть ткани теперь у товара целиком (ProductSchema.stretch)
   stretch: { type: Number, default: 0, min: 0, max: 50 },
 }, { _id: false });
 
@@ -45,6 +46,14 @@ const ProductSchema = new mongoose.Schema({
 
   // размерная сетка; без неё подбор размера невозможен
   sizeChart: { type: [SizeEntrySchema], default: [] },
+
+  // тянется ли ткань (на весь товар); насколько вещь может быть меньше тела —
+  // client/src/utils/fitCalculator.js (STRETCH_SHARE). У старых товаров — 'none'.
+  stretch: {
+    type: String,
+    enum: { values: ['none', 'slight', 'stretchy'], message: 'Fabric stretch must be none, slight or stretchy.' },
+    default: 'none',
+  },
 
   // тип вещи — определяет, на какую часть тела надевается и порядок слоёв
   garmentType: {

@@ -43,7 +43,7 @@ import { drapeGarment, restoreGeometry, snapshotGeometry } from '../../utils/gar
 import { useAvatarBody } from '../../utils/avatarBody';
 import { placeByHeight } from '../../utils/garmentPlacement';
 import { loadBodyProfile, isProfileComplete } from '../../utils/bodyProfileApi';
-import { findBestSize, getStressMap } from '../../utils/fitCalculator';
+import { findBestSize, getStressMap, sizeChartOf } from '../../utils/fitCalculator';
 import { getWardrobe, pruneWardrobe, WARDROBE_EVENT } from '../../utils/wardrobeStorage';
 import { templateFor } from '../../utils/garmentTemplates';
 import styles from './TryOnAvatar.module.css';
@@ -260,7 +260,7 @@ export default function TryOnAvatar() {
         model3d: toPublicUrl(w.model3d || p.model3d || ''),
         garmentType: p.garmentType || 'top',
         layer: typeof p.layer === 'number' ? p.layer : 1,
-        sizeChart: Array.isArray(p.sizeChart) ? p.sizeChart : [],
+        sizeChart: sizeChartOf(p), // с тянучестью ткани товара
         legs: p.legs || null,
       };
       // без своей 3D-модели — шаблон того же типа в размере покупателя

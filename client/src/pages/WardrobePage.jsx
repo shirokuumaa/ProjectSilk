@@ -31,7 +31,7 @@ import styles from './Wardrobe.module.css';
 import GlbViewer from '../components/GlbViewer';
 import { getBaseURL } from '../assistant/api';
 import { loadBodyProfile, isProfileComplete } from '../utils/bodyProfileApi';
-import { findBestSize, getStressMap } from '../utils/fitCalculator';
+import { findBestSize, getStressMap, sizeChartOf, STRETCH_NOTES } from '../utils/fitCalculator';
 import { templateFor } from '../utils/garmentTemplates';
 import {
   getWardrobe, saveWardrobe, clearWardrobe, importFromFavorites, addOutfit, WARDROBE_EVENT,
@@ -127,7 +127,8 @@ export default function WardrobePage() {
         price: c.price ?? it.price,
         model3d: c.model3d || it.model3d,
         garmentType: c.garmentType || it.garmentType || guessType(c.category || it.category),
-        sizeChart: Array.isArray(c.sizeChart) && c.sizeChart.length ? c.sizeChart : it.sizeChart,
+        sizeChart: Array.isArray(c.sizeChart) && c.sizeChart.length ? sizeChartOf(c) : it.sizeChart,
+        stretch: c.stretch || 'none',
         legs: c.legs || it.legs || null,
       };
     });
@@ -501,6 +502,9 @@ export default function WardrobePage() {
                     ))}
 
                     <p className={styles.tiny} style={{ margin: '9px 0 0' }}>{fit.message}</p>
+                    {STRETCH_NOTES[active?.stretch] && (
+                      <p className={styles.tiny} style={{ margin: '4px 0 0' }}>{STRETCH_NOTES[active.stretch]}</p>
+                    )}
 
                     <div className={styles.szrow}>
                       {fit.all.map((s) => (

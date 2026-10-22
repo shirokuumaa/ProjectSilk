@@ -88,3 +88,9 @@
   .dot { display: inline-block; width: 8px; height: 8px; border-radius: 4px; margin-right: 6px; }
   
   .footnote { font-size: 11.5px; color: var(--muted-2); margin-top: 10px; line-height: 1.5; }
+
+.stretchNote {
+  margin-top: 6px;
+  font-size: var(--fs-sm);
+  color: var(--muted);
+}

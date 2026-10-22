@@ -10,7 +10,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { findBestSize, MEASUREMENT_LABELS } from '../utils/fitCalculator';
+import { findBestSize, MEASUREMENT_LABELS, sizeChartOf, STRETCH_NOTES } from '../utils/fitCalculator';
 import { loadBodyProfile, isProfileComplete } from '../utils/bodyProfileApi';
 import styles from './SizeAdvisor.module.css';
 
@@ -34,7 +34,8 @@ export default function SizeAdvisor({
     return () => { alive = false; };
   }, []);
 
-  const sizeChart = product?.sizeChart || [];
+  // строки сетки с тянучестью ткани товара — её учитывает подбор размера
+  const sizeChart = sizeChartOf(product);
 
   if (product?.garmentType === 'accessory') return null;
 
@@ -129,6 +130,10 @@ export default function SizeAdvisor({
       <div className={`${styles.verdict} ${result.shouldWarn ? styles.verdictWarn : ''}`}>
         {result.message}
       </div>
+
+      {STRETCH_NOTES[product?.stretch] && (
+        <div className={styles.stretchNote}>{STRETCH_NOTES[product.stretch]}</div>
+      )}
 
       {detail && (
         <table className={styles.table}>

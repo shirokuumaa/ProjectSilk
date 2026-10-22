@@ -52,6 +52,7 @@ test('Save sends PATCH /api/products/:id with the new title, price and size char
   expect(body.get('title')).toBe('Basic Tee v2');
   expect(body.get('price')).toBe('10500');
   expect(body.get('garmentType')).toBe('top');
+  expect(body.get('stretch')).toBe('none');       // у старого товара поля не было — «No stretch»
   expect(body.get('image')).toBeNull();          // фото не меняли — не отправляем
   const chart = JSON.parse(body.get('sizeChart'));
   expect(chart.map((r) => r.size)).toEqual(['S', 'M']);
@@ -78,4 +79,16 @@ test('a server error message is shown as is', async () => {
   renderForm();
   fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
   expect(await screen.findByRole('alert')).toHaveTextContent('Price must be a positive number.');
+});
+
+test('the seller picks how much the fabric stretches; it is sent with the product', async () => {
+  authFetch.mockResolvedValue({ ok: true, status: 200, json: async () => PRODUCT });
+  renderForm();
+  fireEvent.change(screen.getByLabelText(/Fabric stretch/), { target: { value: 'stretchy' } });
+  expect(screen.getByText('Jersey, knits with elastane, bodycon')).toBeInTheDocument();
+  fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+  await waitFor(() => expect(authFetch).toHaveBeenCalled());
+  const body = authFetch.mock.calls[0][1].body;
+  expect(body.get('stretch')).toBe('stretchy');
+  expect(JSON.parse(body.get('sizeChart'))[0]).not.toHaveProperty('stretch'); // не строками сетки
 });

@@ -16,6 +16,7 @@ import { useNavigate } from 'react-router-dom';
 import styles from './ProductCardTall.module.css';
 import SizeAdvisor from './SizeAdvisor';
 import { addToWardrobe as addWardrobeHelper } from '../utils/wardrobeStorage';
+import { sizeChartOf } from '../utils/fitCalculator';
 
 const API_BASE = process.env.REACT_APP_API || 'http://localhost:5050';
 const toPublicUrl = (s = '') => (String(s).startsWith('/uploads') ? `${API_BASE}${s}` : s);
@@ -128,7 +129,7 @@ export default function ProductCardTall({ product, addToCart, onAvatar }) {
           category,
           model3d: model3d || '',
           garmentType: product?.garmentType || 'top',
-          sizeChart: product?.sizeChart || [],
+          sizeChart: sizeChartOf(product), // с тянучестью ткани — панель считает размер сама
         }));
       }}
       onMouseEnter={startSlide}

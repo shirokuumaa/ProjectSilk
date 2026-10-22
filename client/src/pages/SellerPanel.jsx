@@ -150,6 +150,7 @@ function SellerDashboard() {
 
   const [sizeChart, setSizeChart] = useState([]);
   const [garmentType, setGarmentType] = useState("top");
+  const [stretch, setStretch] = useState("none");
 
   const [processedUrl, setProcessedUrl] = useState(null);   // превью (blob URL)
   const [processedBlob, setProcessedBlob] = useState(null); // файл для отправки (Blob/File)
@@ -378,6 +379,7 @@ function SellerDashboard() {
       fd.append("price", String(Number(price)));
       fd.append("category", category);
       fd.append("garmentType", garmentType);
+      fd.append("stretch", stretch);
       fd.append("sizeChart", JSON.stringify(serializeSizeChart(sizeChart)));
       // имя файла задаёт расширение на сервере; у исходного File оно своё (jpg/webp)
       fd.append("image", processedBlob, processedBlob.name || "product.png");
@@ -398,6 +400,7 @@ function SellerDashboard() {
       setTitle("");
       setPrice("");
       setSizeChart([]);
+      setStretch("none");
 
       if (processedUrl && String(processedUrl).startsWith("blob:")) {
         URL.revokeObjectURL(processedUrl);
@@ -496,6 +499,8 @@ function SellerDashboard() {
                 onChange={setSizeChart}
                 garmentType={garmentType}
                 onGarmentTypeChange={setGarmentType}
+                stretch={stretch}
+                onStretchChange={setStretch}
               />
 
               <div style={{ marginTop: 4 }}>
@@ -670,6 +675,7 @@ export function EditProductForm({ product, onCancel, onSaved }) {
   const [price, setPrice] = useState(String(product.price ?? ""));
   const [category, setCategory] = useState(product.category || "Clothes");
   const [garmentType, setGarmentType] = useState(product.garmentType || "top");
+  const [stretch, setStretch] = useState(product.stretch || "none"); // старые товары — «No stretch»
   const [sizeChart, setSizeChart] = useState(() => toEditorRows(product.sizeChart));
   const [image, setImage] = useState(null);
   const [saving, setSaving] = useState(false);
@@ -695,6 +701,7 @@ export function EditProductForm({ product, onCancel, onSaved }) {
       fd.append("price", String(priceNum));
       fd.append("category", category);
       fd.append("garmentType", garmentType);
+      fd.append("stretch", stretch);
       fd.append("sizeChart", JSON.stringify(serializeSizeChart(sizeChart)));
       if (image) fd.append("image", image, image.name);
       const r = await authFetch(`${API}/api/products/${product._id}`, { method: "PATCH", body: fd });
@@ -734,6 +741,8 @@ export function EditProductForm({ product, onCancel, onSaved }) {
           onChange={setSizeChart}
           garmentType={garmentType}
           onGarmentTypeChange={setGarmentType}
+          stretch={stretch}
+          onStretchChange={setStretch}
         />
 
         <label style={ui.label}>
