@@ -6,6 +6,7 @@
 import React, { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import SizeChartEditor, { serializeSizeChart } from "../components/SizeChartEditor";
+import SellerHeader from "../components/SellerHeader";
 import { authFetch, becomeSeller, fetchMe, isLoggedIn } from "../utils/auth";
 
 // единая точка входа API (как и в других файлах)
@@ -43,11 +44,18 @@ export default function SellerPanel() {
   }, []);
 
   if (access === "loading") {
-    return <div style={ui.page}><p style={ui.muted}>Checking your account…</p></div>;
+    return (
+      <>
+        <SellerHeader />
+        <div style={ui.page}><p style={ui.muted}>Checking your account…</p></div>
+      </>
+    );
   }
 
   if (access === "guest") {
     return (
+      <>
+      <SellerHeader />
       <div style={ui.page}>
         <div style={ui.gate}>
           <h2 style={ui.h2}>Seller dashboard</h2>
@@ -58,21 +66,30 @@ export default function SellerPanel() {
           </div>
         </div>
       </div>
+      </>
     );
   }
 
   if (access === "buyer") {
     return (
-      <div style={ui.page}>
-        <BecomeSeller
-          username={me?.username}
-          onDone={(user) => { setMe(user); setAccess("seller"); }}
-        />
-      </div>
+      <>
+        <SellerHeader username={me?.username} />
+        <div style={ui.page}>
+          <BecomeSeller
+            username={me?.username}
+            onDone={(user) => { setMe(user); setAccess("seller"); }}
+          />
+        </div>
+      </>
     );
   }
 
-  return <SellerDashboard storeName={me?.storeName} />;
+  return (
+    <>
+      <SellerHeader username={me?.username} storeName={me?.storeName} />
+      <SellerDashboard />
+    </>
+  );
 }
 
 function BecomeSeller({ username, onDone }) {
@@ -123,7 +140,7 @@ function BecomeSeller({ username, onDone }) {
 
 /* ───────────────────────── кабинет ───────────────────────── */
 
-function SellerDashboard({ storeName }) {
+function SellerDashboard() {
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
   const [category, setCategory] = useState("Clothes");
@@ -399,7 +416,6 @@ function SellerDashboard({ storeName }) {
   return (
     <div style={ui.page}>
       <h2 style={{ ...ui.h2, marginBottom: 4 }}>👕 Add a product</h2>
-      {storeName && <p style={{ ...ui.muted, margin: "0 0 8px" }}>Store: <b>{storeName}</b></p>}
 
       {/* индикатор AI */}
       <div style={{ margin: "8px 0 16px", fontSize: 13 }}>
