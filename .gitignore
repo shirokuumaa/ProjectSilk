@@ -42,6 +42,7 @@ gpu-infer/venv/
 *.glb
 !client/public/models/base_avatar.glb
 !client/public/models/test-garments/*.glb
+!client/public/models/demo-garments/*.glb
 *.gltf
 scripts/avatar/out/
 scripts/garments/out/
