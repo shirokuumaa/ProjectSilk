@@ -46,7 +46,9 @@ import { loadBodyProfile, isProfileComplete } from '../../utils/bodyProfileApi';
 import { findBestSize, getStressMap, sizeChartOf } from '../../utils/fitCalculator';
 import { getWardrobe, pruneWardrobe, WARDROBE_EVENT } from '../../utils/wardrobeStorage';
 import { templateFor } from '../../utils/garmentTemplates';
-import { pickSizeModel, figureShape, transferToFigure, simFitMode } from '../../utils/sizeModels';
+import {
+  pickSizeModel, figureShape, transferToFigure, pushOutOfBody, simFitMode,
+} from '../../utils/sizeModels';
 import styles from './TryOnAvatar.module.css';
 
 const API_BASE = process.env.REACT_APP_API || 'http://localhost:5050';
@@ -178,8 +180,12 @@ function Garment({ url, profile, garmentType, fit, layer, size = null, legs = nu
     if (simFigure) transferToFigure(root, figureShape(simFigure, avatar), shape);
     else if (!placeByHeight(group, garmentType, shape.landmarks)) return;
 
-    // 3. прижимаем ткань к телу (для сравнения в разработке: ?simFit=transfer — без этого шага)
-    if (simFigure && simFitMode() === 'transfer') return;
+    // 3. просимулированная ткань: только страховка — что оказалось внутри тела, наружу на 4 мм;
+    //    шаблоны и модели продавца прижимаются к телу garmentDrape
+    if (simFigure && simFitMode() === 'transfer') {
+      pushOutOfBody(root, shape);
+      return;
+    }
     drapeGarment(group, shape, { fit, layer, size, garmentType, legs });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [root, garmentType, fit, layer, shape, size, legs, simFigure]);

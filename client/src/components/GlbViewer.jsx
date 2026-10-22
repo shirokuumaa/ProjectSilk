@@ -23,7 +23,7 @@ import BodyStage from './BodyStage';
 import FitCamera from './FitCamera';
 import { drapeGarment, restoreGeometry, snapshotGeometry } from '../utils/garmentDrape';
 import { useAvatarBody } from '../utils/avatarBody';
-import { figureShape, transferToFigure, simFitMode } from '../utils/sizeModels';
+import { figureShape, transferToFigure, pushOutOfBody, simFitMode } from '../utils/sizeModels';
 
 /** Приводит модель к целевому росту, ставит ступни на y=0. */
 function normalizeModel(object, targetHeight = 1.7) {
@@ -78,11 +78,15 @@ function GarmentOnBody({
     ref.current.position.set(0, 0, 0);
 
     // ткань, просимулированная на фигуре размера: перенос на фигуру покупателя
-    // (складки сохраняются), затем та же подгонка по обмерам
+    // (складки сохраняются) и страховка — что оказалось внутри тела, наружу на 4 мм
     if (simFigure) {
       ref.current.updateWorldMatrix(true, true);
       transferToFigure(garmentScene, figureShape(simFigure, { kind: avatarKind, body: avatarBody }), shape);
-      if (drape && simFitMode() === 'drape' && ['top', 'dress', 'outerwear', 'bottom'].includes(garmentType)) {
+      if (simFitMode() === 'transfer') {
+        pushOutOfBody(garmentScene, shape);
+        return;
+      }
+      if (drape && ['top', 'dress', 'outerwear', 'bottom'].includes(garmentType)) {
         try {
           drapeGarment(ref.current, shape, { fit, layer: layerOffset, size, garmentType, legs });
         } catch (e) {

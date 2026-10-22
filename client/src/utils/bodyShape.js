@@ -22,6 +22,7 @@
 //   girthAt(y, region) → обхват тела на высоте y, м
 //   arms        [{ a, b, c, r1, r2, m1, m2 }] — капсулы рук (только у меша): r — с запасом
 //               на дельту и подмышку (выталкивание), m — медиана (рукав или торс)
+//   mesh        { positions, index } — вершины фигуры (только у меша)
 
 // ── процедурное тело (копия логики BodyAvatar) ─────────────────
 
@@ -413,6 +414,8 @@ export function meshBodyShape({ positions, index, part, landmarks, waistLevel, h
   }
   return {
     kind: 'mesh',
+    // сам меш фигуры — для проверки «внутри тела» по настоящей поверхности (bodySurface.js)
+    mesh: { positions, index },
     landmarks: {
       height: top - floor,
       shoulderWidth: Math.hypot(shL[0] - shR[0], shL[2] - shR[2]),
