@@ -46,6 +46,7 @@ import { loadBodyProfile, isProfileComplete } from '../../utils/bodyProfileApi';
 import { findBestSize, getStressMap, sizeChartOf } from '../../utils/fitCalculator';
 import { getWardrobe, pruneWardrobe, WARDROBE_EVENT } from '../../utils/wardrobeStorage';
 import { templateFor } from '../../utils/garmentTemplates';
+import { pickSizeModel, figureShape, transferToFigure, simFitMode } from '../../utils/sizeModels';
 import styles from './TryOnAvatar.module.css';
 
 const API_BASE = process.env.REACT_APP_API || 'http://localhost:5050';
@@ -127,9 +128,10 @@ function disposeTree(root) {
 /**
  * Одна вещь на теле: грузит GLB, ставит по росту и прижимает к фигуре.
  */
-function Garment({ url, profile, garmentType, fit, layer, size = null, legs = null, onStatus }) {
+function Garment({ url, profile, garmentType, fit, layer, size = null, legs = null, simFigure = null, onStatus }) {
   // тело и его форма — те же, что у AvatarBody в этой сцене
-  const { shape } = useAvatarBody(profile);
+  const avatar = useAvatarBody(profile);
+  const { shape } = avatar;
   const groupRef = useRef(null);
   const [root, setRoot] = useState(null);
 
@@ -171,13 +173,16 @@ function Garment({ url, profile, garmentType, fit, layer, size = null, legs = nu
     group.scale.set(1, 1, 1);
     group.updateWorldMatrix(true, true);
 
-    // 2. масштаб по росту фигуры
-    if (!placeByHeight(group, garmentType, shape.landmarks)) return;
+    // 2. посадка: ткань, просимулированная на фигуре размера, переносится на фигуру
+    //    покупателя (складки сохраняются); любая другая вещь — масштаб по росту
+    if (simFigure) transferToFigure(root, figureShape(simFigure, avatar), shape);
+    else if (!placeByHeight(group, garmentType, shape.landmarks)) return;
 
-    // 3. прижимаем ткань к телу
+    // 3. прижимаем ткань к телу (для сравнения в разработке: ?simFit=transfer — без этого шага)
+    if (simFigure && simFitMode() === 'transfer') return;
     drapeGarment(group, shape, { fit, layer, size, garmentType, legs });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [root, garmentType, fit, layer, shape, size, legs]);
+  }, [root, garmentType, fit, layer, shape, size, legs, simFigure]);
 
   return <group ref={groupRef}>{root && shape && <primitive object={root} />}</group>;
 }
@@ -262,6 +267,7 @@ export default function TryOnAvatar() {
         layer: typeof p.layer === 'number' ? p.layer : 1,
         sizeChart: sizeChartOf(p), // с тянучестью ткани товара
         legs: p.legs || null,
+        sizeModels: p.sizeModels || null,   // ткань, просимулированная по размерам
       };
       // без своей 3D-модели — шаблон того же типа в размере покупателя
       const template = templateFor(item);
@@ -385,19 +391,25 @@ export default function TryOnAvatar() {
 
               {worn
                 .filter((w) => w.item.garmentUrl)
-                .map((w) => (
-                  <Garment
-                    key={w.item.id}
-                    url={w.item.garmentUrl}
-                    profile={profile}
-                    garmentType={w.item.garmentType}
-                    fit={fitOf(w.item)}
-                    layer={w.item.layer}
-                    size={sizeRowOf(w.item)}
-                    legs={w.item.template ? w.item.template.legs : w.item.legs}
-                    onStatus={(url, st) => setGlbStatus((s) => ({ ...s, [url]: st }))}
-                  />
-                ))}
+                .map((w) => {
+                  const size = sizeRowOf(w.item);
+                  // модель надеваемого размера или ближайшего (если у товара они есть)
+                  const model = pickSizeModel(w.item, size);
+                  return (
+                    <Garment
+                      key={w.item.id}
+                      url={model ? model.model3d : w.item.garmentUrl}
+                      profile={profile}
+                      garmentType={w.item.garmentType}
+                      fit={fitOf(w.item)}
+                      layer={w.item.layer}
+                      size={size}
+                      legs={w.item.template ? w.item.template.legs : w.item.legs}
+                      simFigure={model?.body || null}
+                      onStatus={(url, st) => setGlbStatus((s) => ({ ...s, [url]: st }))}
+                    />
+                  );
+                })}
 
               <gridHelper args={[3, 12, '#E4E1DC', '#EDEAE5']} />
               <OrbitControls

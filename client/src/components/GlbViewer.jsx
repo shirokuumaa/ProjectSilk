@@ -23,6 +23,7 @@ import BodyStage from './BodyStage';
 import FitCamera from './FitCamera';
 import { drapeGarment, restoreGeometry, snapshotGeometry } from '../utils/garmentDrape';
 import { useAvatarBody } from '../utils/avatarBody';
+import { figureShape, transferToFigure, simFitMode } from '../utils/sizeModels';
 
 /** Приводит модель к целевому росту, ставит ступни на y=0. */
 function normalizeModel(object, targetHeight = 1.7) {
@@ -56,11 +57,12 @@ function bodyWidthAt(profile, key) {
 
 function GarmentOnBody({
   garmentScene, profile, garmentType = 'top',
-  layerOffset = 0, fit = 'regular', drape = true, size = null, legs = null,
+  layerOffset = 0, fit = 'regular', drape = true, size = null, legs = null, simFigure = null,
 }) {
   const ref = useRef();
   // тело и его форма — те же, что у AvatarBody в этой сцене
-  const { shape } = useAvatarBody(profile);
+  const avatar = useAvatarBody(profile);
+  const { shape, kind: avatarKind, body: avatarBody } = avatar;
 
   useLayoutEffect(() => {
     if (!garmentScene || !ref.current || !shape) return;
@@ -75,17 +77,33 @@ function GarmentOnBody({
     ref.current.scale.setScalar(1);
     ref.current.position.set(0, 0, 0);
 
+    // ткань, просимулированная на фигуре размера: перенос на фигуру покупателя
+    // (складки сохраняются), затем та же подгонка по обмерам
+    if (simFigure) {
+      ref.current.updateWorldMatrix(true, true);
+      transferToFigure(garmentScene, figureShape(simFigure, { kind: avatarKind, body: avatarBody }), shape);
+      if (drape && simFitMode() === 'drape' && ['top', 'dress', 'outerwear', 'bottom'].includes(garmentType)) {
+        try {
+          drapeGarment(ref.current, shape, { fit, layer: layerOffset, size, garmentType, legs });
+        } catch (e) {
+          console.warn('[drape] could not fit garment to body:', e.message);
+        }
+      }
+      return;
+    }
+
+    // габариты вещи; не путать с size — строкой размерной сетки
     const box = new THREE.Box3().setFromObject(garmentScene);
-    const size = box.getSize(new THREE.Vector3());
-    if (size.x === 0 || size.y === 0) return;
+    const extent = box.getSize(new THREE.Vector3());
+    if (extent.x === 0 || extent.y === 0) return;
 
     // автоопределение единиц (см против метров)
     let preScale = 1;
-    if (size.y > marks.height * 10) preScale = 0.01;
-    else if (size.y < marks.height * 0.1) preScale = 100;
+    if (extent.y > marks.height * 10) preScale = 0.01;
+    else if (extent.y < marks.height * 0.1) preScale = 100;
 
     const targetWidth = bodyWidthAt(profile, rule.widthAt) * 2.15;
-    const scale = (targetWidth / (size.x * preScale)) * preScale;
+    const scale = (targetWidth / (extent.x * preScale)) * preScale;
     ref.current.scale.setScalar(scale);
 
     const scaled = new THREE.Box3().setFromObject(ref.current);
@@ -104,7 +122,7 @@ function GarmentOnBody({
         console.warn('[drape] could not fit garment to body:', e.message);
       }
     }
-  }, [garmentScene, profile, garmentType, layerOffset, fit, drape, shape, size, legs]);
+  }, [garmentScene, profile, garmentType, layerOffset, fit, drape, shape, size, legs, simFigure, avatarKind, avatarBody]);
 
   if (!shape) return null;   // болванка ещё грузится
   return <group ref={ref}><primitive object={garmentScene} /></group>;
@@ -141,7 +159,7 @@ function GarmentFitter({ avatarScene, garmentScene }) {
   return <group ref={garmentRef}><primitive object={garmentScene} /></group>;
 }
 
-function GlbGarment({ url, profile, garmentType, layerOffset, fit, drape, size, legs }) {
+function GlbGarment({ url, profile, garmentType, layerOffset, fit, drape, size, legs, simFigure }) {
   const { scene } = useGLTF(url);
 
   // Клон с копией геометрии: drape меняет вершины, без клона
@@ -164,6 +182,7 @@ function GlbGarment({ url, profile, garmentType, layerOffset, fit, drape, size, 
       drape={drape}
       size={size}
       legs={legs}
+      simFigure={simFigure}
     />
   );
 }
@@ -264,6 +283,7 @@ export default function GlbViewer({
                   drape={drape}
                   size={g.size || null}
                   legs={g.legs || null}
+                  simFigure={g.simFigure || null}
                 />
               ))}
             </>

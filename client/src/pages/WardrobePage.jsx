@@ -33,6 +33,7 @@ import { getBaseURL } from '../assistant/api';
 import { loadBodyProfile, isProfileComplete } from '../utils/bodyProfileApi';
 import { findBestSize, getStressMap, sizeChartOf, STRETCH_NOTES } from '../utils/fitCalculator';
 import { templateFor } from '../utils/garmentTemplates';
+import { pickSizeModel } from '../utils/sizeModels';
 import {
   getWardrobe, saveWardrobe, clearWardrobe, importFromFavorites, addOutfit, WARDROBE_EVENT,
   pruneWardrobe,
@@ -129,6 +130,7 @@ export default function WardrobePage() {
         garmentType: c.garmentType || it.garmentType || guessType(c.category || it.category),
         sizeChart: Array.isArray(c.sizeChart) && c.sizeChart.length ? sizeChartOf(c) : it.sizeChart,
         stretch: c.stretch || 'none',
+        sizeModels: c.sizeModels || null,   // ткань, просимулированная по размерам
         legs: c.legs || it.legs || null,
       };
     });
@@ -155,10 +157,14 @@ export default function WardrobePage() {
     if (!item?.sizeChart?.length || !ready) return w;
     const result = findBestSize(profile, item.sizeChart, w.id === activeId ? chosenSize : null);
     const name = (result.chosen || result.recommended)?.size;
+    const size = item.sizeChart.find((s) => s.size === name) || null;
+    // модель надеваемого размера или ближайшего — перенесётся на фигуру покупателя
+    const model = pickSizeModel(item, size);
     return {
       ...w,
-      size: item.sizeChart.find((s) => s.size === name) || null,
+      size,
       legs: w.template ? w.legs : item.legs || null, // у шаблона штанины свои
+      ...(model ? { url: toPublicUrl(model.model3d), simFigure: model.body } : null),
     };
   }), [worn, view, profile, ready, activeId, chosenSize]);
 
