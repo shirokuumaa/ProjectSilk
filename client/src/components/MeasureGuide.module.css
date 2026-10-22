@@ -2,7 +2,7 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  grid-template-columns: repeat(auto-fill, minmax(190px, 1fr));
   gap: 8px;
   margin: 10px 0;
 }
@@ -27,7 +27,7 @@
 }
 .card figcaption b { color: var(--ink); font-size: var(--fs-sm); }
 
-.svg { flex: 0 0 auto; width: 44px; height: 55px; }
+.svg { flex: 0 0 auto; width: 60px; height: 75px; }
 
 .outline {
   fill: var(--surface-3);
