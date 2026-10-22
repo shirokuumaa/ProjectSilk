@@ -1,0 +1,104 @@
+{
+ "source": "Newton 1.7 (SolverStyle3D), friction 0.2, on our MPFB base avatar; research/patterns/runs/newtontest_gpu",
+ "items": {
+  "dress": {
+   "case": "03_dress",
+   "image": "/models/demo-garments/dress.jpg",
+   "imageMb": 0.031,
+   "models": [
+    {
+     "size": "S",
+     "file": "/models/demo-garments/dress_S.glb",
+     "mb": 0.413,
+     "triangles": 17033,
+     "zOffsetM": 0.04428,
+     "body": {
+      "heightCm": 166.0,
+      "chest": 86,
+      "waist": 66,
+      "hips": 94
+     }
+    },
+    {
+     "size": "L",
+     "file": "/models/demo-garments/dress_L.glb",
+     "mb": 0.477,
+     "triangles": 19673,
+     "zOffsetM": 0.04939,
+     "body": {
+      "heightCm": 166.0,
+      "chest": 96,
+      "waist": 76,
+      "hips": 104
+     }
+    }
+   ]
+  },
+  "skirt": {
+   "case": "04_skirt",
+   "image": "/models/demo-garments/skirt.jpg",
+   "imageMb": 0.027,
+   "models": [
+    {
+     "size": "S",
+     "file": "/models/demo-garments/skirt_S.glb",
+     "mb": 0.653,
+     "triangles": 26997,
+     "zOffsetM": 0.04428,
+     "body": {
+      "heightCm": 166.0,
+      "chest": 86,
+      "waist": 66,
+      "hips": 94
+     }
+    },
+    {
+     "size": "L",
+     "file": "/models/demo-garments/skirt_L.glb",
+     "mb": 0.712,
+     "triangles": 29447,
+     "zOffsetM": 0.04939,
+     "body": {
+      "heightCm": 166.0,
+      "chest": 96,
+      "waist": 76,
+      "hips": 104
+     }
+    }
+   ]
+  },
+  "tee": {
+   "case": "09_tee",
+   "image": "/models/demo-garments/tee.jpg",
+   "imageMb": 0.026,
+   "models": [
+    {
+     "size": "S",
+     "file": "/models/demo-garments/tee_S.glb",
+     "mb": 0.327,
+     "triangles": 13476,
+     "zOffsetM": 0.0453,
+     "body": {
+      "heightCm": 166.0,
+      "chest": 86,
+      "waist": 68,
+      "hips": 94
+     }
+    },
+    {
+     "size": "L",
+     "file": "/models/demo-garments/tee_L.glb",
+     "mb": 0.395,
+     "triangles": 16280,
+     "zOffsetM": 0.05023,
+     "body": {
+      "heightCm": 166.0,
+      "chest": 96,
+      "waist": 78,
+      "hips": 104
+     }
+    }
+   ]
+  }
+ }
+}

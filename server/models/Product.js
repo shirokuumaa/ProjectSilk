@@ -66,6 +66,20 @@ const ProductSchema = new mongoose.Schema({
   // примерка определяет это по геометрии вещи (client/src/utils/garmentDrape.js).
   legs: { type: String, enum: ['split', 'joined'] },
 
+  // 3D-модели по размерам: ткань, заранее просимулированная на нашей болванке в фигуре
+  // этого размера (body). Примерка берёт модель ближайшего размера, переносит её на
+  // фигуру покупателя и подгоняет по обмерам (client/src/utils/sizeModels.js).
+  sizeModels: {
+    type: [new mongoose.Schema({
+      size:    { type: String, required: true },
+      model3d: { type: String, required: true },
+      body: {
+        heightCm: Number, chest: Number, waist: Number, hips: Number,
+      },
+    }, { _id: false })],
+    default: undefined,
+  },
+
   // порядок слоёв при примерке нескольких вещей (меньше = ближе к телу)
   layer: { type: Number, default: 1 },
 
