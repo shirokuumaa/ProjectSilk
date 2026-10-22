@@ -54,7 +54,7 @@ export default function SellerPanel() {
           <p style={ui.muted}>Sign in with a seller account to open the seller dashboard.</p>
           <div style={ui.row}>
             <button style={ui.btnDark} onClick={() => nav("/login")}>Sign in</button>
-            <button style={ui.btn} onClick={() => nav("/register")}>Create seller account</button>
+            <button style={ui.btn} onClick={() => nav("/register?as=seller")}>Create seller account</button>
           </div>
         </div>
       </div>

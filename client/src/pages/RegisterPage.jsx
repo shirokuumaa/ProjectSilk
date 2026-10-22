@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { register } from '../utils/auth';
 
 const MIN_PASSWORD = 8;
@@ -10,7 +10,9 @@ const errorText = { color: 'var(--fit-bad)', margin: '0 0 12px' };
 export default function RegisterPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [accountType, setAccountType] = useState('buyer');
+  // «Create seller account» ведёт сюда с ?as=seller — роль продавца уже выбрана
+  const [params] = useSearchParams();
+  const [accountType, setAccountType] = useState(params.get('as') === 'seller' ? 'seller' : 'buyer');
   const [storeName, setStoreName] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);

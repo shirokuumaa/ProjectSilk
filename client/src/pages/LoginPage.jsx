@@ -19,8 +19,9 @@ export default function LoginPage() {
 
     setBusy(true);
     try {
-      await login(username, password);
-      navigate('/');
+      const user = await login(username, password);
+      // продавец — в свою панель, покупатель — в магазин
+      navigate(user?.role === 'seller' ? '/seller' : '/');
     } catch (err) {
       setError(err.message);
     } finally {
