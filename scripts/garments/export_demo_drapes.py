@@ -11,8 +11,11 @@
 # одинаковый для всех вершин с точностью до 0,1 мм — это проверяется).
 #
 # Запуск (окружение research/patterns/.envs/mac):
-#   research/patterns/.envs/mac/bin/python scripts/garments/export_demo_drapes.py
+#   research/patterns/.envs/mac/bin/python scripts/garments/export_demo_drapes.py            # S и L (Newton, 18.10)
+#   … export_demo_drapes.py --run allsizes   # все размеры: GLB из simtest_report.py --no-render
+#        по runs/allsizes/newton (renders/), болванки runs/allsizes/bodies
 
+import argparse
 import json
 import sys
 from pathlib import Path
@@ -24,6 +27,7 @@ from PIL import Image
 REPO = Path(__file__).resolve().parents[2]
 PATTERNS = REPO / "research" / "patterns"
 RUNS = PATTERNS / "runs" / "newtontest_gpu" / "mu02" / "renders"
+IMAGES = RUNS                                   # картинки товаров — рендеры этого прогона (S спереди)
 BODIES = PATTERNS / "runs" / "day7" / "bodies"
 OUT = REPO / "client" / "public" / "models" / "demo-garments"
 sys.path.insert(0, str(PATTERNS))
@@ -43,7 +47,7 @@ ITEMS = {
     "skirt": {"case": "04_skirt", "store": "zara",   "color": CLOTH},
     "tee":   {"case": "09_tee",   "store": "uniqlo", "color": CLOTH},
 }
-SIZES = ("S", "L")
+SIZES = {"03_dress": ("S", "L"), "04_skirt": ("S", "L"), "09_tee": ("S", "L")}
 
 
 def z_offsets():
@@ -80,7 +84,7 @@ def export_glb(mesh, color, path):
 
 def product_image(case, path):
     """Картинка товара: рендер Newton спереди (наша болванка), кадр по ткани."""
-    img = Image.open(RUNS / f"{case}_S_front.png").convert("RGB")
+    img = Image.open(IMAGES / f"{case}_S_front.png").convert("RGB")
     a = np.asarray(img).astype(int)
     cloth = (a[..., 2] - a[..., 0] > 25)                    # голубая ткань рендера
     ys, xs = np.nonzero(cloth)
@@ -96,13 +100,25 @@ def product_image(case, path):
 
 
 def main():
+    global RUNS, BODIES, SIZES
+    ap = argparse.ArgumentParser()
+    ap.add_argument("--run", help="research/patterns/runs/<run>: every size, GLBs from <run>/report/renders")
+    a = ap.parse_args()
+    if a.run:
+        run = PATTERNS / "runs" / a.run
+        RUNS, BODIES = run / "report" / "renders", run / "bodies"
+        cases = json.load(open(run / "inputs" / "cases.json"))
+        SIZES = {c["item"]: tuple(x["size"] for x in cases if x["item"] == c["item"]) for c in cases}
     OUT.mkdir(parents=True, exist_ok=True)
     dz = z_offsets()
-    manifest = {"source": "Newton 1.7 (SolverStyle3D), friction 0.2, on our MPFB base avatar; "
-                          "research/patterns/runs/newtontest_gpu", "items": {}}
+    source = (f"Newton 1.7 (SolverStyle3D) on our MPFB base avatar, every size on its own size body; "
+              f"skirts friction 0.5, others 0.2; research/patterns/runs/{a.run}") if a.run else \
+             ("Newton 1.7 (SolverStyle3D), friction 0.2, on our MPFB base avatar; "
+              "research/patterns/runs/newtontest_gpu")
+    manifest = {"source": source, "items": {}}
     for item, cfg in ITEMS.items():
         models = []
-        for size in SIZES:
+        for size in SIZES[cfg["case"]]:
             body = f"{cfg['store']}_{size}"
             mesh = load_mesh(RUNS / f"{cfg['case']}_{size}.glb")
             mesh.apply_scale(0.01)                           # см → м

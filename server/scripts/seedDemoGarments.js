@@ -1,6 +1,6 @@
 // server/scripts/seedDemoGarments.js
 //
-// Три демо-товара с настоящей тканью: платье, юбка, футболка. 3D-модели размеров S и L —
+// Три демо-товара с настоящей тканью: платье, юбка, футболка. 3D-модели всех размеров сетки —
 // драпировки Newton на нашей болванке (scripts/garments/export_demo_drapes.py,
 // client/public/models/demo-garments/manifest.json). Размерные сетки — замеры изделий
 // из исследования, день 7 (research/patterns/runs/day7/report.md): ширины в разложенном
@@ -69,7 +69,8 @@ export function demoProducts(ownerId, manifest = JSON.parse(fs.readFileSync(MANI
       name: p.title,
       category: 'Clothes',
       image: item.image,
-      model3d: sizeModels[0].model3d,   // «есть 3D» для старых страниц
+      // «есть 3D» для старых страниц — модель S (или первая, если S нет)
+      model3d: (sizeModels.find((m) => m.size === 'S') || sizeModels[0]).model3d,
       sizeModels,
       owner: ownerId,
     };

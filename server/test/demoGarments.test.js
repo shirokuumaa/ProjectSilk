@@ -29,15 +29,15 @@ describe('демо-товары: платье, юбка, футболка с м�
     assert.deepEqual(all.map((p) => p.title).sort(), ['Crew Neck T-Shirt', 'Flared Midi Skirt', 'Short Sleeve Mini Dress']);
   });
 
-  it('у каждого — модели S и L с фигурой, на которой считалась ткань', async () => {
+  it('у каждого — модель на каждый размер сетки, с фигурой, на которой считалась ткань', async () => {
     for (const p of products) {
       const r = (await api('GET', `/api/products/${p._id}`)).json;
-      assert.deepEqual(r.sizeModels.map((m) => m.size), ['S', 'L']);
+      assert.deepEqual(r.sizeModels.map((m) => m.size), r.sizeChart.map((row) => row.size));
       r.sizeModels.forEach((m) => {
-        assert.match(m.model3d, /^\/models\/demo-garments\/(dress|skirt|tee)_(S|L)\.glb$/);
+        assert.match(m.model3d, new RegExp(`^/models/demo-garments/(dress|skirt|tee)_${m.size}\\.glb$`));
         assert.equal(m.body.heightCm, 166);
       });
-      assert.equal(r.model3d, r.sizeModels[0].model3d);
+      assert.equal(r.model3d, r.sizeModels.find((m) => m.size === 'S').model3d);
     }
   });
 
