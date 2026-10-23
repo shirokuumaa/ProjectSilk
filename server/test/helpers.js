@@ -189,17 +189,23 @@ export async function api(method, urlPath, { token, body, files, fields, headers
   const text = await r.text();
   let json = null;
   try { json = text ? JSON.parse(text) : null; } catch { /* не JSON */ }
-  return { status: r.status, json, text };
+  return { status: r.status, json, text, headers: r.headers };
 }
 
 export const register = (username, extra = {}) =>
   api('POST', '/api/auth/register', { body: { username, password: 'test-pass-123', ...extra } });
 
-/** Зарегистрировать и вернуть { token, user }. */
+/** Токен из Set-Cookie ответа на вход или регистрацию (в теле его нет). */
+export function tokenFromCookie(r) {
+  const m = /(?:^|[;,]\s*)ps_token=([^;]+)/.exec(r.headers.get('set-cookie') || '');
+  return m ? decodeURIComponent(m[1]) : null;
+}
+
+/** Зарегистрировать и вернуть { token, user }; токен — из cookie, тесты шлют его как Bearer. */
 export async function newUser(username, extra = {}) {
   const r = await register(username, extra);
   if (r.status !== 201) throw new Error(`register ${username}: ${r.status} ${r.text}`);
-  return r.json;
+  return { ...r.json, token: tokenFromCookie(r) };
 }
 
 /** JWT, подписанный вручную (для истёкших и поддельных токенов). */

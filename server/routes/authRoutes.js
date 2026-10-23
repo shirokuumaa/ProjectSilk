@@ -1,13 +1,14 @@
 // server/routes/authRoutes.js
 //
-//   POST /api/auth/register       { username, password, accountType?, storeName? } → 201 { token, user } + cookie
-//   POST /api/auth/login          { username, password }                          → 200 { token, user } + cookie
+//   POST /api/auth/register       { username, password, accountType?, storeName? } → 201 { user } + cookie
+//   POST /api/auth/login          { username, password }                          → 200 { user } + cookie
 //   POST /api/auth/logout                                                         → 200, cookie стёрта
 //   GET  /api/auth/me             (cookie или Bearer)                             → 200 user
 //   POST /api/auth/become-seller  (cookie или Bearer) { storeName }               → 200 { user }
 //
 // Вход в браузере — httpOnly-cookie ps_token (см. middleware/requireAuth.js).
-// token в теле ответа остаётся для клиентов без cookie (тесты, скрипты); сайт его не хранит.
+// В теле ответа токена нет: его не прочтёт ни скрипт страницы, ни расширение браузера.
+// Клиенты без cookie (тесты, скрипты) берут его из Set-Cookie и шлют как Bearer.
 //
 // user = { id, username, role: 'buyer' | 'seller', storeName }
 // Сообщения об ошибках видит покупатель — поэтому они на английском.
@@ -100,8 +101,8 @@ router.post('/register', registerLimiter, async (req, res, next) => {
     }
 
     const token = signToken(user);
-    setAuthCookie(res, token); // браузер держит вход в httpOnly-cookie
-    res.status(201).json({ token, user: publicUser(user) });
+    setAuthCookie(res, token); // браузер держит вход в httpOnly-cookie; в теле токена нет
+    res.status(201).json({ user: publicUser(user) });
   } catch (err) {
     next(err);
   }
@@ -121,7 +122,7 @@ router.post('/login', loginLimiter, async (req, res, next) => {
 
     const token = signToken(user);
     setAuthCookie(res, token);
-    res.json({ token, user: publicUser(user) });
+    res.json({ user: publicUser(user) });
   } catch (err) {
     next(err);
   }

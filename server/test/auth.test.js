@@ -2,7 +2,7 @@
 import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import {
-  startTestServer, api, register, newUser, forgeToken, withTestDb, PNG,
+  startTestServer, api, register, newUser, forgeToken, withTestDb, PNG, tokenFromCookie,
 } from './helpers.js';
 
 describe('auth', () => {
@@ -65,11 +65,27 @@ describe('auth', () => {
       assert.equal(r.json.message, 'Invalid username or password');
     });
 
-    it('верный пароль → 200 и токен; регистр имени не важен', async () => {
+    it('верный пароль → 200 и вход в cookie; регистр имени не важен', async () => {
       const r = await api('POST', '/api/auth/login', { body: { username: 'ALICE', password: 'test-pass-123' } });
       assert.equal(r.status, 200);
       assert.equal(r.json.user.username, 'alice');
-      assert.ok(r.json.token);
+      assert.ok(tokenFromCookie(r));
+    });
+
+    it('токена нет в теле ответа на вход и регистрацию — только в httpOnly-cookie', async () => {
+      const login = await api('POST', '/api/auth/login', { body: { username: 'alice', password: 'test-pass-123' } });
+      const reg = await api('POST', '/api/auth/register', { body: { username: 'notoken', password: 'test-pass-123' } });
+      for (const r of [login, reg]) {
+        assert.equal(r.json.token, undefined);
+        assert.deepEqual(Object.keys(r.json), ['user']);
+        const token = tokenFromCookie(r);
+        assert.match(token, /^[\w-]+\.[\w-]+\.[\w-]+$/);
+        assert.ok(!r.text.includes(token), 'токен не должен попадать в тело');
+        assert.match(r.headers.get('set-cookie'), /HttpOnly/i);
+      }
+      // токен из cookie работает
+      const me = await api('GET', '/api/auth/me', { token: tokenFromCookie(login) });
+      assert.equal(me.json.username, 'alice');
     });
   });
 
