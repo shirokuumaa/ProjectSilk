@@ -31,7 +31,9 @@ describe('Zara stretch maxi dress (flat × 2): S is 73 / 62 / 80 cm', () => {
   test('an S figure gets a wearable size, not "No size will really work"; S itself is a good fit', () => {
     const r = findBestSize(S, sizeChartOf(product));
     expect(r.recommended.wearable).toBe(true);
-    expect(r.message).toMatch(/^Your size is (S|M)$/);
+    // облегающий крой и подходят несколько размеров — советуем меньший: S (так платье и продаётся)
+    expect(r.recommended.size).toBe('S');
+    expect(r.message).toBe('Your size is S — a fitted cut sits best in the smaller size');
     expect(r.all.find((x) => x.size === 'S').level).toBe('good');
   });
 
@@ -87,5 +89,42 @@ describe('stretch rules', () => {
   test('buyer notes exist for both stretch levels', () => {
     expect(STRETCH_NOTES.stretchy).toBe('Stretchy fabric — fits snugly');
     expect(STRETCH_NOTES.slight).toMatch(/^Slight stretch/);
+  });
+});
+
+describe('fitted cut between two sizes', () => {
+  // ease для облегающего кроя: хорошо от −2 до +6 см. Фигура между S (−1 см) и M (+4 см):
+  // оба размера садятся хорошо, по близости к «идеалу» (+2) ближе M.
+  const body = { chest: 90, waist: 72, hips: 98 };
+  const chart = (fit) => [
+    { size: 'M', chest: 94, waist: 76, hips: 102, fit },
+    { size: 'S', chest: 89, waist: 71, hips: 97, fit },
+    { size: 'L', chest: 100, waist: 82, hips: 108, fit },
+  ];
+
+  test('both S and M fit a fitted dress — the smaller one is advised', () => {
+    const r = findBestSize(body, chart('tight'));
+    expect(r.all.filter((s) => s.text === 'good fit').map((s) => s.size).sort()).toEqual(['M', 'S']);
+    expect(r.recommended.size).toBe('S');
+    expect(r.message).toBe('Your size is S — a fitted cut sits best in the smaller size');
+  });
+
+  test('a regular cut keeps the size closest to its ideal ease', () => {
+    const r = findBestSize(body, chart('regular'));
+    expect(r.recommended.size).not.toBe('S');
+    expect(r.message).toBe(`Your size is ${r.recommended.size}`);
+  });
+
+  test('a fitted cut with only one good size is unchanged', () => {
+    const r = findBestSize({ chest: 86, waist: 68, hips: 94 }, chart('tight'));
+    expect(r.all.filter((s) => s.text === 'good fit').map((s) => s.size)).toEqual(['S']);
+    expect(r.recommended.size).toBe('S');
+    expect(r.message).toBe('Your size is S');
+  });
+
+  test('choosing the larger of the two explains that the smaller fits better', () => {
+    const r = findBestSize(body, chart('tight'), 'M');
+    expect(r.recommended.size).toBe('S');
+    expect(r.chosen.size).toBe('M');
   });
 });

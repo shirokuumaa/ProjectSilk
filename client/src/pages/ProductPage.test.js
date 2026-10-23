@@ -94,7 +94,8 @@ test('a stretchy dress smaller than the body is not "too tight", and the buyer s
   });
   loadBodyProfile.mockResolvedValue({ heightCm: 166, chest: 84, waist: 69, hips: 92 });
   renderAt();
-  expect(await screen.findByText(/^Your size is (S|M)$/)).toBeInTheDocument();
+  // облегающий крой: если подходят оба — советуем меньший, S
+  expect(await screen.findByText(/^Your size is S( — a fitted cut sits best in the smaller size)?$/)).toBeInTheDocument();
   expect(screen.getByText('Stretchy fabric — fits snugly')).toBeInTheDocument();
   expect(screen.queryByText('will not close')).not.toBeInTheDocument();
   expect(screen.getByText('-7 cm')).toBeInTheDocument(); // талия S: 62 − 69, показана честно

@@ -167,6 +167,9 @@ export function evaluateSize(body, size) {
 
   return {
     size: size.size,
+    fit,
+    // сумма обхватов изделия — чтобы сравнивать размеры «меньше / больше»
+    girth: KEY_MEASUREMENTS.reduce((sum, k) => sum + (Number(size[k]) || 0), 0),
     parts,
     level: worst,
     text: LEVEL_TEXT[worst],
@@ -210,7 +213,13 @@ export function findBestSize(body, sizeChart = [], chosen = null) {
   // If nothing is wearable, take the least bad.
   const wearable = all.filter((s) => s.wearable);
   const pool = wearable.length ? wearable : all;
-  const recommended = pool.reduce((a, b) => (a.score <= b.score ? a : b));
+  let recommended = pool.reduce((a, b) => (a.score <= b.score ? a : b));
+
+  // Fitted cut between two sizes: take the smaller one. A fitted garment is
+  // meant to hug the body; the larger size already sits loose on it.
+  const fittedGood = all.filter((s) => s.fit === 'tight' && s.level === FIT_LEVELS.GOOD);
+  const betweenSizes = fittedGood.length >= 2;
+  if (betweenSizes) recommended = fittedGood.reduce((a, b) => (a.girth <= b.girth ? a : b));
 
   const chosenResult = chosen ? all.find((s) => s.size === chosen) : null;
 
@@ -221,7 +230,9 @@ export function findBestSize(body, sizeChart = [], chosen = null) {
     message = `No size will really work — ${recommended.size} is the closest`;
     shouldWarn = true;
   } else if (!chosenResult) {
-    message = `Your size is ${recommended.size}`;
+    message = betweenSizes
+      ? `Your size is ${recommended.size} — a fitted cut sits best in the smaller size`
+      : `Your size is ${recommended.size}`;
   } else if (chosenResult.size === recommended.size) {
     message = `${chosenResult.size} is your size — it will sit well`;
   } else if (!chosenResult.wearable) {
