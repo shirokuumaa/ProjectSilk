@@ -34,3 +34,12 @@ for (const path of ['/metrics', '/triposr-debug', '/avatar/mode1-test']) {
     delete global.fetch;
   });
 }
+
+test('an unknown address shows "Page not found" with a link to the home page', async () => {
+  window.history.pushState({}, '', '/no-such-page');
+  global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 200, json: async () => ({}) });
+  render(<App />);
+  expect(await screen.findByRole('heading', { name: 'Page not found' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: /back to the shop/i })).toHaveAttribute('href', '/');
+  delete global.fetch;
+});

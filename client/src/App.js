@@ -18,7 +18,7 @@ import Product3DViewer from './pages/Product3DViewer';
 import AvatarCreate from './pages/AvatarCreate';
 import OrderPage from "./pages/OrderPage"; 
 import OrdersList from "./pages/OrdersList";
-import DevOnly from './components/DevOnly';
+import DevOnly, { NotFound } from './components/DevOnly';
 
 
 
@@ -136,6 +136,9 @@ function App() {
         <Route path="/orders" element={<OrdersList sessionId={window.__SESSION_ID__} />} /> 
         <Route path="/triposr-debug" element={<DevOnly><TripoSRDebug /></DevOnly>} />
         <Route path="/avatar/mode1-test" element={<DevOnly><AvatarCreateMode1Test /></DevOnly>} />
+
+        {/* любой несуществующий адрес — «Page not found» со ссылкой на главную */}
+        <Route path="*" element={<NotFound />} />
         
 
         {/* Роут /assistant не нужен — ассистент как глобальный слой */}
