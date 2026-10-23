@@ -1,7 +1,7 @@
 // client/src/components/AssistantLayer.jsx
 import React, { useEffect, useState, lazy, Suspense } from "react";
 import AiPanelLeft from "./AiPanelLeft";
-import VoiceOrb from "./VoiceOrb";
+import VoiceOrb, { VoiceToggle } from "./VoiceOrb";
 
 // ВАЖНО: путь предполагает, что LunbeeWidget лежит в этой же папке /components
 // Если он в другом месте — поправь путь соответственно.
@@ -29,21 +29,25 @@ export default function AssistantLayer() {
 
   return (
     <>
-      <AiPanelLeft open={open} onClose={() => setOpen(false)}>
+      <AiPanelLeft
+        open={open}
+        onClose={() => setOpen(false)}
+        actions={
+          // голос — только по кнопке в панели; распознанный текст уходит в виджет событием
+          <VoiceToggle
+            onFinalText={(text) =>
+              window.dispatchEvent(new CustomEvent("assistant-voice-text", { detail: { text } }))
+            }
+          />
+        }
+      >
         <Suspense fallback={<div className="text-sm opacity-70">Loading the assistant…</div>}>
           <LunbeeWidget />
         </Suspense>
       </AiPanelLeft>
 
-      <VoiceOrb
-        onFinalText={(text) => {
-          // Открываем панель и пробрасываем распознанный текст внутрь через событие
-          setOpen(true);
-          window.dispatchEvent(
-            new CustomEvent("assistant-voice-text", { detail: { text } })
-          );
-        }}
-      />
+      {/* кнопка открывает панель; пока панель открыта — не нужна */}
+      {!open && <VoiceOrb onOpen={() => setOpen(true)} />}
     </>
   );
 }

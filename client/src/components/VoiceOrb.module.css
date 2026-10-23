@@ -1,0 +1,50 @@
+/* client/src/components/VoiceOrb.module.css — кнопка ассистента и голосовой ввод; цвета только из tokens.css */
+
+.orb {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 900;
+  width: var(--fab-size, 52px);
+  height: var(--fab-size, 52px);
+  border-radius: 50%;
+  border: 1px solid var(--ink);
+  background: var(--ink);
+  color: var(--surface);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-pop);
+  transition: transform .12s ease, opacity .12s ease;
+}
+
+.orb:hover { transform: translateY(-1px); opacity: .92; }
+
+.voice { position: relative; }
+
+.voiceBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.voiceOn {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--surface);
+}
+
+.status {
+  position: absolute;
+  top: calc(100% + 6px);
+  right: 0;
+  width: 240px;
+  padding: 8px 10px;
+  border: 1px solid var(--line);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  box-shadow: var(--shadow-pop);
+  z-index: 2;
+}

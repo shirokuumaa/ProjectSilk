@@ -191,6 +191,18 @@ export default function LunbeeWidget() {
     return f;
   }
 
+  // голосовой запрос из кнопки «Voice» в шапке панели → сразу ищем
+  const voiceSearchRef = React.useRef(null);
+  voiceSearchRef.current = (text) => {
+    setQuery(text);
+    doSearch({ query: text, filters: buildFilters(), sort: "relevance", limit });
+  };
+  useEffect(() => {
+    const onVoice = (e) => { const text = e?.detail?.text; if (text) voiceSearchRef.current?.(text); };
+    window.addEventListener("assistant-voice-text", onVoice);
+    return () => window.removeEventListener("assistant-voice-text", onVoice);
+  }, []);
+
   async function doSearch(opts) {
     setLoading(true); setError(""); setCompareData(null);
     try {

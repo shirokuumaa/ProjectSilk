@@ -8,8 +8,9 @@ import "./AiPanelLeft.css";
  *  - onClose: () => void
  *  - title?: string
  *  - width?: string (например, "420px" или "360px")
+ *  - actions?: ReactNode — кнопки в шапке слева от «✕» (например, голосовой ввод)
  */
-export default function AiPanelLeft({ open, onClose, children, title = "Fizzy — assistant", width }) {
+export default function AiPanelLeft({ open, onClose, children, title = "Fizzy — assistant", width, actions }) {
   const panelRef = useRef(null);
   const headingId = "ai-panel-title";
 
@@ -50,6 +51,8 @@ export default function AiPanelLeft({ open, onClose, children, title = "Fizzy �
       >
         <div className="ai-panel__header">
           <div id={headingId} className="ai-title">{title}</div>
+          <div className="ai-panel__actions">
+          {actions}
           <button
             className="ai-btn ai-btn--ghost"
             onClick={onClose}
@@ -57,6 +60,7 @@ export default function AiPanelLeft({ open, onClose, children, title = "Fizzy �
           >
             ✕
           </button>
+          </div>
         </div>
 
         <div className="ai-panel__body">

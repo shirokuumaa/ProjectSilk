@@ -39,6 +39,7 @@
   background:var(--ai-bg);
 }
 .ai-title{ font-weight:700; color:var(--ai-text); }
+.ai-panel__actions{ display:flex; align-items:center; gap:8px; }
 
 /* body */
 .ai-panel__body{ 

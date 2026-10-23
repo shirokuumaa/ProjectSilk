@@ -1,110 +1,114 @@
+// client/src/components/VoiceOrb.jsx
+//
+// Кнопка ассистента и голосовой ввод.
+//   VoiceOrb    — круглая кнопка внизу справа со значком: только открывает панель.
+//                 Раньше нажатие сразу включало распознавание речи — браузер без
+//                 объяснения спрашивал доступ к микрофону, а панель не открывалась.
+//   VoiceToggle — кнопка «Voice» в шапке панели. Распознавание (и запрос микрофона)
+//                 создаётся только по её нажатию и останавливается при закрытии панели.
 import React, { useEffect, useRef, useState } from "react";
+import styles from "./VoiceOrb.module.css";
 
-// props:
-// - onFinalText(text) -> что сделать с распознанным запросом
-// - getReplyText? -> async (text) => string (если хочешь сразу TTS ответа)
-// - bottom, right (позиция)
-export default function VoiceOrb({ onFinalText, getReplyText, bottom=20, right=20 }) {
+function SparkleIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="24" height="24" aria-hidden="true" focusable="false">
+      <path
+        fill="currentColor"
+        d="M12 2.5l1.9 5.1a3 3 0 0 0 1.8 1.8L20.8 11.3l-5.1 1.9a3 3 0 0 0-1.8 1.8L12 20.1l-1.9-5.1a3 3 0 0 0-1.8-1.8L3.2 11.3l5.1-1.9a3 3 0 0 0 1.8-1.8L12 2.5z"
+      />
+      <path fill="currentColor" d="M19 2l.7 1.8 1.8.7-1.8.7L19 7l-.7-1.8-1.8-.7 1.8-.7L19 2z" />
+    </svg>
+  );
+}
+
+function MicIcon() {
+  return (
+    <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" focusable="false">
+      <path
+        fill="currentColor"
+        d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 6 6.9V21h2v-3.1A7 7 0 0 0 19 11h-2z"
+      />
+    </svg>
+  );
+}
+
+/** Плавающая кнопка: открывает панель ассистента. Микрофон не трогает. */
+export default function VoiceOrb({ onOpen }) {
+  return (
+    <button
+      type="button"
+      className={styles.orb}
+      onClick={() => onOpen?.()}
+      aria-label="Open the assistant"
+      title="Assistant"
+    >
+      <SparkleIcon />
+    </button>
+  );
+}
+
+/** Голосовой ввод — только когда покупатель сам его включил. */
+export function VoiceToggle({ onFinalText }) {
   const [listening, setListening] = useState(false);
-  const [voices, setVoices] = useState([]);
-  const [voiceName, setVoiceName] = useState("");
-  const synthRef = useRef(window.speechSynthesis);
-  const recRef = useRef(null);
   const [partial, setPartial] = useState("");
+  const [note, setNote] = useState("");
+  const recRef = useRef(null);
 
-  useEffect(() => {
-    const loadVoices = () => setVoices(synthRef.current.getVoices() || []);
-    loadVoices();
-    if (synthRef.current && synthRef.current.onvoiceschanged === null) {
-      synthRef.current.onvoiceschanged = loadVoices;
-    } else {
-      // Safari иногда требует таймаут
-      setTimeout(loadVoices, 500);
-    }
-  }, []);
+  // панель закрыли — распознавание останавливаем
+  useEffect(() => () => { try { recRef.current?.abort(); } catch {} }, []);
 
-  function speak(text) {
-    if (!text) return;
-    const u = new SpeechSynthesisUtterance(text);
-    const v = voices.find(v => v.name === voiceName) || voices[0];
-    if (v) u.voice = v;
-    synthRef.current.cancel();
-    synthRef.current.speak(u);
-  }
-
-  function startRec() {
+  function start() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { alert("Speech recognition is not supported in this browser."); return; }
+    if (!SR) { setNote("Voice input is not supported in this browser."); return; }
+    setNote("");
     const rec = new SR();
-    rec.lang = "en-US";      // интерфейс английский — и распознавание тоже
+    rec.lang = "en-US";
     rec.interimResults = true;
-    rec.continuous = true;
-    rec.onresult = async (e) => {
+    rec.continuous = false;
+    rec.onresult = (e) => {
       let finalText = "";
-      for (let i=0;i<e.results.length;i++){
-        const r = e.results[i];
-        if (r.isFinal) finalText += r[0].transcript + " ";
+      for (let i = 0; i < e.results.length; i++) {
+        if (e.results[i].isFinal) finalText += e.results[i][0].transcript + " ";
       }
       const last = e.results[e.results.length - 1];
       if (last && !last.isFinal) setPartial(last[0].transcript);
       if (finalText.trim()) {
         setPartial("");
-        const txt = finalText.trim();
-        // wake-word: "hey fizzy"
-        if (/hey\s+fizzy/i.test(txt)) {
-          // просто подтверждаем, дальше слушаем следующую фразу
-          speak("I'm listening");
-        } else {
-          onFinalText?.(txt);
-          if (getReplyText) {
-            try { const reply = await getReplyText(txt); speak(reply); } catch {}
-          }
-        }
+        onFinalText?.(finalText.trim());
       }
     };
-    rec.onend = ()=> setListening(false);
-    rec.onerror = ()=> setListening(false);
-    rec.start();
+    rec.onend = () => setListening(false);
+    rec.onerror = (e) => {
+      setListening(false);
+      if (e?.error === "not-allowed" || e?.error === "service-not-allowed") {
+        setNote("Microphone access is blocked. You can type your request instead.");
+      }
+    };
     recRef.current = rec;
-    setListening(true);
+    try { rec.start(); setListening(true); } catch { setListening(false); }
   }
 
-  function stopRec() {
+  function stop() {
     try { recRef.current?.stop(); } catch {}
     setListening(false);
   }
 
   return (
-    <>
-      <div style={{
-        position:"fixed", bottom, right, zIndex:1000,
-        width:68, height:68, borderRadius:"50%",
-        background: listening ? "#111827" : "#ffffff",
-        color: listening ? "#fff" : "#111827",
-        border:"1px solid #e5e7eb", boxShadow:"0 8px 16px rgba(0,0,0,.12)",
-        display:"grid", placeItems:"center", cursor:"pointer", userSelect:"none"
-      }} onClick={() => listening ? stopRec() : startRec()} title={listening?"Stop":"Hey, Fizzy"}>
-        {listening ? "🎤" : "🟣"}
-      </div>
-
-      {/* маленькая карточка статуса */}
-      {listening && (
-        <div style={{
-          position:"fixed", bottom: bottom+80, right, zIndex:1000,
-          background:"#fff", border:"1px solid #e5e7eb", borderRadius:12, padding:10, width:260,
-          boxShadow:"0 8px 16px rgba(0,0,0,.12)", fontSize:13
-        }}>
-          <div style={{marginBottom:6, fontWeight:600}}>Listening… say “Hey, Fizzy”</div>
-          <div style={{opacity:.7, minHeight:18}}>{partial}</div>
-          <div style={{marginTop:8, display:"flex", gap:6, alignItems:"center"}}>
-            <span style={{opacity:.7}}>Voice:</span>
-            <select value={voiceName} onChange={e=>setVoiceName(e.target.value)} style={{flex:1}}>
-              <option value="">Default</option>
-              {voices.map(v => <option key={v.name} value={v.name}>{v.name}</option>)}
-            </select>
-          </div>
+    <div className={styles.voice}>
+      <button
+        type="button"
+        className={`ai-btn ${styles.voiceBtn} ${listening ? styles.voiceOn : ""}`}
+        onClick={listening ? stop : start}
+        aria-pressed={listening}
+      >
+        <MicIcon />
+        {listening ? "Stop" : "Voice"}
+      </button>
+      {(listening || note) && (
+        <div className={styles.status} role="status">
+          {note || partial || "Listening… say what you are looking for"}
         </div>
       )}
-    </>
+    </div>
   );
 }
