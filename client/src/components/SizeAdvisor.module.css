@@ -46,6 +46,9 @@
     font-size: 12px;
     text-decoration: underline;
   }
+
+  /* на карточке ссылка одна — без отступа слева */
+  .linkBtnSolo { margin-left: 0; text-align: left; }
   
   .sizeRow { display: flex; gap: 6px; flex-wrap: wrap; margin-bottom: 12px; }
   

@@ -166,11 +166,19 @@
 .pillBtn:hover { border-color: var(--line-strong); background: var(--surface-2); }
 
 .cartBtn {
-  flex: 0 0 auto;
-  padding: 7px 13px;
-  border-color: var(--ink);
+  display: block;
+  width: 100%;
+  margin-top: 6px;
+  padding: 8px 10px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--ink);
   background: var(--ink);
   color: var(--surface);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  cursor: pointer;
+  transition: opacity .15s;
 }
 
-.cartBtn:hover { background: var(--ink); border-color: var(--ink); opacity: .86; }
+.cartBtn:hover { opacity: .86; }

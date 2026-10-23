@@ -58,18 +58,17 @@ export default function SizeAdvisor({
   }
 
   if (!isProfileComplete(profile)) {
+    // на карточке — одна понятная ссылка; голое «add» рядом с корзиной путали с покупкой
     return (
       <div className={mode === 'compact' ? styles.compact : styles.box}>
-        <span className={styles.muted}>
-          {mode === 'compact'
-            ? 'Add measurements'
-            : 'Add your measurements to see whether this size fits'}
-        </span>
+        {mode !== 'compact' && (
+          <span className={styles.muted}>Add your measurements to see whether this size fits</span>
+        )}
         <button
-          className={styles.linkBtn}
+          className={`${styles.linkBtn} ${mode === 'compact' ? styles.linkBtnSolo : ''}`}
           onClick={(e) => { e.stopPropagation(); nav('/avatar/create'); }}
         >
-          {mode === 'compact' ? 'add' : 'Add your measurements'}
+          {mode === 'compact' ? 'Add measurements to see your size' : 'Add your measurements'}
         </button>
       </div>
     );

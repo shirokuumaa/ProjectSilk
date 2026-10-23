@@ -8,8 +8,12 @@
 //      можно ли примерить вещь, не нажимая ничего.
 //   2. Цена: число крупно, валюта — маленькой строкой под ним.
 //      Так ряд с кнопками не разъезжается и цена не переносится.
-//   3. Кнопка корзины — только значок. В макете она третья и узкая,
-//      иначе три подписи не помещаются в карточку 228 пикселей.
+//   3. Кнопка корзины — отдельной строкой во всю ширину и с подписью
+//      «Add to cart»: значок 🛒 в части браузеров не рисуется, и кнопка
+//      выглядела пустой; три подписи в один ряд в 228 пикселей не помещаются.
+//
+// Звёзды — только когда у товара есть оценка: «★★★★★ 0.0» у товара без
+// отзывов выглядит как плохая оценка.
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -110,6 +114,10 @@ export default function ProductCardTall({ product, addToCart, onAvatar }) {
   };
 
   const badgeText = badge ? String(badge) : discount ? `−${Number(discount)}%` : null;
+  const ratingValue = Number(rating) || 0;
+  // число отзывов, если сервер его отдаёт; иначе — есть ли вообще оценка
+  const reviewCount = product?.reviewCount ?? product?.numReviews;
+  const hasRating = ratingValue > 0 && (reviewCount == null || Number(reviewCount) > 0);
   const displayName = name || title || 'Item';
 
   return (
@@ -163,9 +171,11 @@ export default function ProductCardTall({ product, addToCart, onAvatar }) {
       <div className={styles.body}>
         <div className={styles.name} title={displayName}>{displayName}</div>
 
-        <div className={styles.rating} aria-label={`Rated ${rating} out of 5`}>
-          {'★★★★★'} <i className={styles.ratingNum}>{Number(rating || 0).toFixed(1)}</i>
-        </div>
+        {hasRating && (
+          <div className={styles.rating} aria-label={`Rated ${ratingValue.toFixed(1)} out of 5`}>
+            {'★★★★★'} <i className={styles.ratingNum}>{ratingValue.toFixed(1)}</i>
+          </div>
+        )}
 
         <div className={`${styles.dragHint} ${has3d ? '' : styles.dragHintNo}`}>
           {has3d ? 'Drag onto your avatar' : 'No 3D model yet'}
@@ -187,15 +197,10 @@ export default function ProductCardTall({ product, addToCart, onAvatar }) {
           <button className={styles.pillBtn} onClick={handleAvatar} title="Try on my avatar">
             Try on
           </button>
-          <button
-            className={`${styles.pillBtn} ${styles.cartBtn}`}
-            onClick={handleAdd}
-            title="Add to cart"
-            aria-label="Add to cart"
-          >
-            {added ? '✓' : '🛒'}
-          </button>
         </div>
+        <button className={styles.cartBtn} onClick={handleAdd}>
+          {added ? 'Added ✓' : 'Add to cart'}
+        </button>
       </div>
     </article>
   );
