@@ -39,6 +39,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 
 import AvatarBody from '../../components/AvatarBody';
 import BodyStage from '../../components/BodyStage';
+import BodyToggle from '../../components/BodyToggle';
 import { drapeGarment, restoreGeometry, snapshotGeometry } from '../../utils/garmentDrape';
 import { useAvatarBody } from '../../utils/avatarBody';
 import { placeByHeight } from '../../utils/garmentPlacement';
@@ -358,17 +359,13 @@ export default function TryOnAvatar() {
       nav={nav}
       actions={
         <>
+          {/* первой и заметной: убрать тело должно быть легко найти */}
+          <BodyToggle shown={showBody} onToggle={() => setShowBody((v) => !v)} />
           <button
             className={`${styles.btn} ${spin ? styles.btnOn : ''}`}
             onClick={() => setSpin((v) => !v)}
           >
             Spin
-          </button>
-          <button
-            className={`${styles.btn} ${showBody ? '' : styles.btnOn}`}
-            onClick={() => setShowBody((v) => !v)}
-          >
-            {showBody ? 'Hide body' : 'Show body'}
           </button>
           <button className={styles.btn} onClick={() => setSlots({ ...EMPTY_SLOTS })}>
             Take all off

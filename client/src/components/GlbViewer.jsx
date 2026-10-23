@@ -229,6 +229,7 @@ export default function GlbViewer({
   fill = 0.92,
   back = false,
   resetKey = '',
+  showBody = true, // false — «Hide body»: одежда садится по фигуре, но тело не рисуется
 }) {
   const controlsRef = useRef(null);
 
@@ -275,7 +276,7 @@ export default function GlbViewer({
         >
           {hasBody ? (
             <>
-              <AvatarBody profile={profile} stressMap={stressMap} />
+              {showBody && <AvatarBody profile={profile} stressMap={stressMap} />}
               {items.map((g, i) => (
                 <GlbGarment
                   key={`${g.url}-${i}`}

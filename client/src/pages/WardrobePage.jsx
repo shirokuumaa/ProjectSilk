@@ -29,6 +29,7 @@ import axios from 'axios';
 
 import styles from './Wardrobe.module.css';
 import GlbViewer from '../components/GlbViewer';
+import BodyToggle from '../components/BodyToggle';
 import { getBaseURL } from '../assistant/api';
 import { loadBodyProfile, isProfileComplete } from '../utils/bodyProfileApi';
 import { findBestSize, getStressMap, sizeChartOf, STRETCH_NOTES } from '../utils/fitCalculator';
@@ -65,6 +66,7 @@ export default function WardrobePage() {
 
   const [rings, setRings] = useState(true);
   const [back, setBack] = useState(false);
+  const [showBody, setShowBody] = useState(true); // «Hide body»: одежда без тела
   const [resetKey, setResetKey] = useState(0);
 
   const stageRef = useRef(null);
@@ -395,6 +397,9 @@ export default function WardrobePage() {
                     ? `Wearing ${worn.map((w) => w.name).join(' + ')}`
                     : 'Drag to rotate · scroll to zoom'}
                 </span>
+                {mode !== 'photo' && ready && (
+                  <BodyToggle shown={showBody} onToggle={() => setShowBody((v) => !v)} />
+                )}
                 <button className={styles.tl} title="Reset view" onClick={() => setResetKey((k) => k + 1)}>⟲</button>
                 <button className={styles.tl} title="Front / back" onClick={() => setBack((b) => !b)}>⇄</button>
                 <button className={styles.tl} title="Fullscreen" onClick={toggleFullscreen}>⤢</button>
@@ -435,6 +440,7 @@ export default function WardrobePage() {
                     fill={0.9}
                     back={back}
                     resetKey={String(resetKey)}
+                    showBody={showBody}
                   />
                 </div>
               ) : profileLoading ? (

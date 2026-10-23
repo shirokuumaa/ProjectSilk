@@ -38,10 +38,19 @@ describe('avatar mode', () => {
     expect(readAvatarMode()).toBe('base');
   });
 
-  test('the "which body and why" badge only with ?avatarDebug=1', () => {
-    expect(avatarDebugEnabled()).toBe(false);
-    at('?avatarDebug=1');
-    expect(avatarDebugEnabled()).toBe(true);
+  test('the "which body and why" badge only with ?avatarDebug=1, and only in development', () => {
+    const env = process.env.NODE_ENV;
+    try {
+      process.env.NODE_ENV = 'development';
+      expect(avatarDebugEnabled()).toBe(false);
+      at('?avatarDebug=1');
+      expect(avatarDebugEnabled()).toBe(true);
+      // сборка для покупателей: ссылка с ?avatarDebug=1 плашку не включает
+      process.env.NODE_ENV = 'production';
+      expect(avatarDebugEnabled()).toBe(false);
+    } finally {
+      process.env.NODE_ENV = env;
+    }
   });
 });
 

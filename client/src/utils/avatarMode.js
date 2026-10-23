@@ -7,7 +7,8 @@
 // Для сравнения и проверки:
 //   ?avatar=standard — всегда процедурное тело (запоминается в этом браузере);
 //   ?avatar=base     — вернуть болванку;
-//   ?avatarDebug=1   — плашка в сцене: какое тело показано и почему.
+//   ?avatarDebug=1   — плашка в сцене: какое тело показано и почему
+//                      (только в режиме разработки: покупатель её не увидит и по ссылке).
 //
 // Ключ новый: выбор, сохранённый при проверке болванки (silk.avatarMode),
 // больше ни на что не влияет.
@@ -31,8 +32,13 @@ export function useAvatarMode() {
   return mode;
 }
 
-/** Плашка «какое тело и почему» — только по ?avatarDebug=1, покупатель её не видит. */
+/**
+ * Плашка «какое тело и почему» («Base avatar · 166 cm», «out of calibrated range») —
+ * только в режиме разработки и по ?avatarDebug=1. В сборке для покупателей её нет:
+ * ярлыки фигуры и диапазонов покупатель не видит ни на одной странице.
+ */
 export function avatarDebugEnabled() {
+  if (process.env.NODE_ENV !== 'development') return false;
   try {
     return new URLSearchParams(window.location.search).get('avatarDebug') === '1';
   } catch {

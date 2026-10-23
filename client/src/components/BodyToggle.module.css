@@ -1,0 +1,29 @@
+/* client/src/components/BodyToggle.module.css — «Hide body»; цвета только из tokens.css */
+
+.toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 7px 13px;
+  border-radius: var(--r-pill);
+  border: 1.5px solid var(--accent);
+  background: var(--accent-soft);
+  color: var(--accent);
+  font: inherit;
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  white-space: nowrap;
+  cursor: pointer;
+  box-shadow: var(--shadow-rail);
+  transition: background .15s, color .15s;
+}
+
+.toggle:hover { background: var(--surface); }
+
+/* тело скрыто — кнопка «нажата», чтобы было видно, как вернуть */
+.hidden {
+  background: var(--accent);
+  color: var(--surface);
+}
+
+.hidden:hover { background: var(--accent); opacity: .9; }

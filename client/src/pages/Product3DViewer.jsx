@@ -45,11 +45,8 @@ export default function Product3DViewer() {
         3D Viewer
       </h1>
 
+      {/* путь к файлу не показываем: в имени бывает размер фигуры (dress_XXL.glb) */}
       <GlbViewer url={src} height={480} />
-
-      <p style={{ marginTop: 12, fontSize: 13, color: '#6b7280' }}>
-        GLB: {src}
-      </p>
 
       <button
         onClick={() => navigate(-1)}
