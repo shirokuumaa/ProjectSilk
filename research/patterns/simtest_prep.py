@@ -16,6 +16,8 @@ runs/simtest/inputs/ (local, not committed; copied to the pod):
   reference/rand_03EQU44RFB_sim.ply — their simulation result, for the comparison on the Mac.
 
 Usage: python simtest_prep.py
+       python simtest_prep.py --run allsizes --all-sizes   # every chart size (size_fit.py with the same
+           flags first): runs/allsizes/inputs/, bodies of every size + fig_plus, no GarmentCodeData control
 """
 import json
 import shutil
@@ -27,8 +29,9 @@ import yaml
 import size_fit as S
 
 HERE = Path(__file__).resolve().parent
-OUT = HERE / "runs" / "simtest" / "inputs"
-DAY7 = HERE / "runs" / "day7"
+RUN = "--run" in __import__("sys").argv          # size_fit reads --run/--all-sizes itself
+DAY7 = S.OUT                                    # runs/day7, or runs/<name> with --run
+OUT = (DAY7 / "inputs") if RUN else HERE / "runs" / "simtest" / "inputs"
 GCD = HERE / "data" / "gcd" / "default_body"
 CONTROL = "rand_03EQU44RFB"
 # fitted dress 03 (short sleeves; 02 is the stretch dress whose waist/sleeve could not be fitted), flared
@@ -38,7 +41,7 @@ ITEMS = {"03_dress": "zara", "04_skirt": "zara", "09_tee": "uniqlo"}
 
 def weld_body(name):
     V, F = [], []
-    for line in open(DAY7 / "bodies" / f"{name}.obj"):
+    for line in open(S.BODIES / f"{name}.obj"):
         if line.startswith("v "):
             V.append([float(x) for x in line.split()[1:4]])
         elif line.startswith("f "):
@@ -65,27 +68,31 @@ def main():
     (OUT / "reference").mkdir()
     cases, info = [], {}
 
-    # bodies
+    # bodies: every size the items need (+ the plus figure when it was built)
+    names = sorted({f"{store}_{size}" for item, store in ITEMS.items() for size in S.sizes_of(item)})
+    if RUN and (S.BODIES / "fig_plus.obj").exists():
+        names.append("fig_plus")
     seg_done = False
-    for store in sorted(set(ITEMS.values())):
-        for size in S.SIZES:
-            name = f"{store}_{size}"
-            V, F, new = weld_body(name)
-            with open(OUT / "bodies_mpfb" / f"{name}.obj", "w") as f:
-                f.write("".join(f"v {x:.6f} {y:.6f} {z:.6f}\n" for x, y, z in V))
-                f.write("".join(f"f {a + 1} {b + 1} {c + 1}\n" for a, b, c in F))
-            shutil.copy(DAY7 / "bodies" / f"{name}.yaml", OUT / "bodies_mpfb" / f"{name}.yaml")
-            if not seg_done:                       # same topology for every size: one segmentation file
-                seg = json.load(open(DAY7 / "bodies" / f"{name}_segmentation.json"))
-                seg = {k: sorted(set(new[np.array(v, int)].tolist())) for k, v in seg.items()}
-                json.dump(seg, open(OUT / "bodies_mpfb" / "ggg_body_segmentation.json", "w"))
-                seg_done = True
-            info[name] = {"vertices": len(V), "faces": len(F), "height_m": float(np.ptp(V[:, 1]))}
+    for name in names:
+        V, F, new = weld_body(name)
+        with open(OUT / "bodies_mpfb" / f"{name}.obj", "w") as f:
+            f.write("".join(f"v {x:.6f} {y:.6f} {z:.6f}\n" for x, y, z in V))
+            f.write("".join(f"f {a + 1} {b + 1} {c + 1}\n" for a, b, c in F))
+        shutil.copy(S.BODIES / f"{name}.yaml", OUT / "bodies_mpfb" / f"{name}.yaml")
+        if not seg_done:                       # same topology for every size: one segmentation file
+            seg = json.load(open(S.BODIES / f"{name}_segmentation.json"))
+            seg = {k: sorted(set(new[np.array(v, int)].tolist())) for k, v in seg.items()}
+            json.dump(seg, open(OUT / "bodies_mpfb" / "ggg_body_segmentation.json", "w"))
+            seg_done = True
+        info[name] = {"vertices": len(V), "faces": len(F), "height_m": float(np.ptp(V[:, 1]))}
 
     # our patterns, rebuilt with the GarmentCode spec header
     fit = {(r["item"], r["size"]): r for r in json.load(open(DAY7 / "fit.json"))}
     for item, store in ITEMS.items():
-        for size in S.SIZES:
+        for size in S.sizes_of(item):
+            if (item, size) not in fit:
+                print("no fit for", item, size)
+                continue
             r = fit[(item, size)]
             D = S.Drafter(item, size)
             for k, v in r["knobs"].items():
@@ -107,6 +114,13 @@ def main():
             cases.append({"case": case, "bodies": "mpfb", "body": f"{store}_{size}", "item": item, "size": size})
             info[case] = {"max_vertex_diff_cm_vs_day7": round(diff, 4), "measured": meas,
                           "target": r["target"], "panels": len(spec["pattern"]["panels"])}
+
+    if RUN:                                         # the control was for the simulator test only
+        shutil.copy(GCD / "dataset_properties_default_body.yaml", OUT / "sim_config.yaml")
+        json.dump(cases, open(OUT / "cases.json", "w"), indent=1)
+        json.dump(info, open(OUT / "prep_info.json", "w"), indent=1)
+        print(json.dumps({k: v for k, v in info.items() if "measured" in v}, indent=1))
+        return
 
     # GarmentCodeData control on their mean body
     d = OUT / "cases" / CONTROL

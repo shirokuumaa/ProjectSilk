@@ -11,7 +11,9 @@ Zara — no body chart on item pages; the general Zara women's chart from third-
 (size-charts.com, sizecharter.com; not official). Heights are not in either chart: 166 cm for all
 sizes (lengths come from the garment measurements anyway).
 
-Usage: python mpfb_body.py [--out runs/day7/bodies]  -> {store}_{size}.{obj,yaml,json} + report
+Usage: python mpfb_body.py [--out runs/day7/bodies] [--all]  -> {store}_{size}.{obj,yaml,json} + report
+       --all: every chart size (Zara XS-XXL, Uniqlo XXS-XXL) and the plus figure (fig_plus), e.g.
+       python mpfb_body.py --all --out runs/allsizes/bodies
 """
 import argparse
 import json
@@ -33,9 +35,16 @@ from body_measure import KEYS, Measurer  # noqa: E402
 HEIGHT = 166.0
 CHARTS = {
     # store: size -> (bust, waist, hips)
-    "zara": {"S": (86, 66, 94), "L": (96, 76, 104)},
-    "uniqlo": {"S": (86, 68, 94), "L": (96, 78, 104)},  # midpoints of 83-89/65-71/91-97 and 93-99/75-81/101-107
+    # Zara: the general women's chart from third-party tables (as on day 7; S and L unchanged)
+    "zara": {"XS": (82, 62, 90), "S": (86, 66, 94), "M": (90, 70, 98), "L": (96, 76, 104),
+             "XL": (102, 82, 110), "XXL": (108, 88, 116)},
+    # Uniqlo: midpoints of the store's ranges (photos/09_tee/body_size_chart.csv)
+    "uniqlo": {"XXS": (78, 60, 86), "XS": (82, 64, 90), "S": (86, 68, 94), "M": (90, 72, 98),
+               "L": (96, 78, 104), "XL": (102, 84, 110), "XXL": (108, 90, 116)},
+    # a large figure beyond both charts (the app's "plus" test figure) — for products with plus sizes
+    "fig": {"plus": (125, 110, 132)},
 }
+DAY7_SIZES = {"zara": ("S", "L"), "uniqlo": ("S", "L")}   # day 7 built only these
 ARM_BONES = measure.ARM_BONES
 LEG_BONES = ("thigh", "calf", "foot", "ball")
 
@@ -96,10 +105,13 @@ def build(mp, store, size, out):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--out", default=str(HERE / "runs" / "day7" / "bodies"))
+    ap.add_argument("--all", action="store_true", help="every size of every chart and the plus figure "
+                    "(default: day 7 — S and L of Zara and Uniqlo)")
     a = ap.parse_args()
     out = Path(a.out)
     mp = MPFB()
-    rows = [build(mp, store, size, out) for store in CHARTS for size in CHARTS[store]]
+    plan = CHARTS if a.all else DAY7_SIZES
+    rows = [build(mp, store, size, out) for store in plan for size in plan[store]]
     json.dump(rows, open(out / "bodies.json", "w"), indent=1)
     ref = yaml.safe_load(open(HERE / ".envs/src/GarmentCode/assets/bodies/mean_female.yaml"))["body"]
     print(f"{'measure':22s}" + "".join(f"{r['name']:>11s}" for r in rows) + "  mean_female")

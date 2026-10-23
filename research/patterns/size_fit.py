@@ -17,6 +17,8 @@ own MPFB body. Store conventions: Zara widths flat x2; Uniqlo chest flat x2, ski
 Uniqlo sleeve "from centre back" minus half the shoulder width.
 
 Usage: python size_fit.py [items]   -> runs/day7/{fit/*.json, patterns/*.json, fit.json}
+       python size_fit.py --run allsizes --all-sizes 03_dress 04_skirt 09_tee
+                                     -> every chart size, bodies and results in runs/allsizes/
        python size_fit.py --report  -> runs/day7/{report.md, sheet_S_vs_L.png} from fit.json
 """
 import copy
@@ -40,6 +42,18 @@ STORE = {"01_dress": "zara", "02_dress": "zara", "03_dress": "zara", "04_skirt":
          "06_skirt": "uniqlo", "07_top": "uniqlo", "08_top": "zara", "09_tee": "uniqlo", "10_tee": "uniqlo"}
 SIZES = ("S", "L")
 TOL = 1.0
+# --run <name>: bodies from runs/<name>/bodies and results into runs/<name>/ (default: day7);
+# --all-sizes: every size of the item's store chart (product_measurements.csv) instead of S and L
+if "--run" in sys.argv:
+    OUT = HERE / "runs" / sys.argv[sys.argv.index("--run") + 1]
+    BODIES = OUT / "bodies"
+ALL_SIZES = "--all-sizes" in sys.argv
+
+
+def sizes_of(item):
+    if not ALL_SIZES:
+        return SIZES
+    return tuple(r[0] for r in list(csv.reader(open(W.PHOTOS / item / "product_measurements.csv")))[1:])
 # style knobs not given by the size chart: from the confirmed labels (day 6), flare level from the photos
 STYLE = {"01_dress": {"sleeve": "none", "flare": "high"}, "02_dress": {"sleeve": "long"},
          "03_dress": {"sleeve": "short"}, "04_skirt": {"flare": "mid"}, "05_skirt": {"slit": True},
@@ -286,7 +300,7 @@ def main(items=None):
     (OUT / "fit").mkdir(parents=True, exist_ok=True)
     (OUT / "patterns").mkdir(exist_ok=True)
     for item in items or LABELS:
-        for size in SIZES:
+        for size in sizes_of(item):
             try:
                 r = fit_item(item, size)
             except Exception as e:
@@ -387,4 +401,5 @@ if __name__ == "__main__":
         collect()
         report()
     else:
-        main([a for a in sys.argv[1:] if not a.startswith("-")] or None)
+        skip = {sys.argv[sys.argv.index("--run") + 1]} if "--run" in sys.argv else set()
+        main([a for a in sys.argv[1:] if not a.startswith("-") and a not in skip] or None)
