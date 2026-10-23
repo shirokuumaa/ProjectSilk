@@ -7,6 +7,7 @@ import React, { Suspense, lazy, useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import SizeChartEditor, { serializeSizeChart } from "../components/SizeChartEditor";
 import SellerHeader from "../components/SellerHeader";
+import FormErrors from "../components/FormErrors";
 import { authFetch, becomeSeller, fetchMe, isLoggedIn } from "../utils/auth";
 
 // превью модели — тем же three.js, что и весь сайт (лениво: three нужен только при превью)
@@ -370,8 +371,15 @@ function SellerDashboard() {
   }
 
   async function handleSave() {
-    if (!title.trim() || !price || !processedBlob) {
-      setError("Please fill in the title and price and add an image.");
+    // все пропуски сразу, а не первый из них
+    const priceNum = Number(price);
+    const missing = [
+      ...(title.trim() ? [] : ["Please enter a title."]),
+      ...(price !== "" && Number.isFinite(priceNum) && priceNum >= 0 ? [] : ["Please enter a price (a positive number)."]),
+      ...(processedBlob ? [] : ["Please add a product image."]),
+    ];
+    if (missing.length) {
+      setError(missing);
       return;
     }
     setSaving(true);
@@ -463,7 +471,7 @@ function SellerDashboard() {
           </div>
 
           {loading && <p>⏳ Processing the image…</p>}
-          {error && <p role="alert" style={ui.error}>{error}</p>}
+          <FormErrors errors={error} style={ui.error} />
           {notice && <p role="status" style={{ color: "var(--fit-good)" }}>{notice}</p>}
 
           {/* Остальная форма показывается после выбора изображения */}
@@ -693,9 +701,12 @@ export function EditProductForm({ product, onCancel, onSaved }) {
   };
 
   const save = async () => {
-    if (!title.trim()) return setError("The title cannot be empty.");
     const priceNum = Number(price);
-    if (price === "" || !Number.isFinite(priceNum) || priceNum < 0) return setError("Price must be a positive number.");
+    const problems = [
+      ...(title.trim() ? [] : ["The title cannot be empty."]),
+      ...(price !== "" && Number.isFinite(priceNum) && priceNum >= 0 ? [] : ["Price must be a positive number."]),
+    ];
+    if (problems.length) return setError(problems);
     setSaving(true);
     setError("");
     try {
@@ -762,7 +773,7 @@ export function EditProductForm({ product, onCancel, onSaved }) {
           />
         </label>
 
-        {error && <p role="alert" style={ui.error}>{error}</p>}
+        <FormErrors errors={error} style={ui.error} />
 
         <div style={ui.row}>
           <button style={ui.btnDark} onClick={save} disabled={saving}>

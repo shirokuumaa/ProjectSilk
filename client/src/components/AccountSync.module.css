@@ -36,3 +36,8 @@
 .secondary { background: var(--surface); color: var(--ink); border-color: var(--line-strong); }
 .primary:disabled,
 .secondary:disabled { opacity: .5; cursor: not-allowed; }
+
+/* на узком экране плашка шире кнопки ассистента — поднимаем её над кнопкой */
+@media (max-width: 720px) {
+  .bar { bottom: var(--fab-clearance); }
+}

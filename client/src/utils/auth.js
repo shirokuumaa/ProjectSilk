@@ -159,7 +159,12 @@ async function postCredentials(path, body) {
   }
 
   const data = await r.json().catch(() => ({}));
-  if (!r.ok) throw new Error(data.message || `Request failed (HTTP ${r.status})`);
+  if (!r.ok) {
+    // errors — все ошибки формы сразу (регистрация), message — их общий текст
+    throw Object.assign(new Error(data.message || `Request failed (HTTP ${r.status})`), {
+      errors: Array.isArray(data.errors) ? data.errors : undefined,
+    });
+  }
 
   prepareForLogin();
   saveSession(data);

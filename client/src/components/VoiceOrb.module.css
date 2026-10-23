@@ -2,11 +2,11 @@
 
 .orb {
   position: fixed;
-  right: 16px;
-  bottom: 16px;
+  right: var(--fab-gap);
+  bottom: var(--fab-gap);
   z-index: 900;
-  width: var(--fab-size, 52px);
-  height: var(--fab-size, 52px);
+  width: var(--fab-size);
+  height: var(--fab-size);
   border-radius: 50%;
   border: 1px solid var(--ink);
   background: var(--ink);

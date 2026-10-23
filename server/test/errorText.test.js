@@ -69,6 +69,20 @@ describe('error messages for the user', () => {
     assertClean(r);
   });
 
+  it('регистрация: все ошибки формы сразу — списком errors и одной строкой message', async () => {
+    const r = await api('POST', '/api/auth/register', {
+      body: { username: 'ab', password: 'short', accountType: 'seller', storeName: '' },
+    });
+    assert.equal(r.status, 400);
+    assert.deepEqual(r.json.errors, [
+      'Store name must be 2–60 characters.',
+      'Username must be 3–32 characters: letters, digits, dot, dash or underscore.',
+      'Password must be at least 8 characters.',
+    ]);
+    assert.equal(r.json.message, r.json.errors.join(' '));
+    assertClean(r);
+  });
+
   it('в коде ответов нет e.message / String(err) — текст исключений не уходит наружу', () => {
     const files = [
       'index.js',

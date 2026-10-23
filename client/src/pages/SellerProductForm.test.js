@@ -62,3 +62,12 @@ test('after saving, the image file field is empty again', async () => {
   await waitFor(() => expect(screen.getByLabelText(/Product image/)).not.toBe(before));
   expect(screen.getByLabelText(/Product image/).value).toBe('');
 });
+
+test('saving an empty form names every missing field at once', async () => {
+  await openForm();
+  fireEvent.click(screen.getByRole('button', { name: 'Save product' }));
+  const alert = screen.getByRole('alert');
+  expect(alert).toHaveTextContent('Please enter a title.');
+  expect(alert).toHaveTextContent('Please enter a price (a positive number).');
+  expect(authFetch).not.toHaveBeenCalledWith(expect.stringMatching(/\/api\/products$/), expect.objectContaining({ method: 'POST' }));
+});

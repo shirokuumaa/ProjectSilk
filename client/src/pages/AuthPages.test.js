@@ -64,3 +64,39 @@ test('fields have visible labels and the submit control is a real button', () =>
   expect(screen.getByLabelText('Password')).toHaveClass('input');
   expect(screen.getByRole('button', { name: 'Sign in' })).toHaveClass('primary');
 });
+
+// ── все ошибки формы сразу ──
+
+test('registration shows every problem at once, not only the first', async () => {
+  renderAt('/register?as=seller');
+  fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'ab' } });
+  fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'short' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Create seller account' }));
+  const alert = screen.getByRole('alert');
+  expect(alert).toHaveTextContent('Please enter your store name');
+  expect(alert).toHaveTextContent('Username must be 3–32 characters');
+  expect(alert).toHaveTextContent('Password must be at least 8 characters');
+  expect(screen.getAllByRole('listitem')).toHaveLength(3);
+  expect(global.fetch).not.toHaveBeenCalled();
+});
+
+test('a valid form clears old errors; the server\'s list of errors is shown in full', async () => {
+  global.fetch.mockResolvedValue({
+    ok: false, status: 400,
+    json: async () => ({ message: 'A. B.', errors: ['Username is taken somewhere.', 'Another server rule.'] }),
+  });
+  renderAt('/register');
+  fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'sam' } });
+  fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'long-enough-1' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Create account' }));
+  const items = await screen.findAllByRole('listitem');
+  expect(items.map((li) => li.textContent)).toEqual(['Username is taken somewhere.', 'Another server rule.']);
+});
+
+test('sign-in with both fields empty names both', () => {
+  renderAt('/login');
+  fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+  const alert = screen.getByRole('alert');
+  expect(alert).toHaveTextContent('Please enter your username.');
+  expect(alert).toHaveTextContent('Please enter your password.');
+});

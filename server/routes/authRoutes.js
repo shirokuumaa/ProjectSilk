@@ -64,24 +64,19 @@ router.post('/register', registerLimiter, async (req, res, next) => {
     const role = String(req.body?.accountType || 'buyer');
     const storeName = normalizeStoreName(req.body?.storeName);
 
-    if (!ROLES.includes(role)) {
-      return res.status(400).json({ message: 'Account type must be buyer or seller.' });
-    }
-    if (role === 'seller' && !isValidStoreName(storeName)) {
-      return res.status(400).json({ message: STORE_NAME_RULE });
-    }
-
+    // все ошибки формы сразу: errors — списком, message — одной строкой
+    const errors = [];
+    if (!ROLES.includes(role)) errors.push('Account type must be buyer or seller.');
+    if (role === 'seller' && !isValidStoreName(storeName)) errors.push(STORE_NAME_RULE);
     if (!USERNAME_RE.test(username)) {
-      return res.status(400).json({
-        message: 'Username must be 3–32 characters: letters, digits, dot, dash or underscore.',
-      });
+      errors.push('Username must be 3–32 characters: letters, digits, dot, dash or underscore.');
     }
     if (password.length < MIN_PASSWORD) {
-      return res.status(400).json({ message: `Password must be at least ${MIN_PASSWORD} characters.` });
+      errors.push(`Password must be at least ${MIN_PASSWORD} characters.`);
+    } else if (Buffer.byteLength(password, 'utf8') > MAX_PASSWORD_BYTES) {
+      errors.push('Password is too long (maximum 72 characters).');
     }
-    if (Buffer.byteLength(password, 'utf8') > MAX_PASSWORD_BYTES) {
-      return res.status(400).json({ message: 'Password is too long (maximum 72 characters).' });
-    }
+    if (errors.length) return res.status(400).json({ message: errors.join(' '), errors });
 
     if (await User.exists({ username })) {
       return res.status(409).json({ message: 'This username is already taken.' });

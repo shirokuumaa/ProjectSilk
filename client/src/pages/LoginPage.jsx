@@ -1,22 +1,24 @@
 import React, { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { login } from '../utils/auth';
+import FormErrors, { errorsOf } from '../components/FormErrors';
 import styles from './Auth.module.css';
 
 export default function LoginPage() {
   const [username, setUsername] = useState('');
   const [password, setPassword] = useState('');
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState([]);
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    setError('');
-    if (!username.trim() || !password) {
-      setError('Please enter your username and password.');
-      return;
-    }
+    const found = [
+      ...(username.trim() ? [] : ['Please enter your username.']),
+      ...(password ? [] : ['Please enter your password.']),
+    ];
+    setErrors(found);
+    if (found.length) return;
 
     setBusy(true);
     try {
@@ -24,7 +26,7 @@ export default function LoginPage() {
       // продавец — в свою панель, покупатель — в магазин
       navigate(user?.role === 'seller' ? '/seller' : '/');
     } catch (err) {
-      setError(err.message);
+      setErrors(errorsOf(err));
     } finally {
       setBusy(false);
     }
@@ -57,7 +59,7 @@ export default function LoginPage() {
           />
         </label>
 
-        {error && <p role="alert" className={styles.error}>{error}</p>}
+        <FormErrors errors={errors} className={styles.error} />
 
         <button type="submit" className={styles.primary} disabled={busy}>
           {busy ? 'Signing in…' : 'Sign in'}

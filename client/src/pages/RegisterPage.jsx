@@ -1,9 +1,25 @@
 import React, { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { register } from '../utils/auth';
+import FormErrors, { errorsOf } from '../components/FormErrors';
 import styles from './Auth.module.css';
 
 const MIN_PASSWORD = 8;
+const MAX_PASSWORD_BYTES = 72; // как на сервере: bcrypt отбрасывает остальное
+const USERNAME_RE = /^[a-z0-9_.-]{3,32}$/; // как в server/models/User.js (имя приводится к нижнему регистру)
+
+/** Все ошибки формы сразу — покупатель исправляет их за один раз. */
+export function registerErrors({ username, password, isSeller, storeName }) {
+  const errors = [];
+  if (isSeller && storeName.trim().length < 2) errors.push('Please enter your store name (at least 2 characters).');
+  const name = username.trim().toLowerCase();
+  if (!name) errors.push('Please enter a username.');
+  else if (!USERNAME_RE.test(name)) errors.push('Username must be 3–32 characters: letters, digits, dot, dash or underscore.');
+  if (!password) errors.push('Please enter a password.');
+  else if (password.length < MIN_PASSWORD) errors.push(`Password must be at least ${MIN_PASSWORD} characters.`);
+  else if (new Blob([password]).size > MAX_PASSWORD_BYTES) errors.push('Password is too long (maximum 72 characters).');
+  return errors;
+}
 
 
 export default function RegisterPage() {
@@ -13,7 +29,7 @@ export default function RegisterPage() {
   const [params] = useSearchParams();
   const [accountType, setAccountType] = useState(params.get('as') === 'seller' ? 'seller' : 'buyer');
   const [storeName, setStoreName] = useState('');
-  const [error, setError] = useState('');
+  const [errors, setErrors] = useState([]);
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
 
@@ -21,19 +37,9 @@ export default function RegisterPage() {
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    setError('');
-    if (!username.trim() || !password) {
-      setError('Please fill in both username and password.');
-      return;
-    }
-    if (password.length < MIN_PASSWORD) {
-      setError(`Password must be at least ${MIN_PASSWORD} characters.`);
-      return;
-    }
-    if (isSeller && storeName.trim().length < 2) {
-      setError('Please enter your store name (at least 2 characters).');
-      return;
-    }
+    const found = registerErrors({ username, password, isSeller, storeName });
+    setErrors(found);
+    if (found.length) return;
 
     setBusy(true);
     try {
@@ -41,7 +47,7 @@ export default function RegisterPage() {
       await register(username, password, { accountType, storeName: isSeller ? storeName : undefined });
       navigate(isSeller ? '/seller' : '/');
     } catch (err) {
-      setError(err.message);
+      setErrors(errorsOf(err));
     } finally {
       setBusy(false);
     }
@@ -123,7 +129,7 @@ export default function RegisterPage() {
           <small id="hint-pass" className={styles.hint}>At least {MIN_PASSWORD} characters.</small>
         </div>
 
-        {error && <p role="alert" className={styles.error}>{error}</p>}
+        <FormErrors errors={errors} className={styles.error} />
 
         <button type="submit" className={styles.primary} disabled={busy}>
           {busy ? 'Creating…' : isSeller ? 'Create seller account' : 'Create account'}
