@@ -3,11 +3,14 @@
 // Кабинет продавца. Доступ решает сервер (роль seller), здесь — только
 // понятный экран для гостя и покупателя. Все запросы — через authFetch.
 // Весь текст интерфейса — на английском, цвета — из styles/tokens.css.
-import React, { useCallback, useEffect, useState } from "react";
+import React, { Suspense, lazy, useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import SizeChartEditor, { serializeSizeChart } from "../components/SizeChartEditor";
 import SellerHeader from "../components/SellerHeader";
 import { authFetch, becomeSeller, fetchMe, isLoggedIn } from "../utils/auth";
+
+// превью модели — тем же three.js, что и весь сайт (лениво: three нужен только при превью)
+const GlbViewer = lazy(() => import("../components/GlbViewer"));
 
 // единая точка входа API (как и в других файлах)
 const API = process.env.REACT_APP_API || "http://localhost:5050";
@@ -544,15 +547,9 @@ function SellerDashboard() {
 
               {glbUrl && (
                 <div style={ui.viewer}>
-                  <model-viewer
-                    src={glbUrl}
-                    alt="3D preview"
-                    camera-controls
-                    auto-rotate
-                    autoplay
-                    exposure="0.9"
-                    style={{ width: "100%", height: "100%" }}
-                  ></model-viewer>
+                  <Suspense fallback={<small style={ui.muted}>Loading 3D preview…</small>}>
+                    <GlbViewer url={glbUrl} height="100%" />
+                  </Suspense>
                 </div>
               )}
 

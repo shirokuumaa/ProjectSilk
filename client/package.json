@@ -69,5 +69,10 @@
     "moduleNameMapper": {
       "^react-router/dom$": "<rootDir>/node_modules/react-router/dist/development/dom-export.js"
     }
+  },
+  "overrides": {
+    "stats-gl": {
+      "three": "$three"
+    }
   }
 }

@@ -15,7 +15,6 @@
     <link rel="manifest" href="%PUBLIC_URL%/manifest.json" />
 
     <!-- Preconnect to speed up CDNs -->
-    <link rel="preconnect" href="https://unpkg.com" crossorigin />
     <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
@@ -23,22 +22,9 @@
     <!-- Google Fonts: Inter (body), Fraunces (headings), JetBrains Mono (code) -->
     <link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet" />
 
-    <!-- Model Viewer: enables <model-viewer> for GLB/AR preview (debug page, seller, avatar, etc.) -->
-    <script
-      type="module"
-      src="https://unpkg.com/@google/model-viewer@latest/dist/model-viewer.min.js">
-    </script>
-    <script
-      nomodule
-      src="https://unpkg.com/@google/model-viewer@latest/dist/model-viewer-legacy.js">
-    </script>
-
-    <!-- MediaPipe Tasks (HandLandmarker / future AR control) -->
-    <script
-      defer
-      crossorigin="anonymous"
-      src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.6/vision_bundle.js">
-    </script>
+    <!-- 3D previews use the app's own three.js (GlbViewer): <model-viewer> from a CDN
+         carried a second copy of three.js on every page. MediaPipe comes from npm
+         (@mediapipe/tasks-vision in TryOnAR) — the old CDN bundle was a 404. -->
 
     <!-- Baseline styles: React pages (canvas, 3D, AR) can take full viewport -->
     <style>

@@ -1,5 +1,6 @@
 // client/src/pages/TripoSRDebug.jsx
 import React, { useState } from "react";
+import GlbViewer from "../components/GlbViewer";
 import { authFetch } from "../utils/auth";
 
 const API_BASE = process.env.REACT_APP_API || "http://localhost:5050"; // Node-сервер, не порт клиента
@@ -101,7 +102,7 @@ const TripoSRDebug = () => {
         A plain check of how TripoSR builds a 3D model:
         upload an image → send it to{" "}
         <code>{API_BASE}/api/ai/triposr</code> → show the GLB with{" "}
-        <code>&lt;model-viewer&gt;</code>. Debugging only, no polished UX.
+        <code>GlbViewer</code>. Debugging only, no polished UX.
       </p>
 
       <form onSubmit={handleSubmit} style={{ marginBottom: "24px" }}>
@@ -210,22 +211,9 @@ const TripoSRDebug = () => {
             3D view:
           </h2>
 
-          <model-viewer
-            src={glbUrl}
-            camera-controls
-            auto-rotate
-            rotation-per-second="30deg"
-            exposure="1"
-            shadow-intensity="1"
-            style={{
-              width: "100%",
-              maxWidth: "480px",
-              height: "480px",
-              background: "#f3f4f6",
-              borderRadius: "16px",
-              border: "1px solid #e5e7eb",
-            }}
-          ></model-viewer>
+          <div style={{ maxWidth: "480px" }}>
+            <GlbViewer url={glbUrl} height={480} />
+          </div>
 
           <p
             style={{
