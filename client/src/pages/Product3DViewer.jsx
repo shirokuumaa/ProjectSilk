@@ -18,8 +18,8 @@ export default function Product3DViewer() {
           3D Viewer
         </h1>
         <p style={{ fontSize: 14, color: '#6b7280' }}>
-          GLB-ссылка не передана. Открой viewer из страницы аватара или
-          гардероба.
+          No 3D model was given. Open the viewer from the try-on or
+          wardrobe page.
         </p>
         <button
           onClick={() => navigate(-1)}

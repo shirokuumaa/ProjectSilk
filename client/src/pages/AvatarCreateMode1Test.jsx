@@ -52,7 +52,7 @@ export default function AvatarCreateMode1Test() {
         if (!r.ok || !j) {
           setTarget(null);
           setAiOnline(false);
-          setHint('API /api/ai/__target недоступен');
+          setHint('API /api/ai/__target is not reachable');
           return;
         }
 
@@ -62,7 +62,7 @@ export default function AvatarCreateMode1Test() {
         if (String(j.AI_MODE || '').toLowerCase() === 'off' || j.AI_ENABLED === false) {
           setAiOnline(false);
           setFeatures(null);
-          setHint('AI_MODE=off — GPU выключен (это нормально).');
+          setHint('AI_MODE=off — the GPU is off (this is expected).');
           return;
         }
 
@@ -95,7 +95,7 @@ export default function AvatarCreateMode1Test() {
         if (!r.ok) {
           setAiOnline(false);
           setFeatures(null);
-          setHint(`AI включен, но /features вернул ${r.status}`);
+          setHint(`AI is on, but /features returned ${r.status}`);
           return;
         }
 
@@ -104,7 +104,7 @@ export default function AvatarCreateMode1Test() {
         setAiOnline(true);
 
         if (f?.tryon_avatar !== true) {
-          setHint('GPU: tryon_avatar=false (pipeline выключен)');
+          setHint('GPU: tryon_avatar=false (pipeline is off)');
         } else if (f?.avatar_mode1?.export !== true) {
           setHint('GPU: avatar_mode1.export=false');
         } else {
@@ -168,12 +168,12 @@ export default function AvatarCreateMode1Test() {
   const runPipeline = async () => {
     // ✅ AI_MODE=off — честно запрещаем
     if (!target?.AI_ENABLED) {
-      alert('AI_MODE=off. Включи AI_MODE=proxy и GPU_URL, затем перезапусти server.');
+      alert('AI_MODE=off. Set AI_MODE=proxy and GPU_URL, then restart the server.');
       return;
     }
 
     if (!canRun) {
-      alert('AI пока не готов (offline или tryon_avatar выключен).');
+      alert('AI is not ready yet (offline or tryon_avatar is off).');
       return;
     }
 
@@ -293,16 +293,16 @@ export default function AvatarCreateMode1Test() {
       <h2 style={{ margin: 0 }}>🧪 AvatarCreate — Mode1 Test</h2>
 
       <div style={{ color: '#6b7280', fontSize: 13 }}>
-        Делает:
+        Does:
         <b> body → rig(job) → poll → export → persist (/uploads) → save avatarFinal → go TryOn</b>.
-        Основной AvatarCreate не трогаем.
+        The main AvatarCreate is not affected.
       </div>
 
       <div style={{ fontSize: 13, color: '#374151' }}>
         <div><b>AI_MODE:</b> {modeLabel}</div>
         <div><b>AI enabled:</b> {aiLabel}</div>
 
-        {aiOnline === null && <div>Проверяем AI…</div>}
+        {aiOnline === null && <div>Checking AI…</div>}
         {aiOnline === true && (
           <div style={{ color: '#059669' }}>
             🟢 AI enabled {features?.tryon_avatar === true ? '• tryon_avatar:on' : features ? '• tryon_avatar:off' : '• features:unknown'}

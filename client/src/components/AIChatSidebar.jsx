@@ -24,7 +24,7 @@ function useBrowserSTT(onFinalText) {
   useEffect(() => {
     if (!("webkitSpeechRecognition" in window)) return;
     const r = new window.webkitSpeechRecognition();
-    r.lang = "ru-RU";                 // можно поменять
+    r.lang = "en-US";                 // интерфейс английский — и распознавание тоже
     r.interimResults = true;
     r.continuous = false;
     r.onresult = (e) => {
@@ -42,7 +42,7 @@ function useBrowserSTT(onFinalText) {
   }, [onFinalText]);
 
   const start = () => {
-    if (!recRef.current) return alert("Распознавание речи не поддерживается в этом браузере.");
+    if (!recRef.current) return alert("Speech recognition is not supported in this browser.");
     try { recRef.current.start(); setListening(true); } catch {}
   };
   const stop = () => { try { recRef.current?.stop(); } catch {}; setListening(false); };
@@ -53,7 +53,7 @@ function useBrowserSTT(onFinalText) {
 export default function AIChatSidebar() {
   const [isOpen, setIsOpen] = useState(false);
   const [messages, setMessages] = useState([
-    { role: "assistant", text: "Привет! Я помогу подобрать вещи. Напиши или скажи голосом 🌼" },
+    { role: "assistant", text: "Hi! I can help you find clothes. Type or say what you are looking for 🌼" },
   ]);
   const [userInput, setUserInput] = useState("");
   const [sending, setSending] = useState(false);
@@ -105,11 +105,11 @@ export default function AIChatSidebar() {
         body: JSON.stringify({ message: text }),
       });
       const data = await r.json().catch(() => ({}));
-      const answer = data?.answer || "Извини, не смогла ответить.";
+      const answer = data?.answer || "Sorry, I could not answer that.";
       setMessages((m) => [...m, { role: "assistant", text: answer }]);
       speak(answer, voiceName);
     } catch (e) {
-      setMessages((m) => [...m, { role: "assistant", text: "Сервер недоступен. Попробуй позже." }]);
+      setMessages((m) => [...m, { role: "assistant", text: "The assistant is not available right now. Please try again later." }]);
     } finally {
       setSending(false);
     }
@@ -147,9 +147,9 @@ export default function AIChatSidebar() {
       {/* Панель */}
       <div style={styles.panelWrap}>
         <div style={styles.header}>
-          <div style={styles.hTitle}>Ассистент</div>
+          <div style={styles.hTitle}>Assistant</div>
           {/* mic */}
-          <button style={styles.smallBtn} onClick={listening ? stop : start} title="Голосом">
+          <button style={styles.smallBtn} onClick={listening ? stop : start} title="Speak">
             {listening ? "🎙️ Stop" : "🎙️ Speak"}
           </button>
           {/* TTS voice */}
@@ -157,7 +157,7 @@ export default function AIChatSidebar() {
             value={voiceName}
             onChange={(e) => setVoiceName(e.target.value)}
             style={{ ...styles.smallBtn, padding: 6, maxWidth: 140 }}
-            title="Голос озвучки"
+            title="Reading voice"
           >
             <option value="">Default voice</option>
             {voices.map((v) => (
@@ -176,7 +176,7 @@ export default function AIChatSidebar() {
         <div style={styles.inputRow}>
           <input
             style={styles.text}
-            placeholder="Ваш вопрос…"
+            placeholder="Your question…"
             value={userInput}
             onChange={(e) => setUserInput(e.target.value)}
             onKeyDown={(e) => (e.key === "Enter" ? send() : null)}

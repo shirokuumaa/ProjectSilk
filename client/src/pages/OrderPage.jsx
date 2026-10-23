@@ -40,7 +40,7 @@ export default function OrderPage(){
           </li>
         ))}
       </ul>
-      <Link to="/orders">← Мои заказы</Link>
+      <Link to="/orders">← My orders</Link>
     </div>
   );
 }

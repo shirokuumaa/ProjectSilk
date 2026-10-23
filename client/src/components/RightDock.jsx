@@ -12,7 +12,7 @@ export default function RightDock() {
       <button
         className={styles.dockBtn}
         onClick={() => window.dispatchEvent(new Event('open-ai-panel'))}
-        title="Открыть ассистента"
+        title="Open the assistant"
       >
         ✨ AI Assistant
       </button>
@@ -20,15 +20,15 @@ export default function RightDock() {
       <button
         className={styles.dockBtn}
         onClick={() => nav('/wardrobe')}
-        title="Открыть гардероб"
+        title="Open the wardrobe"
       >
         🖊️ Wardrobe
       </button>
 
       <button
         className={styles.dockBtn}
-        onClick={() => alert('Support — скоро')}
-        title="Поддержка"
+        onClick={() => alert('Support is coming soon.')}
+        title="Support"
       >
         💬 Support
       </button>

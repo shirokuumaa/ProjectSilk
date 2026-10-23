@@ -23,7 +23,7 @@ async function sendProfile(req, res) {
     });
   } catch (err) {
     console.error('bodyProfile GET error:', err);
-    res.status(500).json({ message: 'Не удалось загрузить профиль тела' });
+    res.status(500).json({ message: 'Could not load your measurements.' });
   }
 }
 
@@ -33,7 +33,7 @@ async function deleteProfile(req, res) {
     res.json({ ok: true });
   } catch (err) {
     console.error('bodyProfile DELETE error:', err);
-    res.status(500).json({ message: 'Не удалось удалить профиль тела' });
+    res.status(500).json({ message: 'Could not delete your measurements.' });
   }
 }
 
@@ -63,7 +63,8 @@ router.post('/', async (req, res) => {
     const missing = required.filter((key) => data[key] == null);
     if (missing.length) {
       return res.status(400).json({
-        message: `Не заполнены обязательные обмеры: ${missing.join(', ')}`,
+        message: `Please fill in all required measurements: ${missing.join(', ')}.`,
+        fields: missing,
       });
     }
 
@@ -79,13 +80,15 @@ router.post('/', async (req, res) => {
     });
   } catch (err) {
     if (err.name === 'ValidationError') {
+      // текст ошибки mongoose («Path `chest` (20) is less than…») — только в лог
+      const fields = Object.keys(err.errors);
       return res.status(400).json({
-        message: 'Некорректные обмеры',
-        details: Object.values(err.errors).map((e) => e.message),
+        message: `Some measurements are out of range: ${fields.join(', ')}.`,
+        fields,
       });
     }
     console.error('bodyProfile POST error:', err);
-    res.status(500).json({ message: 'Не удалось сохранить профиль тела' });
+    res.status(500).json({ message: 'Could not save your measurements.' });
   }
 });
 

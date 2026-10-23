@@ -2,7 +2,7 @@
 import React, { useState } from "react";
 import { authFetch } from "../utils/auth";
 
-const API_BASE = "http://localhost:5050"; // ЯВНО ходим на Node-сервер
+const API_BASE = process.env.REACT_APP_API || "http://localhost:5050"; // Node-сервер, не порт клиента
 
 const TripoSRDebug = () => {
   const [file, setFile] = useState(null);
@@ -33,14 +33,14 @@ const TripoSRDebug = () => {
       const text = await res.text();
       setHealthText(`HTTP ${res.status}\n` + text);
     } catch (err) {
-      setHealthText("Ошибка healthz: " + String(err?.message || err));
+      setHealthText("healthz error: " + String(err?.message || err));
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     if (!file) {
-      setError("Пожалуйста, выбери картинку сначала.");
+      setError("Please choose an image first.");
       return;
     }
 
@@ -53,7 +53,7 @@ const TripoSRDebug = () => {
       const formData = new FormData();
       formData.append("image", file);
 
-      // ВАЖНО: ходим строго на http://localhost:5050, а не на порт 3000
+      // ВАЖНО: ходим на Node-сервер (REACT_APP_API), а не на порт клиента
       const res = await authFetch(
         `${API_BASE}/api/ai/triposr?resolution=160`,
         {
@@ -82,7 +82,7 @@ const TripoSRDebug = () => {
       const blob = await res.blob();
       const url = URL.createObjectURL(blob);
       setGlbUrl(url);
-      setStatus("3D модель сгенерирована ✅");
+      setStatus("3D model generated ✅");
     } catch (err) {
       console.error("TripoSR debug error:", err);
       setError(String(err?.message || err));
@@ -94,14 +94,14 @@ const TripoSRDebug = () => {
   return (
     <div style={{ padding: "24px", maxWidth: 900, margin: "0 auto" }}>
       <h1 style={{ fontSize: "24px", fontWeight: "600", marginBottom: "16px" }}>
-        TripoSR Debug · 3D превью
+        TripoSR Debug · 3D preview
       </h1>
 
       <p style={{ marginBottom: "16px", lineHeight: 1.5 }}>
-        Здесь мы просто проверяем, как TripoSR делает 3D-модель:
-        загружаем картинку → отправляем на{" "}
-        <code>{API_BASE}/api/ai/triposr</code> → показываем GLB через{" "}
-        <code>&lt;model-viewer&gt;</code>. Никакого красивого UX, только отладка.
+        A plain check of how TripoSR builds a 3D model:
+        upload an image → send it to{" "}
+        <code>{API_BASE}/api/ai/triposr</code> → show the GLB with{" "}
+        <code>&lt;model-viewer&gt;</code>. Debugging only, no polished UX.
       </p>
 
       <form onSubmit={handleSubmit} style={{ marginBottom: "24px" }}>
@@ -113,7 +113,7 @@ const TripoSRDebug = () => {
               fontWeight: 500,
             }}
           >
-            1. Выбери картинку с одеждой (sample.png и т.п.):
+            1. Choose a garment image (sample.png or similar):
           </label>
           <input type="file" accept="image/*" onChange={handleFileChange} />
         </div>
@@ -132,7 +132,7 @@ const TripoSRDebug = () => {
             marginRight: "12px",
           }}
         >
-          {isLoading ? "Генерация..." : "2. Generate 3D"}
+          {isLoading ? "Generating…" : "2. Generate 3D"}
         </button>
 
         <button
@@ -147,7 +147,7 @@ const TripoSRDebug = () => {
             fontSize: "14px",
           }}
         >
-          Проверить /api/ai/healthz
+          Check /api/ai/healthz
         </button>
       </form>
 
@@ -194,7 +194,7 @@ const TripoSRDebug = () => {
             whiteSpace: "pre-wrap",
           }}
         >
-          Ошибка: {error}
+          Error: {error}
         </div>
       )}
 
@@ -207,7 +207,7 @@ const TripoSRDebug = () => {
               marginBottom: "8px",
             }}
           >
-            3D-просмотр:
+            3D view:
           </h2>
 
           <model-viewer
@@ -235,7 +235,7 @@ const TripoSRDebug = () => {
               wordBreak: "break-all",
             }}
           >
-            Временный glbUrl (blob): {glbUrl}
+            Temporary glbUrl (blob): {glbUrl}
           </p>
         </div>
       )}

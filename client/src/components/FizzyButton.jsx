@@ -16,7 +16,7 @@ export default function FizzyButton() {
   useEffect(() => {
     if (!("webkitSpeechRecognition" in window)) return;
     const r = new window.webkitSpeechRecognition();
-    r.lang = "ru-RU";
+    r.lang = "en-US";
     r.interimResults = true;
     r.continuous = false;
     r.onresult = (e) => {
@@ -32,7 +32,7 @@ export default function FizzyButton() {
   }, []);
 
   const startRec = () => {
-    if (!recRef.current) return alert("Распознавание речи не поддерживается.");
+    if (!recRef.current) return alert("Speech recognition is not supported in this browser.");
     try { recRef.current.start(); setActive(true); } catch {}
   };
   const stopRec = () => { try { recRef.current?.stop(); } catch {}; setActive(false); };
@@ -75,7 +75,7 @@ export default function FizzyButton() {
       onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp}
       onTouchStart={onDown} onTouchMove={onMove} onTouchEnd={onUp}
       onClick={onClick}
-      title={active ? "Слушаю… Нажми чтобы остановить" : "Нажми, скажи запрос"}
+      title={active ? "Listening… click to stop" : "Click and say what you are looking for"}
     >
       {active ? "🎙️" : "🟣"}
     </div>

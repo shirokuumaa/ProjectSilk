@@ -34,9 +34,9 @@ export default function VoiceOrb({ onFinalText, getReplyText, bottom=20, right=2
 
   function startRec() {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) { alert("SpeechRecognition недоступен в этом браузере"); return; }
+    if (!SR) { alert("Speech recognition is not supported in this browser."); return; }
     const rec = new SR();
-    rec.lang = "ru-RU";      // авто-язык? можешь делать 'en-US' по UI
+    rec.lang = "en-US";      // интерфейс английский — и распознавание тоже
     rec.interimResults = true;
     rec.continuous = true;
     rec.onresult = async (e) => {
@@ -51,9 +51,9 @@ export default function VoiceOrb({ onFinalText, getReplyText, bottom=20, right=2
         setPartial("");
         const txt = finalText.trim();
         // wake-word: "hey fizzy"
-        if (/hey\s+fizzy/i.test(txt) || /эй\s+физзи/i.test(txt)) {
+        if (/hey\s+fizzy/i.test(txt)) {
           // просто подтверждаем, дальше слушаем следующую фразу
-          speak("Слушаю");
+          speak("I'm listening");
         } else {
           onFinalText?.(txt);
           if (getReplyText) {

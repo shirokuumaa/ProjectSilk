@@ -66,9 +66,14 @@ app.use('/api/avatar', avatarRoutes);
 app.get('/healthz', (_req, res) => res.json({ ok: true }));
 
 /* Глобальный обработчик ошибок — последним, после всех роутов */
+// текст исключения — только в лог; пользователю — общее сообщение
 app.use((err, _req, res, _next) => {
   console.error('API error:', err);
-  res.status(500).json({ message: 'Server error', error: String(err?.message || err) });
+  const status = Number(err?.status || err?.statusCode);
+  if (status >= 400 && status < 500) {
+    return res.status(status).json({ message: status === 413 ? 'The request is too large.' : 'Invalid request.' });
+  }
+  res.status(500).json({ message: 'Something went wrong on our side. Please try again later.' });
 });
 
 /* 5) Подключаем Mongo и стартуем HTTP */

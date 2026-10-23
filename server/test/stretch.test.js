@@ -33,7 +33,8 @@ describe('товар: тянется ли ткань', () => {
   it('неизвестное значение → 400 с понятным сообщением', async () => {
     const r = await create({ stretch: 'very' });
     assert.equal(r.status, 400);
-    assert.match(r.json.details.join(' '), /Fabric stretch must be none, slight or stretchy/);
+    assert.match(r.json.message, /Fabric stretch must be none, slight or stretchy/);
+    assert.deepEqual(r.json.fields, ['stretch']);
   });
 
   it('PATCH меняет тянучесть', async () => {

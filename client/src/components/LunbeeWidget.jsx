@@ -11,6 +11,9 @@ const urlParams = new URLSearchParams(window.location.search);
 const abVariant = urlParams.get("ab") || "control";
 
 // --------- helpers ---------
+// текст исключения покупателю не показываем — только понятное сообщение
+const ASSISTANT_OFFLINE = "The assistant is not available right now. Please try again later.";
+
 function Price({ value }) {
   if (value === undefined || value === null || isNaN(Number(value))) return "—";
   return `$${Number(value).toFixed(2)}`;
@@ -80,9 +83,9 @@ export default function LunbeeWidget() {
   async function savePrefs() {
     try {
       await setPrefs(sessionId, prefs);
-      setToast("Предпочтения сохранены");
+      setToast("Preferences saved");
     } catch {
-      setToast("Не удалось сохранить");
+      setToast("Could not save preferences");
     } finally {
       setTimeout(() => setToast(""), 1800);
     }
@@ -154,7 +157,7 @@ export default function LunbeeWidget() {
         setTotal(data.total || 0);
         setNextOffset(null);
       } catch (e) {
-        setError(String(e.message || e));
+        setError(ASSISTANT_OFFLINE);
       } finally {
         setLoading(false);
       }
@@ -221,7 +224,7 @@ export default function LunbeeWidget() {
         meta:{ query: body.query || "", filters: body.filters || {}, use_semantic: !!(useSemantic && (body.query||"").trim()), total: (data?.total ?? (typeof total==='number'? total:0)) }
       });
     } catch (e) {
-      setError(String(e.message || e));
+      setError(ASSISTANT_OFFLINE);
     } finally {
       setLoading(false);
     }
@@ -253,7 +256,7 @@ export default function LunbeeWidget() {
         meta:{ query, offset: nextOffset, total: r.total }
       });
     } catch (e) {
-      setError(String(e.message || e));
+      setError(ASSISTANT_OFFLINE);
     }
   }
 
@@ -263,14 +266,14 @@ export default function LunbeeWidget() {
     try {
       const res = await apiAddToCart({ session_id: sessionId, product_id: product.product_id, size: chosen || null, qty: 1 });
       if (res.ok) {
-        setToast(`Добавила «${product.title}» в корзину`);
+        setToast(`Added “${product.title}” to the cart`);
         refreshCart();
         await logEvent({ event:"add_to_cart", session_id: sessionId, meta:{ product_id: product.product_id, size: chosen || null, price: product.price_usd }});
       } else {
-        const msg = res.error === "no_db" ? "Корзина недоступна (нет БД)" : "Не получилось добавить";
+        const msg = res.error === "no_db" ? "The cart is not available right now" : "Could not add to the cart";
         setToast(msg);
       }
-    } catch { setToast("Ошибка добавления"); }
+    } catch { setToast("Could not add to the cart"); }
     finally { setTimeout(() => setToast(""), 1800); }
   }
 
@@ -282,11 +285,11 @@ export default function LunbeeWidget() {
         await logEvent({ event:"checkout_ok", session_id: sessionId, meta:{ order_id: r.order_id, total: r.total_usd }});
         window.location.href = `/orders/${r.order_id}`;
       } else {
-        const msg = r.error === "no_db" ? "Оплата недоступна (нет БД)" : (r.error || "Ошибка оплаты/пустая корзина");
+        const msg = r.error === "no_db" ? "Checkout is not available right now" : "Checkout failed — is the cart empty?";
         setToast(msg);
       }
     } catch {
-      setToast("Ошибка оформления");
+      setToast("Checkout failed. Please try again.");
     } finally {
       setTimeout(() => setToast(""), 1800);
     }
@@ -309,7 +312,7 @@ export default function LunbeeWidget() {
       setCompareData(res);
       await logEvent({ event:"compare", session_id: sessionId, meta:{ ids: selected }});
     }
-    catch (e) { setError(String(e.message || e)); }
+    catch (e) { setError(ASSISTANT_OFFLINE); }
   }
 
   // Похожие — используем POST; если не доступен, fallback на GET
@@ -327,10 +330,10 @@ export default function LunbeeWidget() {
       }
       setItems(data.items || []); setTotal(data.total || (data.items?.length || 0));
       setNextOffset(null); // сброс пагинации, т.к. это уже другой фид
-      setToast(`Похожие на «${product.title}»`); setTimeout(()=>setToast(""), 1500);
+      setToast(`Similar to “${product.title}”`); setTimeout(()=>setToast(""), 1500);
       await logEvent({ event:"similar", session_id: sessionId, meta:{ product_id: product.product_id, returned: data.items?.length || 0 }});
     } catch (e) {
-      setError(String(e.message || e));
+      setError(ASSISTANT_OFFLINE);
     } finally {
       setLoading(false);
     }
@@ -396,7 +399,7 @@ export default function LunbeeWidget() {
           <span style={{opacity:.6}}>· AB: {abVariant}</span>
         </div>
         <input
-          placeholder="Бэкенд URL (http://127.0.0.1:8000)"
+          placeholder="Assistant URL (http://127.0.0.1:8000)"
           value={baseURL}
           onChange={(e) => setBase(e.target.value)}
         />
@@ -410,7 +413,7 @@ export default function LunbeeWidget() {
               key={h}
               className="ai-btn"
               onClick={() => { setQuery(h); doSearch({ query: h, filters: buildFilters(), sort: "relevance", limit }); }}
-              title="Повторить поиск"
+              title="Search again"
             >
               {h}
             </button>
@@ -422,27 +425,27 @@ export default function LunbeeWidget() {
       <div style={{border:"1px solid #e5e7eb", borderRadius:14, padding:12, marginBottom:12}}>
         <div style={{display:"flex", justifyContent:"space-between", alignItems:"center"}}>
           <div className="as-title" style={{fontWeight:600}}>Look of the Day</div>
-          <button className="ai-btn" onClick={showLookOfDay}>Показать</button>
+          <button className="ai-btn" onClick={showLookOfDay}>Show</button>
         </div>
-        <div style={{fontSize:13, opacity:.75, marginTop:6}}>Сейчас 1 основная вещь (+аксессуары, если есть).</div>
+        <div style={{fontSize:13, opacity:.75, marginTop:6}}>One main item for now (plus accessories, if any).</div>
       </div>
 
       {/* Предпочтения */}
       <div style={{display:"grid", gap:8, gridTemplateColumns:"1fr 1fr"}}>
         <div>
-          <label className="chip" style={{border:"none", padding:0}}>Рост (см)</label>
+          <label className="chip" style={{border:"none", padding:0}}>Height (cm)</label>
           <input type="number"
             value={prefs.height_cm}
             onChange={(e)=>setPrefsState({...prefs, height_cm:Number(e.target.value)||0})}/>
         </div>
         <div>
-          <label className="chip" style={{border:"none", padding:0}}>Бюджет ($)</label>
+          <label className="chip" style={{border:"none", padding:0}}>Budget ($)</label>
           <input type="number"
             value={prefs.budget_usd}
             onChange={(e)=>setPrefsState({...prefs, budget_usd:Number(e.target.value)||0})}/>
         </div>
         <div style={{gridColumn:"1 / -1"}}>
-          <label className="chip" style={{border:"none", padding:0}}>Любимые цвета</label>
+          <label className="chip" style={{border:"none", padding:0}}>Favourite colours</label>
           <input
             placeholder="pink, beige"
             value={(prefs.colors_like||[]).join(", ")}
@@ -453,7 +456,7 @@ export default function LunbeeWidget() {
           />
         </div>
         <div style={{gridColumn:"1 / -1"}}>
-          <label className="chip" style={{border:"none", padding:0}}>Избегать цветов</label>
+          <label className="chip" style={{border:"none", padding:0}}>Colours to avoid</label>
           <input
             placeholder="black"
             value={(prefs.colors_avoid||[]).join(", ")}
@@ -464,29 +467,29 @@ export default function LunbeeWidget() {
           />
         </div>
         <div style={{gridColumn:"1 / -1"}}>
-          <button className="ai-btn" onClick={savePrefs}>💾 Сохранить предпочтения</button>
+          <button className="ai-btn" onClick={savePrefs}>💾 Save preferences</button>
         </div>
       </div>
 
       {/* Поиск */}
       <div style={{display:"grid", gap:8, gridTemplateColumns:"1fr 1fr"}}>
         <div style={{gridColumn:"1 / -1"}}>
-          <label className="chip" style={{border:"none", padding:0}}>Запрос</label>
+          <label className="chip" style={{border:"none", padding:0}}>Search</label>
           <input
-            placeholder="платье, выпускной..."
+            placeholder="dress, prom..."
             value={query}
             onChange={(e)=>setQuery(e.target.value)}
             onKeyDown={(e)=>{ if(e.key==="Enter") doSearch(); }}
           />
         </div>
         <div>
-          <label className="chip" style={{border:"none", padding:0}}>Длина</label>
+          <label className="chip" style={{border:"none", padding:0}}>Length</label>
           <select value={length} onChange={(e)=>setLength(e.target.value)}>
             {["Any","Mini","Knee","Midi","Ankle","Maxi"].map(x=><option key={x} value={x}>{x}</option>)}
           </select>
         </div>
         <div>
-          <label className="chip" style={{border:"none", padding:0}}>Цвет</label>
+          <label className="chip" style={{border:"none", padding:0}}>Colour</label>
           <select value={color} onChange={(e)=>setColor(e.target.value)}>
             {[
               "Any","Ivory","Red","Burgundy","Violet","Navy","Brown","Black","White",
@@ -496,24 +499,24 @@ export default function LunbeeWidget() {
           </select>
         </div>
         <div>
-          <label className="chip" style={{border:"none", padding:0}}>До цены</label>
+          <label className="chip" style={{border:"none", padding:0}}>Max price</label>
           <input placeholder="100" value={priceMax} onChange={(e)=>setPriceMax(e.target.value)} />
         </div>
         <div style={{display:"flex", alignItems:"end", gap:12}}>
           <button className="ai-btn" onClick={()=>doSearch()} disabled={loading}>
-            {loading ? "Ищу..." : "Искать"}
+            {loading ? "Searching…" : "Search"}
           </button>
           <label className="text-sm flex items-center gap-2" style={{fontSize:14}}>
             <input type="checkbox" checked={useSemantic} onChange={e=>setUseSemantic(e.target.checked)} />
-            Семантический поиск
+            Smart search
           </label>
         </div>
       </div>
 
       {/* Инфо */}
       <div style={{display:"flex", justifyContent:"space-between", fontSize:13, opacity:.75, marginTop:6}}>
-        <div>Найдено: {total}</div>
-        <div>К сравнению выбрано: {selected.length}/2</div>
+        <div>Found: {total}</div>
+        <div>Selected to compare: {selected.length}/2</div>
       </div>
 
       {error && (
@@ -578,7 +581,7 @@ export default function LunbeeWidget() {
                 {/* Размеры в 1 клик (+ запись size_by_brand) */}
                 {avail.length > 0 && (
                   <div className="as-row">
-                    <label style={{fontSize:12, opacity:.8}}>Размер</label>
+                    <label style={{fontSize:12, opacity:.8}}>Size</label>
                     <select
                       value={currentSize || ""}
                       onChange={(e)=>{
@@ -597,28 +600,28 @@ export default function LunbeeWidget() {
                 <div className="as-row">
                   <div className="as-price"><Price value={it.price_usd} /></div>
                   <div className="as-actions" style={{display:"flex", flexWrap:"wrap", gap:8}}>
-                    <button className="ai-btn" onClick={()=> addToCart(it)}>В корзину</button>
-                    <button className="ai-btn" onClick={()=> showSimilar(it)} title="Похожие">Ещё как это</button>
+                    <button className="ai-btn" onClick={()=> addToCart(it)}>Add to cart</button>
+                    <button className="ai-btn" onClick={()=> showSimilar(it)} title="Similar items">More like this</button>
 
                     {/* NEW: Похоже, но… */}
                     <button
                       className="ai-btn ai-btn--ghost"
-                      title="Похоже, но дешевле"
+                      title="Similar, but cheaper"
                       onClick={async ()=>{
                         await likeWithMods(it, { cheaper:true });
                         await logEvent({ event:"like_cheaper", session_id: sessionId, meta:{ product_id: it.product_id }});
                       }}>
-                      Дешевле
+                      Cheaper
                     </button>
 
                     <button
                       className="ai-btn ai-btn--ghost"
-                      title="Похоже, но длиннее"
+                      title="Similar, but longer"
                       onClick={async ()=>{
                         await likeWithMods(it, { longer:true });
                         await logEvent({ event:"like_longer", session_id: sessionId, meta:{ product_id: it.product_id }});
                       }}>
-                      Длиннее
+                      Longer
                     </button>
 
                     <label className="ai-btn" style={{display:"inline-flex", alignItems:"center", gap:6}}>
@@ -627,7 +630,7 @@ export default function LunbeeWidget() {
                         checked={selected.includes(it.product_id)}
                         onChange={()=> toggleSelect(it.product_id)}
                       />
-                      <span style={{fontSize:12}}>Сравнить</span>
+                      <span style={{fontSize:12}}>Compare</span>
                     </label>
                   </div>
                 </div>
@@ -641,7 +644,7 @@ export default function LunbeeWidget() {
       {nextOffset !== null && (
         <div style={{display:"flex", justifyContent:"center", marginTop:12}}>
           <button className="ai-btn" onClick={loadMore} disabled={loading}>
-            {loading ? "Загружаю..." : "Показать ещё"}
+            {loading ? "Loading…" : "Show more"}
           </button>
         </div>
       )}
@@ -649,14 +652,14 @@ export default function LunbeeWidget() {
       {/* Сравнение */}
       <div style={{border:"1px solid #e5e7eb", borderRadius:14, padding:12, marginTop:12}}>
         <div style={{display:"flex", justifyContent:"space-between"}}>
-          <div className="as-title" style={{fontWeight:600}}>Сравнение</div>
-          <div style={{fontSize:13, opacity:.75}}>Выбрано: {selected.join(", ") || "—"}</div>
+          <div className="as-title" style={{fontWeight:600}}>Compare</div>
+          <div style={{fontSize:13, opacity:.75}}>Selected: {selected.join(", ") || "—"}</div>
         </div>
         <div style={{marginTop:8, display:"flex", gap:8, alignItems:"center"}}>
           <button className="ai-btn" disabled={selected.length !== 2} onClick={compareNow}>
-            Сравнить выбранные (2)
+            Compare selected (2)
           </button>
-          <button className="ai-btn ai-btn--ghost" onClick={()=>setSelected([])}>Сбросить</button>
+          <button className="ai-btn ai-btn--ghost" onClick={()=>setSelected([])}>Clear</button>
         </div>
 
         {compareData && (
@@ -668,28 +671,28 @@ export default function LunbeeWidget() {
                     <div style={{fontWeight:600}}>{idx===0?"A":"B"}) {p.title}</div>
                     <div style={{opacity:.7}}>id: {p.product_id}</div>
                     <div style={{marginTop:6, display:"flex", flexWrap:"wrap", gap:6}}>
-                      <span className="chip">Цена: <Price value={p.price_usd} /></span>
+                      <span className="chip">Price: <Price value={p.price_usd} /></span>
                       {p.length && <span className="chip">{p.length}</span>}
                       {p.color && <span className="chip">{p.color}</span>}
                       {p.material && <span className="chip">{p.material}</span>}
                       {p.silhouette && <span className="chip">{p.silhouette}</span>}
-                      <span className="chip">Размеры: {String(p.sizes)}</span>
+                      <span className="chip">Sizes: {String(p.sizes)}</span>
                     </div>
                   </div>
                 ))}
               </div>
             ) : (
-              <div>Недостаточно данных для сравнения.</div>
+              <div>Not enough data to compare.</div>
             )}
 
             <div style={{marginTop:8}}>
-              <div style={{fontWeight:600}}>Отличия:</div>
+              <div style={{fontWeight:600}}>Differences:</div>
               {compareData.diff_keys?.length ? (
                 <ul style={{marginLeft:16, listStyle:"disc"}}>
                   {compareData.diff_keys.map(k => <li key={k}>{k}</li>)}
                 </ul>
               ) : (
-                <div style={{opacity:.7}}>Почти одинаковые</div>
+                <div style={{opacity:.7}}>Almost identical</div>
               )}
             </div>
           </div>
@@ -699,22 +702,22 @@ export default function LunbeeWidget() {
       {/* Корзина / чекаут */}
       <div style={{border:"1px solid #e5e7eb", borderRadius:14, padding:12, marginTop:12}}>
         <div style={{display:"flex", justifyContent:"space-between"}}>
-          <div className="as-title" style={{fontWeight:600}}>Корзина</div>
-          <button className="ai-btn ai-btn--ghost" onClick={refreshCart}>Обновить</button>
+          <div className="as-title" style={{fontWeight:600}}>Cart</div>
+          <button className="ai-btn ai-btn--ghost" onClick={refreshCart}>Refresh</button>
         </div>
         {(!cart || cart.length === 0) ? (
-          <div style={{opacity:.75, fontSize:14, marginTop:6}}>Пусто</div>
+          <div style={{opacity:.75, fontSize:14, marginTop:6}}>Empty</div>
         ) : (
           <ul style={{marginTop:8}}>
             {cart.map((c, i) => (
               <li key={i} style={{display:"flex", justifyContent:"space-between", padding:"6px 0", borderTop:i? "1px solid #f3f4f6":"none", fontSize:14}}>
-                <span>{c.product_id} · размер {c.size || "-"} · qty {c.qty || 1}</span>
+                <span>{c.product_id} · size {c.size || "-"} · qty {c.qty || 1}</span>
               </li>
             ))}
           </ul>
         )}
         <div style={{marginTop:8}}>
-          <button className="ai-btn" onClick={checkout} disabled={!cart || cart.length===0}>Оформить заказ</button>
+          <button className="ai-btn" onClick={checkout} disabled={!cart || cart.length===0}>Check out</button>
         </div>
       </div>
 
@@ -722,10 +725,10 @@ export default function LunbeeWidget() {
       <div className="ai-sticky">
         <div style={{display:"flex", gap:8}}>
           <button className="ai-btn" onClick={compareNow} disabled={selected.length !== 2}>
-            Сравнить выбранные
+            Compare selected
           </button>
           <button className="ai-btn" onClick={checkout} disabled={!cart || cart.length===0}>
-            Оформить заказ
+            Check out
           </button>
         </div>
       </div>

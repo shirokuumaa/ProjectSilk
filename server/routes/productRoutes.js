@@ -34,7 +34,8 @@ const storage = multer.diskStorage({
   },
 });
 
-const uploadError = (message) => Object.assign(new Error(message), { status: 400 });
+// publicMessage — наш текст для пользователя; текст исключений наружу не уходит
+const uploadError = (message) => Object.assign(new Error(message), { status: 400, publicMessage: message });
 
 // ───────────── Фильтр типов ─────────────
 // Здесь — только расширение (оно определяет Content-Type при раздаче /uploads).
@@ -64,6 +65,13 @@ const upload = multer({
   { name: "model3d", maxCount: 1 },
 ]);
 
+const UPLOAD_MESSAGES = {
+  LIMIT_FILE_COUNT: "Too many files (one image and one 3D model at most).",
+  LIMIT_UNEXPECTED_FILE: "Unexpected file field.",
+  LIMIT_PART_COUNT: "Too many form fields.",
+  LIMIT_FIELD_VALUE: "A form field is too long.",
+};
+
 /** multer + понятные ошибки вместо 500; при ошибке записанное удаляется. */
 function handleUpload(req, res, next) {
   upload(req, res, (err) => {
@@ -74,9 +82,9 @@ function handleUpload(req, res, next) {
       if (err.code === "LIMIT_FILE_SIZE") {
         return res.status(413).json({ message: "File is too large (maximum 50 MB)." });
       }
-      return res.status(400).json({ message: `Upload error: ${err.message}` });
+      return res.status(400).json({ message: UPLOAD_MESSAGES[err.code] || "Could not upload the file." });
     }
-    if (err.status === 400) return res.status(400).json({ message: err.message });
+    if (err.publicMessage) return res.status(400).json({ message: err.publicMessage });
     return next(err);
   });
 }

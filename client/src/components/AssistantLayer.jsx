@@ -30,7 +30,7 @@ export default function AssistantLayer() {
   return (
     <>
       <AiPanelLeft open={open} onClose={() => setOpen(false)}>
-        <Suspense fallback={<div className="text-sm opacity-70">Загрузка ассистента…</div>}>
+        <Suspense fallback={<div className="text-sm opacity-70">Loading the assistant…</div>}>
           <LunbeeWidget />
         </Suspense>
       </AiPanelLeft>

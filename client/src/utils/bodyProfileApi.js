@@ -55,7 +55,7 @@ export function toBodyProfile(m, user) {
 export async function saveBodyProfile(m) {
   const user = getCurrentUser();
   if (!user) {
-    console.warn('bodyProfile: пользователь не залогинен, сохраняем только локально');
+    console.warn('bodyProfile: not signed in, saving on this device only');
     return null;
   }
 
@@ -114,7 +114,7 @@ export async function loadBodyProfile() {
         }
       }
     } catch (e) {
-      console.warn('loadBodyProfile: сервер недоступен, читаем локально');
+      console.warn('loadBodyProfile: server unavailable, reading the copy on this device');
     }
   }
 

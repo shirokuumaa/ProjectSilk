@@ -131,10 +131,20 @@ async function normalizeModel(rawFile) {
 /** lean() не подставляет значения по умолчанию: у старых товаров нет stretch → 'none'. */
 const withDefaults = (p) => (p ? { stretch: 'none', ...p } : p);
 
+/** Свои тексты для полей; остальные — по названию поля. */
+const FIELD_MESSAGES = {
+  stretch: 'Fabric stretch must be none, slight or stretchy.',
+};
+
+/** Текст ошибок mongoose («Path `price` is required») наружу не отдаём — только наши сообщения и названия полей. */
 function sendValidationError(res, e) {
+  const fields = Object.keys(e.errors || {});
+  const known = fields.filter((f) => FIELD_MESSAGES[f]).map((f) => FIELD_MESSAGES[f]);
+  const other = fields.filter((f) => !FIELD_MESSAGES[f]);
+  const parts = [...known, ...(other.length ? [`Please check: ${other.join(', ')}.`] : [])];
   return res.status(400).json({
-    message: 'Invalid product data.',
-    details: Object.values(e.errors || {}).map((x) => x.message),
+    message: parts.length ? `Invalid product data. ${parts.join(' ')}` : 'Invalid product data.',
+    fields,
   });
 }
 
@@ -144,7 +154,7 @@ export const getAllProducts = async (_req, res) => {
     res.json(items.map(withDefaults));
   } catch (e) {
     console.error('getAllProducts error:', e);
-    res.status(500).json({ message: 'Ошибка при получении товаров', error: String(e?.message || e) });
+    res.status(500).json({ message: 'Could not load products.' });
   }
 };
 
@@ -167,7 +177,7 @@ export const getProductById = async (req, res) => {
     res.json(withDefaults(item));
   } catch (e) {
     console.error('getProductById error:', e);
-    res.status(500).json({ message: 'Ошибка при получении товара', error: String(e?.message || e) });
+    res.status(500).json({ message: 'Could not load the product.' });
   }
 };
 

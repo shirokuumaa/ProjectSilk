@@ -9,7 +9,7 @@ import "./AiPanelLeft.css";
  *  - title?: string
  *  - width?: string (например, "420px" или "360px")
  */
-export default function AiPanelLeft({ open, onClose, children, title = "Fizzy — ассистент", width }) {
+export default function AiPanelLeft({ open, onClose, children, title = "Fizzy — assistant", width }) {
   const panelRef = useRef(null);
   const headingId = "ai-panel-title";
 
@@ -53,7 +53,7 @@ export default function AiPanelLeft({ open, onClose, children, title = "Fizzy �
           <button
             className="ai-btn ai-btn--ghost"
             onClick={onClose}
-            aria-label="Закрыть"
+            aria-label="Close"
           >
             ✕
           </button>

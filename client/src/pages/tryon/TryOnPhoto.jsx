@@ -18,7 +18,7 @@ function TryOnPhoto() {
   // Кнопка "Примерить"
   const handleGenerate = async () => {
     if (!humanImg || !garmentImg) {
-      alert("Пожалуйста, загрузи оба фото!");
+      alert("Please add both photos: one of you and one of the garment.");
       return;
     }
 
@@ -43,8 +43,8 @@ function TryOnPhoto() {
       setResultImg(imageUrl);
       
     } catch (error) {
-      console.error("Ошибка:", error);
-      alert("Не удалось соединиться с сервером. Проверь, работает ли туннель в терминале!");
+      console.error("Photo try-on failed:", error);
+      alert("The AI try-on is not available right now. Please try again later.");
     } finally {
       setLoading(false);
     }
@@ -52,12 +52,12 @@ function TryOnPhoto() {
 
   return (
     <div style={{ padding: "40px", textAlign: "center", maxWidth: "800px", margin: "0 auto" }}>
-      <h1 className="text-3xl font-bold mb-8">✨ Виртуальная Примерка (AI)</h1>
+      <h1 className="text-3xl font-bold mb-8">Try on with a photo</h1>
       
       <div style={{ display: "flex", justifyContent: "center", gap: "20px", marginBottom: "30px", flexWrap: "wrap" }}>
         {/* Карточка: Человек */}
-        <div style={{ border: "2px dashed #ccc", padding: "20px", borderRadius: "12px", width: "300px" }}>
-          <h3 className="text-xl mb-4">1. Твое фото</h3>
+        <div style={{ border: "2px dashed var(--line-dashed)", padding: "20px", borderRadius: "12px", width: "300px" }}>
+          <h3 className="text-xl mb-4">1. Your photo</h3>
           <input type="file" onChange={(e) => handleFileChange(e, setHumanImg)} accept="image/*" />
           {humanImg && (
             <img 
@@ -69,8 +69,8 @@ function TryOnPhoto() {
         </div>
 
         {/* Карточка: Одежда */}
-        <div style={{ border: "2px dashed #ccc", padding: "20px", borderRadius: "12px", width: "300px" }}>
-          <h3 className="text-xl mb-4">2. Одежда</h3>
+        <div style={{ border: "2px dashed var(--line-dashed)", padding: "20px", borderRadius: "12px", width: "300px" }}>
+          <h3 className="text-xl mb-4">2. The garment</h3>
           <input type="file" onChange={(e) => handleFileChange(e, setGarmentImg)} accept="image/*" />
           {garmentImg && (
             <img 
@@ -90,28 +90,28 @@ function TryOnPhoto() {
           padding: "15px 50px", 
           fontSize: "18px", 
           fontWeight: "bold",
-          backgroundColor: loading ? "#ccc" : "#7c3aed", 
-          color: "white", 
+          backgroundColor: loading ? "var(--line-strong)" : "var(--accent)", 
+          color: "var(--surface)", 
           border: "none", 
           borderRadius: "30px",
           cursor: loading ? "not-allowed" : "pointer",
           transition: "all 0.3s"
         }}
       >
-        {loading ? "⏳ Магия работает... (20-30 сек)" : "🚀 НАЧАТЬ ПРИМЕРКУ"}
+        {loading ? "Working… (20–30 seconds)" : "Start try-on"}
       </button>
 
       {/* Блок результата */}
       {resultImg && (
-        <div style={{ marginTop: "40px", borderTop: "1px solid #eee", paddingTop: "40px" }}>
-          <h2 className="text-2xl font-bold mb-4">Готовый образ:</h2>
+        <div style={{ marginTop: "40px", borderTop: "1px solid var(--line-2)", paddingTop: "40px" }}>
+          <h2 className="text-2xl font-bold mb-4">Your look</h2>
           <img 
             src={resultImg} 
             alt="Result" 
             style={{ 
               maxWidth: "100%", 
               borderRadius: "16px", 
-              boxShadow: "0 20px 50px rgba(0,0,0,0.2)" 
+              boxShadow: "var(--shadow-pop)" 
             }} 
           />
         </div>

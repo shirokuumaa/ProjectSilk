@@ -12,7 +12,7 @@ export default function OrdersList({ sessionId }){
   }, [sessionId]);
   return (
     <div style={{display:"grid", gap:12}}>
-      <h2>Мои заказы</h2>
+      <h2>My orders</h2>
       <ul>
         {rows.map(o=>(
           <li key={o.order_id}>
