@@ -9,6 +9,7 @@
 # Запуск: Blender -b --python-exit-code 1 --python scripts/avatar/render_check.py -- keys|stretch|figures|underwear
 
 import json
+from pathlib import Path
 import math
 import os
 import re
@@ -219,6 +220,16 @@ def underwear_sheet(body):
     sheet(body, rows, config.OUT_DIR / "underwear.png", vertex_colors=True)
 
 
+def controls_sheet(body, path):
+    """Любые наборы морфов из JSON {подпись: {морф: значение}} — спереди и сбоку, по строке на ряд."""
+    sets = json.loads(path.read_text())
+    rows = []
+    for view in ("front", "side"):
+        rows.append([(label, np.array([u.get(c, 0.0) for c in config.CONTROL_NAMES]), view)
+                     for label, u in sets.items()])
+    sheet(body, rows, config.OUT_DIR / f"{path.stem}.png", lines=True)
+
+
 def main():
     args = sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else ["keys"]
     config.OUT_DIR.mkdir(parents=True, exist_ok=True)
@@ -234,6 +245,8 @@ def main():
         figures_sheet(body)
     elif mode == "underwear":
         underwear_sheet(body)
+    elif mode == "controls":
+        controls_sheet(body, Path(args[1]))
     else:
         raise SystemExit(f"unknown mode {mode}")
 

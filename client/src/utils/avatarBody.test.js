@@ -13,6 +13,7 @@ jest.mock('three/examples/jsm/loaders/GLTFLoader.js', () => ({
 const S = { heightCm: 156, chest: 80, waist: 62, hips: 86 };
 const L = { heightCm: 172, chest: 110, waist: 94, hips: 118 };
 const PLUS = { heightCm: 166, chest: 125, waist: 110, hips: 132 };
+const BEYOND = { heightCm: 166, chest: 170, waist: 160, hips: 180 }; // за калибровкой болванки
 
 const at = (search) => window.history.replaceState({}, '', `/tryon/avatar${search}`);
 
@@ -51,8 +52,12 @@ describe('which body a buyer gets', () => {
     expect(body(p).kind).toBe('loading');
   });
 
-  test('a large size outside the calibrated range: the procedural BodyAvatar', () => {
-    const r = body(PLUS);
+  test('plus (125/110/132): the base avatar too, since the large-size morphs', () => {
+    expect(body(PLUS).kind).toBe('loading');
+  });
+
+  test('a size beyond the calibrated range: the procedural BodyAvatar', () => {
+    const r = body(BEYOND);
     expect(r.kind).toBe('standard');
     expect(r.reason).toBe('range');
     expect(r.shape).toBeTruthy(); // одежда садится на то же тело

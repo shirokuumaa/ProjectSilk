@@ -71,9 +71,22 @@ def set_macro(obj, name, value):
     TargetService.reapply_macro_details(obj)
 
 
+def set_macros(obj, values):
+    for name, value in values.items():
+        HumanObjectProperties.set_value(name, value, entity_reference=obj)
+    TargetService.reapply_macro_details(obj)
+
+
 def control_delta(obj, neutral, spec, side):
     """Смещения вершин при крайнем значении одного морфа (side: incr|decr)."""
-    if "macro" in spec:
+    if "combo" in spec:
+        combo = spec["combo"]
+        set_macros(obj, combo["base"])
+        base = mix_coords(obj)
+        set_macros(obj, combo[side])
+        delta = mix_coords(obj) - base
+        set_macros(obj, {k: 0.5 for k in set(combo["base"]) | set(combo[side])})
+    elif "macro" in spec:
         set_macro(obj, spec["macro"], 1.0 if side == "incr" else 0.0)
         delta = mix_coords(obj) - neutral
         set_macro(obj, spec["macro"], 0.5)

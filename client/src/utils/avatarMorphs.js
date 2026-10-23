@@ -143,6 +143,19 @@ function step(J, r, u, lam, lo, hi) {
  * Тот же алгоритм, что solve() в scripts/avatar/calibrate.py.
  */
 export function solveControls(targets, cal = defaultCalibration, iterations = cal.solver?.iterations ?? 30) {
+  // два этапа (calibrate.solve): сначала без морфов больших размеров; не хватило — со всеми
+  const stage2 = cal.solver?.stage2;
+  if (stage2?.controls?.length) {
+    const limits = { ...cal.limits };
+    stage2.controls.forEach((c) => { if (limits[c]) limits[c] = [0, 0]; });
+    const first = solveStage(targets, { ...cal, limits }, iterations);
+    const worst = Math.max(0, ...Object.values(first.residuals).map(Math.abs));
+    if (worst <= stage2.whenResidualAboveCm) return first;
+  }
+  return solveStage(targets, cal, iterations);
+}
+
+function solveStage(targets, cal, iterations) {
   const model = makeModel(cal);
   const C = cal.controls;
   const M = cal.measures;

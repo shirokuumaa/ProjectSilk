@@ -71,7 +71,22 @@ class TrueModel:
 # ── подбор морфов ────────────────────────────────────────────────
 
 def solve(model, targets, limits=None, reg=None, iterations=30, h=1e-3):
-    """Значения 8 морфов под заданные обмеры (см). Отсутствующие обмеры (None) не учитываются."""
+    """Значения морфов под заданные обмеры (см). Отсутствующие обмеры (None) не учитываются.
+
+    Два этапа: сначала без морфов больших размеров (config.STAGE2_CONTROLS); если хоть одна
+    мерка не попала ближе STAGE2_RESIDUAL_CM — заново со всеми. Тот же порядок в браузере.
+    """
+    limits = dict(limits or config.CONTROL_LIMITS)
+    stage2 = [c for c in getattr(config, "STAGE2_CONTROLS", []) if c in C and limits[c] != [0, 0]]
+    if stage2:
+        first = dict(limits, **{c: [0.0, 0.0] for c in stage2})
+        u, f, res = _solve(model, targets, first, reg, iterations, h)
+        if max((abs(v) for v in res.values()), default=0) <= config.STAGE2_RESIDUAL_CM:
+            return u, f, res
+    return _solve(model, targets, limits, reg, iterations, h)
+
+
+def _solve(model, targets, limits=None, reg=None, iterations=30, h=1e-3):
     limits = limits or config.CONTROL_LIMITS
     reg = reg or config.REGULARIZATION
     lo = np.array([limits[c][0] for c in C])
@@ -175,7 +190,7 @@ def realistic_targets(n):
     out = []
     for _ in range(n):
         h = RNG.uniform(145, 185)
-        bust = RNG.uniform(74, 130)
+        bust = RNG.uniform(74, 145)
         waist = bust - RNG.uniform(8, 28)
         hips = bust + RNG.uniform(-4, 16)
         out.append({
@@ -299,6 +314,8 @@ def main():
         "solver": {
             "method": "Gauss-Newton with box limits, one-sided finite differences at 0, step halving",
             "iterations": 30, "fdStep": 1e-3, "regularization": config.REGULARIZATION,
+            "stage2": {"controls": config.STAGE2_CONTROLS, "whenResidualAboveCm": config.STAGE2_RESIDUAL_CM,
+                       "rule": "solve with stage2 controls fixed at 0; if any |residual| > whenResidualAboveCm, solve again with all controls"},
         },
         "range": {
             "toleranceCm": config.TOLERANCE_CM,

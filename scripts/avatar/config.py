@@ -14,9 +14,18 @@ BLENDER = os.environ.get("BLENDER", "/Applications/Blender.app/Contents/MacOS/Bl
 GLB_PATH = REPO / "client" / "public" / "models" / "base_avatar.glb"
 CALIBRATION_PATH = REPO / "client" / "src" / "data" / "avatarCalibration.json"
 OUT_DIR = HERE / "out"                      # картинки и отчёты, в git не попадают
+
+# Пробная сборка: AVATAR_VARIANT=<имя> — болванка, калибровка и картинки в out/<имя>/,
+# файлы приложения не трогаются. AVATAR_EXTRA=<морф,морф> — добавить морфы-кандидаты
+# (CANDIDATE_CONTROLS ниже), AVATAR_MAX_MB — свой предел размера GLB для пробы.
+VARIANT = os.environ.get("AVATAR_VARIANT")
+if VARIANT:
+    OUT_DIR = HERE / "out" / VARIANT
+    GLB_PATH = OUT_DIR / "base_avatar.glb"
+    CALIBRATION_PATH = OUT_DIR / "avatarCalibration.json"
 BUILD_INFO_PATH = OUT_DIR / "build_info.json"
 
-MAX_GLB_BYTES = 5 * 1024 * 1024
+MAX_GLB_BYTES = int(float(os.environ.get("AVATAR_MAX_MB", 5)) * 1024 * 1024)
 
 # Нейтральная фигура: взрослая женщина, все прочие параметры MPFB посередине.
 NEUTRAL_MACROS = {
@@ -47,6 +56,18 @@ UNDERWEAR = {
     "clamp": 0.03,
 }
 
+# Кандидаты для больших размеров. "combo" — разница двух состояний макросов MPFB:
+# incr/decr против base (например, полнота «мягкая» и «спортивная» при максимальном весе).
+CANDIDATE_CONTROLS = {
+    "softness":    {"combo": {"base": {"weight": 1.0}, "incr": {"weight": 1.0, "muscle": 0.0},
+                              "decr": {"weight": 1.0, "muscle": 1.0}}},
+    "torso_width": {"targets": ["torso/torso-scale-horiz"]},
+    "torso_depth": {"targets": ["torso/torso-scale-depth"]},
+    "hip_width":   {"targets": ["hip/hip-scale-horiz"]},
+    "hip_depth":   {"targets": ["hip/hip-scale-depth"]},
+    "belly":       {"targets": ["stomach/stomach-pregnant"]},
+}
+
 # Наши морфы. Каждый — пара ключей <name>_incr / <name>_decr.
 # Источник: "macro" — запекаем разницу макроса MPFB (0.5 → 1.0 и 0.5 → 0.0);
 # "targets" — файлы таргетов MPFB, включённые на 1.0 одновременно.
@@ -59,7 +80,18 @@ CONTROLS = [
     ("weight",     {"macro": "weight"}),
     ("arm_length", {"targets": ["arms/measure-upperarm-length", "arms/measure-lowerarm-length"]}),
     ("leg_length", {"targets": ["legs/measure-upperleg-height", "legs/measure-lowerleg-height"]}),
+    # большие размеры (3.5B): мягкая полнота при максимальном весе и ширина торса и бёдер —
+    # без них plus (125/110/132) и крупнее не строились; глубина (torso/hip-scale-depth)
+    # и belly дают слишком выпуклый профиль, см. out/cand/subsets.png
+    ("softness",    CANDIDATE_CONTROLS["softness"]),
+    ("torso_width", CANDIDATE_CONTROLS["torso_width"]),
+    ("hip_width",   CANDIDATE_CONTROLS["hip_width"]),
 ]
+
+for _name in filter(None, os.environ.get("AVATAR_EXTRA", "").split(",")):
+    if _name not in [n for n, _ in CONTROLS]:
+        CONTROLS.append((_name, CANDIDATE_CONTROLS[_name]))
+
 CONTROL_NAMES = [name for name, _ in CONTROLS]
 KEY_NAMES = [f"{name}_{side}" for name in CONTROL_NAMES for side in ("incr", "decr")]
 
@@ -77,6 +109,15 @@ CONTROL_LIMITS = {name: [-1.0, 1.0] for name in CONTROL_NAMES}
 # гладко, на −2.5 слишком покатые.
 CONTROL_LIMITS.update({"weight": [-1.0, 1.5], "waist": [-1.0, 1.5], "bust": [-1.0, 1.25],
                        "hips": [-1.0, 0.75], "shoulder": [-2.0, 1.0]})
+# Большие размеры: только в сторону увеличения (маленькие фигуры решаются как раньше).
+# out/cand/widths.png: ширина 1.25 ещё естественна, 1.5 — бёдра и ляжки утрированы;
+# мягкая полнота за 1 сильнее провисает.
+CONTROL_LIMITS.update({"softness": [0.0, 1.0], "torso_width": [0.0, 1.25], "hip_width": [0.0, 1.25]})
+# …и только когда восьми прежних морфов не хватает: подбор в два этапа (calibrate.solve).
+# Сначала без них; если хоть одна мерка не попала ближе STAGE2_RESIDUAL_CM — заново со всеми.
+# Фигуры прежнего диапазона решаются ровно как раньше — на них просимулированы драпировки товаров.
+STAGE2_CONTROLS = ["softness", "torso_width", "hip_width"]
+STAGE2_RESIDUAL_CM = 0.5
 
 # Регуляризация подбора: чем меньше число, тем охотнее решатель двигает этот морф.
 # Полнота дешевле локальных обхватов — общую прибавку тело набирает полнотой.
@@ -93,4 +134,11 @@ TEST_FIGURES = {
     "medium": {"height": 166, "bust": 92,  "waist": 74,  "hips": 99,  "shoulder": 39, "arm_length": 58, "inseam": 77},
     "large":  {"height": 172, "bust": 110, "waist": 94,  "hips": 118, "shoulder": 42, "arm_length": 60, "inseam": 79},
     "plus":   {"height": 166, "bust": 125, "waist": 110, "hips": 132, "shoulder": 43, "arm_length": 58, "inseam": 75},
+    "plus2":  {"height": 166, "bust": 132, "waist": 120, "hips": 140, "shoulder": 44, "arm_length": 58, "inseam": 74},
+    "xxl":    {"height": 166, "bust": 140, "waist": 130, "hips": 150, "shoulder": 45, "arm_length": 58, "inseam": 74},
 }
+
+# морфы-кандидаты: по умолчанию ±1 и обычная регуляризация
+for _name in CONTROL_NAMES:
+    CONTROL_LIMITS.setdefault(_name, [-1.0, 1.0])
+    REGULARIZATION.setdefault(_name, 1e-2)
