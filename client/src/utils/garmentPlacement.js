@@ -6,6 +6,16 @@
 // свести их в одну — следующий шаг.
 
 import * as THREE from 'three';
+import { drapeGarment } from './garmentDrape';
+import { pushOutOfBody, transferToFigure } from './sizeModels';
+
+/**
+ * Типы, которые прижимаются к телу как ткань (garmentDrape). Обувь и аксессуары
+ * твёрдые: ставятся по росту и не деформируются (решение 17.10, research/patterns/README.md).
+ */
+export const DRAPED_TYPES = ['top', 'bottom', 'dress', 'outerwear'];
+
+export const isDrapedType = (garmentType) => DRAPED_TYPES.includes(garmentType);
 
 /**
  * Куда садится вещь: верхняя граница и высота, обе в метрах от пола.
@@ -45,4 +55,27 @@ export function placeByHeight(group, garmentType, landmarks) {
   );
   group.updateWorldMatrix(true, true);
   return true;
+}
+
+/**
+ * Посадка вещи в примерке (TryOnAvatar).
+ *  • from — форма фигуры, на которой просимулирована ткань: перенос на фигуру покупателя
+ *    (складки сохраняются); transferOnly — дальше только страховка pushOutOfBody;
+ *  • иначе — масштаб по росту; ткань прижимается к телу, твёрдые вещи (обувь, аксессуары) — нет.
+ * Перед вызовом геометрия вещи должна быть откачена к исходной (restoreGeometry).
+ * @returns {'transfer' | 'rigid' | 'draped' | null} null — у вещи нулевая высота
+ */
+export function seatGarment(group, root, shape, {
+  garmentType, from = null, transferOnly = true, fit, layer, size, legs,
+} = {}) {
+  if (from) transferToFigure(root, from, shape);
+  else if (!placeByHeight(group, garmentType, shape.landmarks)) return null;
+
+  if (from && transferOnly) {
+    pushOutOfBody(root, shape);
+    return 'transfer';
+  }
+  if (!isDrapedType(garmentType)) return 'rigid';
+  drapeGarment(group, shape, { fit, layer, size, garmentType, legs });
+  return 'draped';
 }

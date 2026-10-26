@@ -40,15 +40,15 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import AvatarBody from '../../components/AvatarBody';
 import BodyStage from '../../components/BodyStage';
 import BodyToggle from '../../components/BodyToggle';
-import { drapeGarment, restoreGeometry, snapshotGeometry } from '../../utils/garmentDrape';
+import { restoreGeometry, snapshotGeometry } from '../../utils/garmentDrape';
 import { useAvatarBody } from '../../utils/avatarBody';
-import { placeByHeight } from '../../utils/garmentPlacement';
+import { seatGarment } from '../../utils/garmentPlacement';
 import { loadBodyProfile, isProfileComplete } from '../../utils/bodyProfileApi';
 import { findBestSize, getStressMap, sizeChartOf } from '../../utils/fitCalculator';
 import { getWardrobe, pruneWardrobe, WARDROBE_EVENT } from '../../utils/wardrobeStorage';
 import { brokenModelNote, garmentTypeOf, offFigureReason, templateFor } from '../../utils/garmentTemplates';
 import {
-  pickSizeModel, figureShape, transferToFigure, pushOutOfBody, simFitMode,
+  pickSizeModel, figureShape, simFitMode,
 } from '../../utils/sizeModels';
 import styles from './TryOnAvatar.module.css';
 
@@ -177,17 +177,14 @@ function Garment({ url, profile, garmentType, fit, layer, size = null, legs = nu
     group.updateWorldMatrix(true, true);
 
     // 2. посадка: ткань, просимулированная на фигуре размера, переносится на фигуру
-    //    покупателя (складки сохраняются); любая другая вещь — масштаб по росту
-    if (simFigure) transferToFigure(root, figureShape(simFigure, avatar), shape);
-    else if (!placeByHeight(group, garmentType, shape.landmarks)) return;
-
-    // 3. просимулированная ткань: только страховка — что оказалось внутри тела, наружу на 4 мм;
-    //    шаблоны и модели продавца прижимаются к телу garmentDrape
-    if (simFigure && simFitMode() === 'transfer') {
-      pushOutOfBody(root, shape);
-      return;
-    }
-    drapeGarment(group, shape, { fit, layer, size, garmentType, legs });
+    //    покупателя (складки сохраняются) и только страхуется от провала в тело; шаблоны
+    //    и модели продавца ставятся по росту и прижимаются к телу — кроме обуви и
+    //    аксессуаров: они твёрдые (utils/garmentPlacement.js, seatGarment)
+    seatGarment(group, root, shape, {
+      garmentType, fit, layer, size, legs,
+      from: simFigure ? figureShape(simFigure, avatar) : null,
+      transferOnly: simFitMode() === 'transfer',
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [root, garmentType, fit, layer, shape, size, legs, simFigure]);
 

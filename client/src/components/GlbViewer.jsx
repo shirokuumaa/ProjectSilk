@@ -23,6 +23,7 @@ import BodyStage from './BodyStage';
 import FitCamera from './FitCamera';
 import { drapeGarment, restoreGeometry, snapshotGeometry } from '../utils/garmentDrape';
 import GarmentErrorBoundary from './GarmentErrorBoundary';
+import { isDrapedType } from '../utils/garmentPlacement';
 import { useAvatarBody } from '../utils/avatarBody';
 import { figureShape, transferToFigure, pushOutOfBody, simFitMode } from '../utils/sizeModels';
 
@@ -87,7 +88,7 @@ function GarmentOnBody({
         pushOutOfBody(garmentScene, shape);
         return;
       }
-      if (drape && ['top', 'dress', 'outerwear', 'bottom'].includes(garmentType)) {
+      if (drape && isDrapedType(garmentType)) {
         try {
           drapeGarment(ref.current, shape, { fit, layer: layerOffset, size, garmentType, legs });
         } catch (e) {
@@ -120,7 +121,7 @@ function GarmentOnBody({
     ref.current.position.x -= (scaled.min.x + scaled.max.x) / 2;
     ref.current.position.z -= (scaled.min.z + scaled.max.z) / 2;
 
-    if (drape && ['top', 'dress', 'outerwear', 'bottom'].includes(garmentType)) {
+    if (drape && isDrapedType(garmentType)) {
       try {
         drapeGarment(ref.current, shape, { fit, layer: layerOffset, size, garmentType, legs });
       } catch (e) {
