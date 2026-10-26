@@ -57,6 +57,13 @@ export function offFigureReason(item) {
   return null;
 }
 
+/** Пояснение покупателю: файл 3D-модели вещи не загрузился; template — что надето вместо неё. */
+export function brokenModelNote(name, template) {
+  return template
+    ? `The 3D model of ${name} could not be loaded, so it is shown as a generic ${template.label}.`
+    : `The 3D model of ${name} could not be loaded, so it is not shown on the figure.`;
+}
+
 function pick(item) {
   const type = garmentTypeOf(item);
   const text = `${item?.name || ''} ${item?.title || ''} ${item?.category || ''}`.toLowerCase();
@@ -78,10 +85,11 @@ function pick(item) {
 
 /**
  * Шаблон для вещи без 3D-модели.
+ * ignoreModel — шаблон и для вещи с моделью: её файл не загрузился, а пустая фигура хуже шаблона.
  * @returns {{ id, url, label, legs } | null} null — шаблона для такого типа нет
  */
-export function templateFor(item) {
-  if (!item || item.model3d) return null;
+export function templateFor(item, { ignoreModel = false } = {}) {
+  if (!item || (item.model3d && !ignoreModel)) return null;
   const id = pick(item);
   if (!id) return null;
   const { url = `${DIR}/${id}.glb`, ...rest } = TEMPLATES[id];

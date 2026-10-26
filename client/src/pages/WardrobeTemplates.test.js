@@ -7,8 +7,11 @@ import { loadBodyProfile } from '../utils/bodyProfileApi';
 import { findBestSize, sizeChartOf } from '../utils/fitCalculator';
 
 // сцена не нужна — показываем, какие вещи и в каком размере ушли на фигуру
-jest.mock('../components/GlbViewer', () => ({ garments }) => (
-  <p data-testid="worn">{(garments || []).map((g) => `${g.url}|${g.size?.size || '-'}|${g.legs || '-'}`).join(',')}</p>
+// щелчок по сцене-заглушке — «файлы вещей не загрузились»
+jest.mock('../components/GlbViewer', () => ({ garments, onGarmentError }) => (
+  <p data-testid="worn" onClick={() => (garments || []).forEach((g) => onGarmentError?.(g.url))}>
+    {(garments || []).map((g) => `${g.url}|${g.size?.size || '-'}|${g.legs || '-'}`).join(',')}
+  </p>
 ));
 jest.mock('../utils/bodyProfileApi', () => ({
   ...jest.requireActual('../utils/bodyProfileApi'),
@@ -85,4 +88,18 @@ test('an old product without a type is not worn as a top: "Type not set" and a s
   fireEvent.click(screen.getByRole('button', { name: 'Check size' }));
   expect(await screen.findByText(/Test dress: type not set\./)).toBeInTheDocument();
   expect(screen.getByTestId('worn')).toHaveTextContent(/^$/);
+});
+
+test('a dress whose 3D file is missing is worn as the generic dress, with an explanation', async () => {
+  const dress = { _id: 'red', title: 'Red Dress', garmentType: 'dress', model3d: '/uploads/models/missing.glb', sizeChart: [] };
+  localStorage.setItem('wardrobeItems', JSON.stringify([{ id: 'red', name: 'Red Dress', image: '' }]));
+  global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 200, json: async () => [dress] });
+
+  render(<MemoryRouter><WardrobePage /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Wear' }));
+  await waitFor(() => expect(screen.getByTestId('worn')).toHaveTextContent('/uploads/models/missing.glb'));
+
+  fireEvent.click(screen.getByTestId('worn'));   // файл не загрузился
+  await waitFor(() => expect(screen.getByTestId('worn')).toHaveTextContent('/uploads/stub/dress.glb|-|joined'));
+  expect(screen.getByText('The 3D model of Red Dress could not be loaded, so it is shown as a generic dress.')).toBeInTheDocument();
 });

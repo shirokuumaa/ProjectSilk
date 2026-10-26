@@ -69,3 +69,22 @@ test('a type-less item left in a slot by an old draft is not put on the figure',
   expect(screen.queryByRole('button', { name: 'Take off' })).not.toBeInTheDocument();
   expect(loaded).toEqual([]);
 });
+
+test('a dress whose 3D file is missing is worn as the generic dress instead of an empty figure', async () => {
+  open([{ _id: 'red', title: 'Red Dress', garmentType: 'dress', model3d: '/uploads/models/missing.glb', sizeChart: [] }]);
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Wear' }));
+  await waitFor(() => expect(loaded).toEqual([
+    'http://localhost:5050/uploads/models/missing.glb',
+    '/uploads/stub/dress.glb',
+  ]));
+  expect(screen.getByText('The 3D model of Red Dress could not be loaded, so it is shown as a generic dress.')).toBeInTheDocument();
+});
+
+test('a missing file with no generic shape (shoes) is explained, not silently invisible', async () => {
+  open([{ _id: 'boots', title: 'Ankle Boots', garmentType: 'shoes', model3d: '/uploads/models/missing.glb', sizeChart: [] }]);
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Wear' }));
+  expect(await screen.findByText('The 3D model of Ankle Boots could not be loaded, so it is not shown on the figure.')).toBeInTheDocument();
+  expect(loaded).toEqual(['http://localhost:5050/uploads/models/missing.glb']);
+});

@@ -46,7 +46,7 @@ import { placeByHeight } from '../../utils/garmentPlacement';
 import { loadBodyProfile, isProfileComplete } from '../../utils/bodyProfileApi';
 import { findBestSize, getStressMap, sizeChartOf } from '../../utils/fitCalculator';
 import { getWardrobe, pruneWardrobe, WARDROBE_EVENT } from '../../utils/wardrobeStorage';
-import { garmentTypeOf, offFigureReason, templateFor } from '../../utils/garmentTemplates';
+import { brokenModelNote, garmentTypeOf, offFigureReason, templateFor } from '../../utils/garmentTemplates';
 import {
   pickSizeModel, figureShape, transferToFigure, pushOutOfBody, simFitMode,
 } from '../../utils/sizeModels';
@@ -324,6 +324,23 @@ export default function TryOnAvatar() {
     return row?.fit || 'regular';
   }, [chosenSizes]);
 
+  /**
+   * Что надеть: модель размера, своя модель продавца или шаблон. Файл модели не загрузился —
+   * шаблон того же типа (note — пояснение покупателю); без шаблона вещи на фигуре нет (url '').
+   */
+  const sourceOf = (item) => {
+    const size = sizeRowOf(item);
+    const model = pickSizeModel(item, size);   // модель надеваемого размера или ближайшего
+    const own = model ? model.model3d : item.garmentUrl;
+    const base = { size, url: own, simFigure: model?.body || null, legs: item.template ? item.template.legs : item.legs };
+    if (glbStatus[own] !== 'error') return base;
+    const template = templateFor(item, { ignoreModel: true });
+    const note = brokenModelNote(item.name, template);
+    return template
+      ? { ...base, url: template.url, simFigure: null, legs: template.legs, note }
+      : { ...base, url: '', note };
+  };
+
   const toggleItem = (item) => {
     setActiveId(item.id);
     // без типа вещь не надевается: неизвестно, куда она садится; пояснение — в панели
@@ -401,26 +418,22 @@ export default function TryOnAvatar() {
               )}
 
               {worn
-                .filter((w) => w.item.garmentUrl)
-                .map((w) => {
-                  const size = sizeRowOf(w.item);
-                  // модель надеваемого размера или ближайшего (если у товара они есть)
-                  const model = pickSizeModel(w.item, size);
-                  return (
-                    <Garment
-                      key={w.item.id}
-                      url={model ? model.model3d : w.item.garmentUrl}
-                      profile={profile}
-                      garmentType={w.item.garmentType}
-                      fit={fitOf(w.item)}
-                      layer={w.item.layer}
-                      size={size}
-                      legs={w.item.template ? w.item.template.legs : w.item.legs}
-                      simFigure={model?.body || null}
-                      onStatus={(url, st) => setGlbStatus((s) => ({ ...s, [url]: st }))}
-                    />
-                  );
-                })}
+                .map((w) => ({ item: w.item, src: sourceOf(w.item) }))
+                .filter(({ src }) => src.url)
+                .map(({ item, src }) => (
+                  <Garment
+                    key={item.id}
+                    url={src.url}
+                    profile={profile}
+                    garmentType={item.garmentType}
+                    fit={fitOf(item)}
+                    layer={item.layer}
+                    size={src.size}
+                    legs={src.legs}
+                    simFigure={src.simFigure}
+                    onStatus={(url, st) => setGlbStatus((s) => ({ ...s, [url]: st }))}
+                  />
+                ))}
 
               <gridHelper args={[3, 12, '#E4E1DC', '#EDEAE5']} />
               <OrbitControls
@@ -490,6 +503,10 @@ export default function TryOnAvatar() {
           {active && offFigureReason(active) && (
             <div className={styles.notice}>{offFigureReason(active)}</div>
           )}
+
+          {worn.map((w) => sourceOf(w.item).note).filter(Boolean).map((note) => (
+            <div key={note} className={styles.notice}>{note}</div>
+          ))}
 
           {generic.length > 0 && (
             <div className={styles.notice}>

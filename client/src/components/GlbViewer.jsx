@@ -22,6 +22,7 @@ import AvatarBody from './AvatarBody';
 import BodyStage from './BodyStage';
 import FitCamera from './FitCamera';
 import { drapeGarment, restoreGeometry, snapshotGeometry } from '../utils/garmentDrape';
+import GarmentErrorBoundary from './GarmentErrorBoundary';
 import { useAvatarBody } from '../utils/avatarBody';
 import { figureShape, transferToFigure, pushOutOfBody, simFitMode } from '../utils/sizeModels';
 
@@ -214,7 +215,8 @@ function AvatarWithGarment({ avatarUrl, garmentUrl }) {
  *
  * Аватар: profile — тело из обмеров (файл не нужен); url — GLB-модель.
  * garments — [{ url, garmentType, layer, fit, size?, legs? }]; size — обмеры выбранного
- * размера изделия ({ chest, waist, hips }, см), legs — подсказка 'split' | 'joined'
+ * размера изделия ({ chest, waist, hips }, см), legs — подсказка 'split' | 'joined'.
+ * onGarmentError(url) — файл вещи не загрузился: вещь не рисуется, остальная сцена цела.
  */
 export default function GlbViewer({
   url,
@@ -230,6 +232,7 @@ export default function GlbViewer({
   back = false,
   resetKey = '',
   showBody = true, // false — «Hide body»: одежда садится по фигуре, но тело не рисуется
+  onGarmentError = null,
 }) {
   const controlsRef = useRef(null);
 
@@ -278,18 +281,19 @@ export default function GlbViewer({
             <>
               {showBody && <AvatarBody profile={profile} stressMap={stressMap} />}
               {items.map((g, i) => (
-                <GlbGarment
-                  key={`${g.url}-${i}`}
-                  url={g.url}
-                  profile={profile}
-                  garmentType={g.garmentType || 'dress'}
-                  layerOffset={i}
-                  fit={g.fit || 'regular'}
-                  drape={drape}
-                  size={g.size || null}
-                  legs={g.legs || null}
-                  simFigure={g.simFigure || null}
-                />
+                <GarmentErrorBoundary key={`${g.url}-${i}`} onError={() => onGarmentError?.(g.url)}>
+                  <GlbGarment
+                    url={g.url}
+                    profile={profile}
+                    garmentType={g.garmentType || 'dress'}
+                    layerOffset={i}
+                    fit={g.fit || 'regular'}
+                    drape={drape}
+                    size={g.size || null}
+                    legs={g.legs || null}
+                    simFigure={g.simFigure || null}
+                  />
+                </GarmentErrorBoundary>
               ))}
             </>
           ) : items.length ? (

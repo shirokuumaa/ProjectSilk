@@ -33,7 +33,7 @@ import BodyToggle from '../components/BodyToggle';
 import { getBaseURL } from '../assistant/api';
 import { loadBodyProfile, isProfileComplete } from '../utils/bodyProfileApi';
 import { findBestSize, getStressMap, sizeChartOf, STRETCH_NOTES } from '../utils/fitCalculator';
-import { garmentTypeOf, offFigureReason, templateFor } from '../utils/garmentTemplates';
+import { brokenModelNote, garmentTypeOf, offFigureReason, templateFor } from '../utils/garmentTemplates';
 import { pickSizeModel } from '../utils/sizeModels';
 import {
   getWardrobe, saveWardrobe, clearWardrobe, importFromFavorites, addOutfit, WARDROBE_EVENT,
@@ -61,6 +61,7 @@ export default function WardrobePage() {
   const [profileLoading, setProfileLoading] = useState(true);
 
   const [worn, setWorn] = useState([]);
+  const [failedUrls, setFailedUrls] = useState([]);   // файлы вещей, которые не загрузились
   const [activeId, setActiveId] = useState(null);
   const [chosenSize, setChosenSize] = useState(null);
 
@@ -156,19 +157,28 @@ export default function WardrobePage() {
   // вещи на фигуре — в своём размере: у выбранной вещи выбранный, у остальных рекомендованный
   const garments = useMemo(() => worn.map((w) => {
     const item = view.find((i) => i.id === w.id);
-    if (!item?.sizeChart?.length || !ready) return w;
-    const result = findBestSize(profile, item.sizeChart, w.id === activeId ? chosenSize : null);
-    const name = (result.chosen || result.recommended)?.size;
-    const size = item.sizeChart.find((s) => s.size === name) || null;
-    // модель надеваемого размера или ближайшего — перенесётся на фигуру покупателя
-    const model = pickSizeModel(item, size);
-    return {
-      ...w,
-      size,
-      legs: w.template ? w.legs : item.legs || null, // у шаблона штанины свои
-      ...(model ? { url: toPublicUrl(model.model3d), simFigure: model.body } : null),
-    };
-  }), [worn, view, profile, ready, activeId, chosenSize]);
+    let g = w;
+    if (item?.sizeChart?.length && ready) {
+      const result = findBestSize(profile, item.sizeChart, w.id === activeId ? chosenSize : null);
+      const name = (result.chosen || result.recommended)?.size;
+      const size = item.sizeChart.find((s) => s.size === name) || null;
+      // модель надеваемого размера или ближайшего — перенесётся на фигуру покупателя
+      const model = pickSizeModel(item, size);
+      g = {
+        ...w,
+        size,
+        legs: w.template ? w.legs : item.legs || null, // у шаблона штанины свои
+        ...(model ? { url: toPublicUrl(model.model3d), simFigure: model.body } : null),
+      };
+    }
+    // файл модели не загрузился — шаблон того же типа; без шаблона вещи на фигуре нет
+    if (!failedUrls.includes(g.url)) return g;
+    const template = templateFor(item || w, { ignoreModel: true });
+    const note = brokenModelNote(w.name, template);
+    return template
+      ? { ...g, url: template.url, template: true, legs: template.legs, simFigure: null, note }
+      : { ...g, missing: true, note };
+  }), [worn, view, profile, ready, activeId, chosenSize, failedUrls]);
 
   const wornPrice = worn.reduce((sum, w) => sum + Number(w.price || 0), 0);
 
@@ -380,6 +390,9 @@ export default function WardrobePage() {
                 <p className={styles.tiny} style={{ margin: '8px 0 0' }}>
                   Layered automatically — tops go over what is worn underneath.
                 </p>
+                {garments.filter((g) => g.note).map((g) => (
+                  <p key={g.id} className={styles.callout} style={{ margin: '8px 0 0' }}>{g.note}</p>
+                ))}
               </>
             )}
 
@@ -435,7 +448,8 @@ export default function WardrobePage() {
                 <div className={styles.canvasBox}>
                   <GlbViewer
                     profile={profile}
-                    garments={garments}
+                    garments={garments.filter((g) => !g.missing)}
+                    onGarmentError={(url) => setFailedUrls((p) => (p.includes(url) ? p : [...p, url]))}
                     stressMap={stressMap}
                     height="100%"
                     background="#FDFCFB"
