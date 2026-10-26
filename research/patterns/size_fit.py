@@ -127,6 +127,7 @@ class Drafter:
             knobs["length"] = "knee"
         self.design = tdesign(GC, self.template, **knobs)
         self.ease = {"bust": 1.0, "waist": 1.0, "hips": 1.0}
+        self.length_panels = W.LENGTH_PANELS[item]   # which panels span the store's "length"
 
     # ── knobs ──
     def get(self, knob):
@@ -175,7 +176,7 @@ class Drafter:
         cls = {"dress": {"torso", "skirt", "wb"}, "skirt": {"skirt", "wb"}, "top": {"torso"}}[self.kind]
         keys = P.keys(cls)
         m = {}
-        which = W.LENGTH_PANELS[self.item]
+        which = self.length_panels
         lk = [k for k in keys if which == "all" or (P.front(k) == (which == "front"))] or keys
         # length along the body: bodice by height (shoulder to its hem), skirt along the fabric
         # (furthest distance from the waist edge) — a flat circle-skirt sector is taller than the skirt
@@ -278,7 +279,13 @@ class Drafter:
 
 def fit_item(item, size):
     D = Drafter(item, size)
-    target = store_targets(item, size)
+    return {"item": item, "size": size, "body": D.body_name, "template": D.template,
+            **fit_drafter(D, store_targets(item, size))}
+
+
+def fit_drafter(D, target):
+    """Fit the drafter's knobs to the garment measurements target {length, chest, waist, hips, sleeve}
+    (also used by scripts/garments/patterns_job.py for a seller's product)."""
     before = D.measure()
     log = {}
     for _ in range(2):               # two passes: a later knob can move an earlier measurement (flare -> chest)
@@ -289,7 +296,7 @@ def fit_item(item, size):
     spec, bad = D.build()
     after = D.measure(spec)
     knobs = {".".join(k): round(D.get(k), 3) for m in log for k in D.knobs_for(m)[:2]}
-    return {"item": item, "size": size, "body": D.body_name, "template": D.template, "target": target,
+    return {"target": target,
             "before": before, "after": after, "log": log, "knobs": knobs, "ease": D.ease,
             "self_intersecting": bool(bad), "spec": spec, "body_measure": {k: D.gcbody[k] for k in ("bust", "waist", "hips")}}
 

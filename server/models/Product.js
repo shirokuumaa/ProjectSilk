@@ -76,6 +76,20 @@ const ProductSchema = new mongoose.Schema({
     default: undefined,
   },
 
+  // выкройки по силуэту и сетке — фоновая задача (services/patternJobs.js)
+  patterns: {
+    type: new mongoose.Schema({
+      status:    { type: String, enum: ['queued', 'patterns_ready', 'failed'], required: true },
+      message:   { type: String },          // причина для продавца, если failed
+      sizes:     [new mongoose.Schema({
+        size: String, ok: Boolean, within1cm: Boolean, error: String,
+      }, { _id: false })],
+      jobId:     { type: String },
+      updatedAt: { type: Date },
+    }, { _id: false }),
+    default: undefined,
+  },
+
   // подсказка для низа: брюки (две штанины) или юбка. Необязательна — без неё
   // примерка определяет это по геометрии вещи (client/src/utils/garmentDrape.js).
   legs: { type: String, enum: ['split', 'joined'] },

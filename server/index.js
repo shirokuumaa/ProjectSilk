@@ -12,6 +12,7 @@ import aiRoutes from './routes/aiRoutes.js';
 import avatarRoutes from './routes/avatarRoutes.js';
 import bodyProfileRoutes from './routes/bodyProfileRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import { resumePatternJobs } from './services/patternJobs.js';
 
 
 dotenv.config();
@@ -98,6 +99,8 @@ app.use((err, _req, res, _next) => {
       }
       console.log(`API:      http://localhost:${PORT}`);
       console.log(`AI proxy: http://localhost:${PORT}/api/ai`);
+      // выкройки, которые не успели собраться до перезапуска
+      resumePatternJobs().catch((e) => console.error('[patterns] resume failed:', e?.message || e));
     });
   } catch (err) {
     console.error('❌ MongoDB connection failed:', err?.message || err);

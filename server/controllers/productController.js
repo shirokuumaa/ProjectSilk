@@ -3,6 +3,9 @@ import mongoose from 'mongoose';
 import Product, { GARMENT_TYPES } from '../models/Product.js';
 import WardrobeItem from '../models/WardrobeItem.js';
 import { parseSilhouette, silhouetteFits } from '../utils/silhouettes.js';
+import {
+  enqueue, markQueued, needsPatterns, patternInputs, removePatterns,
+} from '../services/patternJobs.js';
 import { execFile } from 'child_process';
 import util from 'util';
 import fs from 'fs';
@@ -222,7 +225,7 @@ export const addProduct = async (req, res) => {
       created.push(...model.created);
     }
 
-    const doc = await Product.create({
+    const doc = new Product({
       title,
       name: String(name || title).trim(),
       price: priceNum,
@@ -237,6 +240,10 @@ export const addProduct = async (req, res) => {
       rating: 0,
       owner: req.user.id,
     });
+    // силуэт и сетка — выкройки строятся в фоне (services/patternJobs.js)
+    if (needsPatterns(doc)) markQueued(doc);
+    await doc.save();
+    if (doc.patterns) enqueue(doc._id);
 
     res.status(201).json(doc);
   } catch (e) {
@@ -266,6 +273,7 @@ export const updateProduct = async (req, res) => {
     const product = req.product;
     const b = req.body || {};
     const replaced = []; // старые файлы — удалить после успешного сохранения
+    const inputsBefore = patternInputs(product);
 
     if (b.title !== undefined) {
       const title = String(b.title).trim();
@@ -307,8 +315,19 @@ export const updateProduct = async (req, res) => {
       product.model3d = model.url;
     }
 
+    // выкройки: входы изменились (или прошлая сборка не удалась) — собрать заново; не нужны — убрать
+    let queued = false;
+    if (!needsPatterns(product)) {
+      product.patterns = undefined;
+    } else if (patternInputs(product) !== inputsBefore || product.patterns?.status !== 'patterns_ready') {
+      markQueued(product);
+      queued = true;
+    }
+
     await product.save();
     removeFiles(replaced);
+    if (queued) enqueue(product._id);
+    else if (!product.patterns) removePatterns(product._id);
     res.json(product);
   } catch (e) {
     removeFiles(created);
@@ -326,6 +345,7 @@ export const deleteProduct = async (req, res) => {
     // удалённого товара больше нет ни в одном гардеробе
     await WardrobeItem.deleteMany({ productId: String(req.product._id) });
     removeFiles(files);
+    removePatterns(req.product._id);
     res.json({ ok: true });
   } catch (e) {
     console.error('deleteProduct error:', e);

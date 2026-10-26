@@ -16,8 +16,10 @@ export const UPLOADS_DIR = path.resolve(process.env.UPLOADS_DIR || path.join(SER
 export const IMAGES_DIR = path.join(UPLOADS_DIR, 'images');
 export const MODELS_DIR = path.join(UPLOADS_DIR, 'models');
 export const AVATARS_DIR = path.join(UPLOADS_DIR, 'avatars');
+// выкройки и входы Newton по товарам — не в /uploads: наружу их не раздаём
+export const PATTERNS_DIR = path.resolve(process.env.PATTERNS_DIR || path.join(SERVER_DIR, 'data', 'patterns'));
 
-for (const dir of [UPLOADS_DIR, IMAGES_DIR, MODELS_DIR, AVATARS_DIR]) {
+for (const dir of [UPLOADS_DIR, IMAGES_DIR, MODELS_DIR, AVATARS_DIR, PATTERNS_DIR]) {
   fs.mkdirSync(dir, { recursive: true });
 }
 

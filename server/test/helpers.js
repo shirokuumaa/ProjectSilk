@@ -121,6 +121,7 @@ export function spawnServer(env = {}) {
  */
 export async function startTestServer({ gpuUrl, env = {} } = {}) {
   const uploadsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'projectsilk-test-uploads-'));
+  const patternsDir = fs.mkdtempSync(path.join(os.tmpdir(), 'projectsilk-test-patterns-'));
   assertSafeTarget({ dbName: TEST_DB, uploadsDir });
   await dropTestDb();
 
@@ -130,6 +131,8 @@ export async function startTestServer({ gpuUrl, env = {} } = {}) {
     UPLOADS_DIR: uploadsDir,
     JWT_SECRET: TEST_JWT_SECRET,
     BLENDER_PATH: '/nonexistent/blender', // Blender в тестах не запускаем
+    PATTERNS_DIR: patternsDir,
+    PATTERN_PYTHON: '/nonexistent/python', // настоящие выкройки в тестах не строим (patterns.test.js — подделка)
     AI_MODE: gpuUrl ? 'proxy' : 'off',
     GPU_URL: gpuUrl || '',
     AI_HEAVY_LIMIT_PER_HOUR: '3',
@@ -155,6 +158,7 @@ export async function startTestServer({ gpuUrl, env = {} } = {}) {
 
   return {
     uploadsDir,
+    patternsDir,
     countFiles: () => ['images', 'models']
       .map((d) => fs.readdirSync(path.join(uploadsDir, d)).length)
       .reduce((a, b) => a + b, 0),
@@ -165,6 +169,7 @@ export async function startTestServer({ gpuUrl, env = {} } = {}) {
         await proc.exited;
       }
       fs.rmSync(uploadsDir, { recursive: true, force: true });
+      fs.rmSync(patternsDir, { recursive: true, force: true });
       await dropTestDb();
     },
   };

@@ -17,6 +17,8 @@ __pycache__/
 # ───── Локальные загрузки и артефакты ─────
 # сюда сохраняются загруженные картинки, файлы, временные штуки
 server/uploads/
+# выкройки и входы Newton товаров (server/services/patternJobs.js)
+server/data/patterns/
 
 # сборки (если будешь собирать прод-версии)
 client/build/

@@ -83,9 +83,11 @@ class MPFB:
         return V
 
 
-def build(mp, store, size, out):
-    bust, waist, hips = CHARTS[store][size]
-    u, res = mp.solve(HEIGHT, bust, waist, hips)
+def build(mp, store, size, out, target=None):
+    """target — (height, bust, waist, hips) of a seller's size (scripts/garments/patterns_job.py);
+    without it the store chart row at HEIGHT."""
+    height, bust, waist, hips = target or (HEIGHT, *CHARTS[store][size])
+    u, res = mp.solve(height, bust, waist, hips)
     V, F = mp.mesh(u), mp.data["triangles"]
     gc, aux = Measurer(V, F, mp.labels).measure()
     V = V - np.array([0.0, 0.0, aux["z_bal"]])          # balance plane -> z = 0, as on GarmentCode's bodies
@@ -96,7 +98,7 @@ def build(mp, store, size, out):
         f.write("".join(f"f {a + 1} {b + 1} {c + 1}\n" for a, b, c in F))
     yaml.safe_dump({"body": gc}, open(out / f"{name}.yaml", "w"), sort_keys=True)
     json.dump({k: v.tolist() for k, v in mp.labels.items()}, open(out / f"{name}_segmentation.json", "w"))
-    return {"name": name, "target": dict(height=HEIGHT, bust=bust, waist=waist, hips=hips),
+    return {"name": name, "target": dict(height=height, bust=bust, waist=waist, hips=hips),
             "app_residual": {k: round(v, 2) for k, v in res.items()},
             "controls": dict(zip(config.CONTROL_NAMES, np.round(u, 3).tolist())), "gc": gc,
             "levels": {k: round(v, 1) for k, v in aux.items() if k.endswith("_y")}}
