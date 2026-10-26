@@ -9,6 +9,8 @@ import SizeChartEditor, { serializeSizeChart } from "../components/SizeChartEdit
 import SellerHeader from "../components/SellerHeader";
 import FormErrors from "../components/FormErrors";
 import SilhouettePicker from "../components/SilhouettePicker";
+import ColorField from "../components/ColorField";
+import { imageColor } from "../utils/garmentColor";
 import { silhouetteFits } from "../utils/silhouettes";
 import { authFetch, becomeSeller, fetchMe, isLoggedIn } from "../utils/auth";
 
@@ -157,6 +159,7 @@ function SellerDashboard() {
   const [sizeChart, setSizeChart] = useState([]);
   const [garmentType, setGarmentType] = useState(""); // тип выбирает продавец, умолчания нет
   const [silhouette, setSilhouette] = useState(null);  // фасон — по нему сервер строит выкройки
+  const [color, setColor] = useState(null);            // основной цвет с фото, продавец может поправить
   const [stretch, setStretch] = useState("none");
   const [girthMode, setGirthMode] = useState("circumference");
 
@@ -313,6 +316,7 @@ function SellerDashboard() {
       // blob может быть File (оригинал) или Blob (после AI)
       setProcessedBlob(blob);
       setProcessedUrl(URL.createObjectURL(blob));
+      imageColor(blob).then(setColor);    // фон уже снят — цвет точнее; форму не ждём
     } catch (e) {
       console.error(e);
       setError("Could not process the image. Please try another one.");
@@ -399,6 +403,7 @@ function SellerDashboard() {
       fd.append("girthMode", girthMode); // flat — сервер умножит обхваты на 2
       fd.append("sizeChart", JSON.stringify(serializeSizeChart(sizeChart)));
       fd.append("silhouette", silhouette ? JSON.stringify(silhouette) : "");
+      fd.append("color", color || "");
       // имя файла задаёт расширение на сервере; у исходного File оно своё (jpg/webp)
       fd.append("image", processedBlob, processedBlob.name || "product.png");
 
@@ -420,6 +425,7 @@ function SellerDashboard() {
       setSizeChart([]);
       setStretch("none");
       setSilhouette(null);
+      setColor(null);
 
       if (processedUrl && String(processedUrl).startsWith("blob:")) {
         URL.revokeObjectURL(processedUrl);
@@ -490,6 +496,7 @@ function SellerDashboard() {
           {processedUrl && (
             <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
               <img src={processedUrl} alt="Product preview" style={ui.preview} />
+              <ColorField value={color} onChange={setColor} />
               <label style={ui.label}>
                 Title
                 <input
@@ -698,6 +705,7 @@ export function EditProductForm({ product, onCancel, onSaved }) {
   const [category, setCategory] = useState(product.category || "Clothes");
   const [garmentType, setGarmentType] = useState(product.garmentType || ""); // у старых товаров типа нет
   const [silhouette, setSilhouette] = useState(product.silhouette || null);
+  const [color, setColor] = useState(product.color || null);
   const changeType = (type) => {
     setGarmentType(type);
     setSilhouette((s) => (silhouetteFits(type, s) ? s : null));
@@ -716,6 +724,7 @@ export function EditProductForm({ product, onCancel, onSaved }) {
     if (!IMAGE_TYPES.includes(file.type)) return setError("The image must be a JPEG, PNG or WebP file.");
     if (file.size > MAX_IMAGE_MB * 1024 * 1024) return setError(`The image is too large (maximum ${MAX_IMAGE_MB} MB).`);
     setImage(file);
+    imageColor(file).then((c) => c && setColor(c));   // новое фото — новый цвет, если его удалось снять
   };
 
   const save = async () => {
@@ -738,6 +747,7 @@ export function EditProductForm({ product, onCancel, onSaved }) {
       fd.append("girthMode", girthMode);
       fd.append("sizeChart", JSON.stringify(serializeSizeChart(sizeChart)));
       fd.append("silhouette", silhouette ? JSON.stringify(silhouette) : "");
+      fd.append("color", color || "");
       if (image) fd.append("image", image, image.name);
       const r = await authFetch(`${API}/api/products/${product._id}`, { method: "PATCH", body: fd });
       if (!r.ok) throw new Error(await errorMessage(r, "Could not save the changes"));
@@ -783,6 +793,7 @@ export function EditProductForm({ product, onCancel, onSaved }) {
         />
         <p style={ui.meta}>Saved measurements are shown as full circumferences.</p>
         <SilhouettePicker garmentType={garmentType} value={silhouette} onChange={setSilhouette} />
+        <ColorField value={color} onChange={setColor} />
 
         <label style={ui.label}>
           New image (optional; JPEG, PNG or WebP, up to {MAX_IMAGE_MB} MB)

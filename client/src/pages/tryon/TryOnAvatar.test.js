@@ -15,16 +15,21 @@ jest.mock('../../utils/bodyProfileApi', () => ({
   loadBodyProfile: jest.fn(),
 }));
 
-// загрузчик GLB: адреса с «missing» не находятся, остальные — пустая сцена
+// загрузчик GLB: адреса с «missing» не находятся, остальные — сцена с одной голубой вещью
 const loaded = [];
+const meshes = [];   // вещь каждой загруженной сцены
 jest.mock('three/examples/jsm/loaders/GLTFLoader.js', () => {
-  const { Group } = jest.requireActual('three');
+  const { Group, Mesh, BoxGeometry, MeshStandardMaterial } = jest.requireActual('three');
   return {
     GLTFLoader: class {
       load(url, onLoad, onProgress, onError) {
         loaded.push(url);
-        if (url.includes('missing')) setTimeout(() => onError(new Error('404')), 0);
-        else setTimeout(() => onLoad({ scene: new Group() }), 0);
+        if (url.includes('missing')) { setTimeout(() => onError(new Error('404')), 0); return; }
+        const scene = new Group();
+        const mesh = new Mesh(new BoxGeometry(), new MeshStandardMaterial({ color: '#9fc5e8' }));
+        scene.add(mesh);
+        meshes.push(mesh);
+        setTimeout(() => onLoad({ scene }), 0);
       }
     },
   };
@@ -41,6 +46,7 @@ function open(catalog) {
 beforeEach(() => {
   localStorage.clear();
   loaded.length = 0;
+  meshes.length = 0;
   loadBodyProfile.mockResolvedValue(PROFILE);
   // three-теги (<group>, <color>…) в DOM неизвестны — это ожидаемо для сцены-заглушки
   jest.spyOn(console, 'error').mockImplementation(() => {});
@@ -102,4 +108,12 @@ test('a coat with no 3D model is not put on the figure invisibly: "Check size" a
   )).toBeInTheDocument();
   expect(screen.queryByRole('button', { name: 'Take off' })).not.toBeInTheDocument();
   expect(loaded).toEqual([]);
+});
+
+test('the garment on the figure is painted in the product colour', async () => {
+  open([{ _id: 'red', title: 'Red Dress', garmentType: 'dress', color: '#c81e28', sizeChart: [] }]);
+
+  fireEvent.click(await screen.findByRole('button', { name: 'Wear' }));
+  await waitFor(() => expect(meshes).toHaveLength(1));
+  await waitFor(() => expect(`#${meshes[0].material.color.getHexString()}`).toBe('#c81e28'));
 });

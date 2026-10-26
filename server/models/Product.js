@@ -76,6 +76,14 @@ const ProductSchema = new mongoose.Schema({
     default: undefined,
   },
 
+  // основной цвет вещи ('#rrggbb'): снят с фото в форме продавца, продавец может поправить.
+  // В примерке драпировки и шаблоны окрашиваются в него (client/src/utils/garmentColor.js).
+  color: {
+    type: String,
+    lowercase: true,
+    match: [/^#[0-9a-f]{6}$/, 'Colour must look like #a1b2c3.'],
+  },
+
   // выкройки по силуэту и сетке — фоновая задача (services/patternJobs.js)
   patterns: {
     type: new mongoose.Schema({

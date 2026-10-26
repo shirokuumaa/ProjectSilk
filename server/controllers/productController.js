@@ -139,7 +139,11 @@ const withDefaults = (p) => (p ? { stretch: 'none', ...p } : p);
 const FIELD_MESSAGES = {
   stretch: 'Fabric stretch must be none, slight or stretchy.',
   garmentType: 'Please choose the garment type.',
+  color: 'Colour must look like #a1b2c3.',
 };
+
+/** Цвет из формы: пусто — нет цвета (undefined); проверка формата — схема. */
+const colorOf = (v) => (v == null || v === '' ? undefined : String(v).trim());
 
 /** Текст ошибок mongoose («Path `price` is required») наружу не отдаём — только наши сообщения и названия полей. */
 function sendValidationError(res, e) {
@@ -232,6 +236,7 @@ export const addProduct = async (req, res) => {
       category: String(category || 'Clothes'),
       garmentType,
       silhouette: sil.silhouette || undefined,
+      color: colorOf(req.body.color),
       stretch: req.body.stretch || 'none',
       sizeChart: parseSizeChart(req.body.sizeChart, girthMode) ?? [],
       legs: req.body.legs || undefined,
@@ -296,6 +301,7 @@ export const updateProduct = async (req, res) => {
       product.silhouette = undefined;   // тип сменили — силуэт другого типа больше не подходит
     }
     if (b.stretch !== undefined) product.stretch = b.stretch || 'none';
+    if (b.color !== undefined) product.color = colorOf(b.color);
     const girthMode = girthModeOf(b);
     if (!girthMode) return fail(400, 'Measurements must be given as full circumference or flat width.');
     if (b.sizeChart !== undefined) product.sizeChart = parseSizeChart(b.sizeChart, girthMode);

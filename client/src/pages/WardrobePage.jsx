@@ -134,6 +134,7 @@ export default function WardrobePage() {
         stretch: c.stretch || 'none',
         sizeModels: c.sizeModels || null,   // ткань, просимулированная по размерам
         legs: c.legs || it.legs || null,
+        color: c.color || null,             // основной цвет с фото товара
       };
     });
   }, [items, catalog]);
@@ -156,7 +157,7 @@ export default function WardrobePage() {
   // вещи на фигуре — в своём размере: у выбранной вещи выбранный, у остальных рекомендованный
   const garments = useMemo(() => worn.map((w) => {
     const item = view.find((i) => i.id === w.id);
-    let g = w;
+    let g = { ...w, color: item?.color || null };
     if (item?.sizeChart?.length && ready) {
       const result = findBestSize(profile, item.sizeChart, w.id === activeId ? chosenSize : null);
       const name = (result.chosen || result.recommended)?.size;
@@ -164,7 +165,7 @@ export default function WardrobePage() {
       // модель надеваемого размера или ближайшего — перенесётся на фигуру покупателя
       const model = pickSizeModel(item, size);
       g = {
-        ...w,
+        ...g,
         size,
         legs: w.template ? w.legs : item.legs || null, // у шаблона штанины свои
         ...(model ? { url: toPublicUrl(model.model3d), simFigure: model.body } : null),

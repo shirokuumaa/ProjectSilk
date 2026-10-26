@@ -24,6 +24,7 @@ import FitCamera from './FitCamera';
 import { drapeGarment, restoreGeometry, snapshotGeometry } from '../utils/garmentDrape';
 import GarmentErrorBoundary from './GarmentErrorBoundary';
 import { isDrapedType } from '../utils/garmentPlacement';
+import { tintGarment } from '../utils/garmentColor';
 import { useAvatarBody } from '../utils/avatarBody';
 import { figureShape, transferToFigure, pushOutOfBody, simFitMode } from '../utils/sizeModels';
 
@@ -165,7 +166,7 @@ function GarmentFitter({ avatarScene, garmentScene }) {
   return <group ref={garmentRef}><primitive object={garmentScene} /></group>;
 }
 
-function GlbGarment({ url, profile, garmentType, layerOffset, fit, drape, size, legs, simFigure }) {
+function GlbGarment({ url, profile, garmentType, layerOffset, fit, drape, size, legs, simFigure, color }) {
   const { scene } = useGLTF(url);
 
   // Клон с копией геометрии: drape меняет вершины, без клона
@@ -175,8 +176,9 @@ function GlbGarment({ url, profile, garmentType, layerOffset, fit, drape, size, 
     c.traverse((child) => {
       if (child.isMesh && child.geometry) child.geometry = child.geometry.clone();
     });
+    tintGarment(c, color);   // цвет товара; материалы клонируются, кэш useGLTF не трогается
     return c;
-  }, [scene]);
+  }, [scene, color]);
 
   return (
     <GarmentOnBody
@@ -215,7 +217,7 @@ function AvatarWithGarment({ avatarUrl, garmentUrl }) {
  * GlbViewer
  *
  * Аватар: profile — тело из обмеров (файл не нужен); url — GLB-модель.
- * garments — [{ url, garmentType, layer, fit, size?, legs? }]; size — обмеры выбранного
+ * garments — [{ url, garmentType, layer, fit, size?, legs?, color? }]; size — обмеры выбранного
  * размера изделия ({ chest, waist, hips }, см), legs — подсказка 'split' | 'joined'.
  * onGarmentError(url) — файл вещи не загрузился: вещь не рисуется, остальная сцена цела.
  */
@@ -293,6 +295,7 @@ export default function GlbViewer({
                     size={g.size || null}
                     legs={g.legs || null}
                     simFigure={g.simFigure || null}
+                    color={g.color || null}
                   />
                 </GarmentErrorBoundary>
               ))}

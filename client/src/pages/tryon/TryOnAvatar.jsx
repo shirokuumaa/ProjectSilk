@@ -47,6 +47,7 @@ import { loadBodyProfile, isProfileComplete } from '../../utils/bodyProfileApi';
 import { findBestSize, getStressMap, sizeChartOf } from '../../utils/fitCalculator';
 import { getWardrobe, pruneWardrobe, WARDROBE_EVENT } from '../../utils/wardrobeStorage';
 import { brokenModelNote, garmentTypeOf, offFigureReason, templateFor } from '../../utils/garmentTemplates';
+import { tintGarment } from '../../utils/garmentColor';
 import {
   pickSizeModel, figureShape, simFitMode,
 } from '../../utils/sizeModels';
@@ -131,7 +132,7 @@ function disposeTree(root) {
 /**
  * Одна вещь на теле: грузит GLB, ставит по росту и прижимает к фигуре.
  */
-function Garment({ url, profile, garmentType, fit, layer, size = null, legs = null, simFigure = null, onStatus }) {
+function Garment({ url, profile, garmentType, fit, layer, size = null, legs = null, simFigure = null, color = null, onStatus }) {
   // тело и его форма — те же, что у AvatarBody в этой сцене
   const avatar = useAvatarBody(profile);
   const { shape } = avatar;
@@ -150,6 +151,7 @@ function Garment({ url, profile, garmentType, fit, layer, size = null, legs = nu
       (gltf) => {
         if (!alive) { disposeTree(gltf.scene); return; }
         loaded = gltf.scene;
+        tintGarment(loaded, color);   // цвет товара вместо макетного и чужих текстур шаблонов
         snapshotGeometry(loaded);
         setRoot(loaded);
         onStatus?.(url, 'ready');
@@ -164,7 +166,7 @@ function Garment({ url, profile, garmentType, fit, layer, size = null, legs = nu
       setRoot(null);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [url]);
+  }, [url, color]);
 
   useLayoutEffect(() => {
     const group = groupRef.current;
@@ -273,6 +275,7 @@ export default function TryOnAvatar() {
         sizeChart: sizeChartOf(p), // с тянучестью ткани товара
         legs: p.legs || null,
         sizeModels: p.sizeModels || null,   // ткань, просимулированная по размерам
+        color: p.color || null,             // основной цвет с фото товара
       };
       // без своей 3D-модели — шаблон того же типа в размере покупателя
       const template = templateFor(item);
@@ -429,6 +432,7 @@ export default function TryOnAvatar() {
                     size={src.size}
                     legs={src.legs}
                     simFigure={src.simFigure}
+                    color={item.color}
                     onStatus={(url, st) => setGlbStatus((s) => ({ ...s, [url]: st }))}
                   />
                 ))}

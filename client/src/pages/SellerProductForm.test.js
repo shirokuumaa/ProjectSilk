@@ -4,6 +4,7 @@ import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import SellerPanel from './SellerPanel';
 import { fetchMe, isLoggedIn, authFetch } from '../utils/auth';
+import { imageColor } from '../utils/garmentColor';
 
 jest.mock('../utils/auth', () => ({
   ...jest.requireActual('../utils/auth'),
@@ -12,9 +13,16 @@ jest.mock('../utils/auth', () => ({
   authFetch: jest.fn(),
 }));
 
+// цвет с фото: в jsdom холста нет — подменяем снятие цвета
+jest.mock('../utils/garmentColor', () => ({
+  ...jest.requireActual('../utils/garmentColor'),
+  imageColor: jest.fn(),
+}));
+
 const ok = (body, status = 200) => ({ ok: status < 400, status, json: async () => body });
 
 beforeEach(() => {
+  imageColor.mockResolvedValue('#c81e28');
   isLoggedIn.mockReturnValue(true);
   fetchMe.mockResolvedValue({ username: 'sam', role: 'seller', storeName: 'Sam Shop' });
   authFetch.mockImplementation(async (url, o = {}) => {
@@ -107,4 +115,19 @@ test('the chosen silhouette is sent with the product and dropped when the type c
   await screen.findByText(/Product saved/);
   const post = authFetch.mock.calls.find(([url, o]) => /\/api\/products$/.test(url) && o?.method === 'POST');
   expect(JSON.parse(post[1].body.get('silhouette'))).toEqual({ template: 'dress_flared', sleeve: 'short', length: 'knee' });
+});
+
+test('the main colour is taken from the photo, can be changed, and is sent with the product', async () => {
+  await openForm();
+  const swatch = await screen.findByLabelText('Main colour');
+  await waitFor(() => expect(swatch).toHaveValue('#c81e28'));
+  fireEvent.change(swatch, { target: { value: '#1a2b3c' } });
+
+  fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Tee' } });
+  fireEvent.change(screen.getByLabelText('Price, ₸'), { target: { value: '9900' } });
+  fireEvent.change(screen.getByLabelText('Garment type'), { target: { value: 'top' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save product' }));
+  await screen.findByText(/Product saved/);
+  const post = authFetch.mock.calls.find(([url, o]) => /\/api\/products$/.test(url) && o?.method === 'POST');
+  expect(post[1].body.get('color')).toBe('#1a2b3c');
 });
