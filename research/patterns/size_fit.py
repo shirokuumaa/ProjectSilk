@@ -159,15 +159,25 @@ class Drafter:
         lo, hi = node["range"]
         if key == "shirt.width":
             lo = 0.9
+        if key.endswith("skirt.length"):   # a mini dress's skirt is shorter than GarmentCode's sampling range (0.2)
+            lo = 0.1
         return float(lo), float(hi)
 
     # ── build + measure ──
-    def build(self):
+    def drafting_body(self):
+        """GarmentCode body parameters of the size with the ease factors applied."""
         b = BodyParameters(str(self.body_file))
         for k, e in self.ease.items():
             if e != 1.0:
                 b[k] = self.gcbody[k] * e
-        g = MetaGarment("fit", b, copy.deepcopy(self.design))
+                # the back waist grows with the waist: alone, only the front waist grew, its dart went negative
+                # past ~x1.1 and the fitted bodice's waist shrank again (dress 03 stuck 3-5 cm short)
+                if k == "waist":
+                    b["waist_back_width"] = self.gcbody["waist_back_width"] * e
+        return b
+
+    def build(self):
+        g = MetaGarment("fit", self.drafting_body(), copy.deepcopy(self.design))
         return g.assembly().pattern, g.is_self_intersecting()
 
     def measure(self, spec=None):
@@ -252,6 +262,8 @@ class Drafter:
             if not np.isfinite(flo) or not np.isfinite(fhi) or abs(fhi - flo) < 0.5:
                 self.set(knob, v0)
                 continue
+            if (target - flo) * (target - fhi) > 0:          # both ends on one side: the response may peak
+                lo, hi, flo, fhi = self.scan(f, lo, hi, flo, fhi, target, v0)   # inside — find a crossing
             inc = fhi > flo
             if (target - flo) * (target - fhi) > 0:          # out of reach: clamp to the nearer end,
                 v = lo if abs(target - flo) < abs(target - fhi) else hi   # then try the next knob
@@ -275,6 +287,24 @@ class Drafter:
         if "last" in locals():
             return last
         return self.measure().get(m, np.nan), None, "no knob"
+
+    @staticmethod
+    def scan(f, lo, hi, flo, fhi, target, v0, n=8):
+        """A bracket [a, b] inside [lo, hi] whose ends lie on both sides of the target (the one nearest the
+        current value v0), with f at its ends; [lo, hi] unchanged if the target is crossed nowhere."""
+        xs = np.linspace(lo, hi, n + 1)
+        fs = [flo] + [f(x) for x in xs[1:-1]] + [fhi]
+        best = None
+        for i in range(n):
+            a, b = fs[i], fs[i + 1]
+            if np.isfinite(a) and np.isfinite(b) and (target - a) * (target - b) <= 0:
+                d = 0.0 if xs[i] <= v0 <= xs[i + 1] else min(abs(xs[i] - v0), abs(xs[i + 1] - v0))
+                if best is None or d < best[0]:
+                    best = (d, i)
+        if best is None:
+            return lo, hi, flo, fhi
+        i = best[1]
+        return xs[i], xs[i + 1], fs[i], fs[i + 1]
 
 
 def fit_item(item, size):

@@ -139,11 +139,7 @@ def main():
 def assemble(D):
     """GarmentCode pattern object (with .spec) for the drafter's current knobs and drafting body."""
     import copy
-    b = S.BodyParameters(str(D.body_file))
-    for k, e in D.ease.items():
-        if e != 1.0:
-            b[k] = D.gcbody[k] * e
-    g = S.MetaGarment(f"{D.item}_{D.size}", b, copy.deepcopy(D.design))
+    g = S.MetaGarment(f"{D.item}_{D.size}", D.drafting_body(), copy.deepcopy(D.design))
     return g.assembly()
 
 
