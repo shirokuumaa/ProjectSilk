@@ -1,5 +1,5 @@
-"""Tests of the size fitting (size_fit.py): the bracket search for knobs whose response peaks and the fitted dress's
-waist.
+"""Tests of the size fitting (size_fit.py): the bracket search for knobs whose response peaks, the fitted dress's
+waist and the trousers templates.
 
 Usage (from research/patterns/): .envs/mac/bin/python -m unittest test_size_fit
 The body tests need the MPFB size bodies (local, not in git: python mpfb_body.py --all --out runs/allsizes/bodies)
@@ -53,6 +53,24 @@ class Bodies(unittest.TestCase):
             D.ease["waist"] = e
             waists.append(D.measure()["waist"])
         self.assertTrue(all(b > a + 1 for a, b in zip(waists, waists[1:])), waists)
+
+    def test_trousers_are_drafted_and_fitted_within_1cm(self):
+        target = {"length": 101.0, "waist": 72.0, "hips": 100.0}
+        D = drafter("pants_straight", length="full")
+        fit = S.fit_drafter(D, target)
+        for k, v in target.items():
+            self.assertLessEqual(abs(fit["after"][k] - v), 1.0, (k, fit["after"][k], v))
+        self.assertFalse(fit["self_intersecting"])
+
+    def test_slim_and_wide_trousers_differ_at_the_hem(self):
+        import week1_report as W
+        widths = {}
+        for t in ("pants_slim", "pants_straight", "pants_wide"):
+            P = W.Pattern([{"pattern": drafter(t, length="full").build()[0]}])
+            # the hem: the lowest 2 cm of every leg panel, its horizontal extent summed over the panels
+            widths[t] = sum(P.width_at(k, P.world(k)[:, 1].min() + 1.0) for k in P.keys({"pants"}))
+        self.assertLess(widths["pants_slim"], widths["pants_straight"])
+        self.assertLess(widths["pants_straight"], widths["pants_wide"])
 
 
 if __name__ == "__main__":

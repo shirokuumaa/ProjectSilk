@@ -12,11 +12,11 @@ const ROOT = path.resolve(SERVER_DIR, '..');
 describe('silhouette list', () => {
   const ours = Object.values(SILHOUETTE_TEMPLATES).flat().sort();
 
-  it('matches the 8 templates of research/patterns/templates.py', () => {
+  it('matches the 11 templates of research/patterns/templates.py', () => {
     const py = fs.readFileSync(path.join(ROOT, 'research/patterns/templates.py'), 'utf8');
     const block = py.slice(py.indexOf('TEMPLATES = {'), py.indexOf('\n}\n', py.indexOf('TEMPLATES = {')));
     const names = [...block.matchAll(/^\s+"(\w+)": \{"type"/gm)].map((m) => m[1]).sort();
-    assert.equal(names.length, 8);
+    assert.equal(names.length, 11);
     assert.deepEqual(ours, names);
   });
 
@@ -38,6 +38,15 @@ describe('parseSilhouette', () => {
       { template: 'dress_aline', sleeve: 'short', length: 'knee' });
     assert.deepEqual(parseSilhouette({ template: 'skirt_flared', sleeve: 'long', length: 'midi' }, 'bottom').silhouette,
       { template: 'skirt_flared', length: 'midi' });
+  });
+
+  it('trousers are bottoms with their own lengths', () => {
+    assert.deepEqual(parseSilhouette('{"template":"pants_slim"}', 'bottom').silhouette, { template: 'pants_slim', length: 'full' });
+    assert.deepEqual(parseSilhouette({ template: 'pants_wide', length: 'cropped' }, 'bottom').silhouette,
+      { template: 'pants_wide', length: 'cropped' });
+    assert.match(parseSilhouette({ template: 'pants_straight', length: 'knee' }, 'bottom').error, /cropped, full/);
+    assert.ok(parseSilhouette({ template: 'skirt_aline', length: 'full' }, 'bottom').error);
+    assert.ok(parseSilhouette('{"template":"pants_straight"}', 'dress').error);
   });
 
   it('a silhouette of another type or unknown knobs — error', () => {

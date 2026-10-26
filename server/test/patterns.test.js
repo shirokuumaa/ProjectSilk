@@ -157,7 +157,7 @@ describe('outcome', () => {
 
   it('timeout and a job-level error', () => {
     assert.equal(outcome({ timedOut: true, code: null }, null).message, 'Drafting the patterns took too long.');
-    assert.equal(outcome({ code: 0 }, { error: 'Patterns are built only for dresses, skirts and tops.' }).status, 'failed');
+    assert.equal(outcome({ code: 0 }, { error: 'Patterns are built only for dresses, skirts, trousers and tops.' }).status, 'failed');
   });
 });
 

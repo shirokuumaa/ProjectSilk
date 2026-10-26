@@ -1,4 +1,4 @@
-"""Pictures of our 8 templates for the seller's silhouette picker (client/public/silhouettes/<template>.png).
+"""Pictures of our 11 templates for the seller's silhouette picker (client/public/silhouettes/<template>.png).
 
 Each template (templates.py, default knobs) is drafted on our MPFB body of size M (runs/allsizes/bodies,
 mpfb_body.py --all) and drawn from the front: the pattern panels in GarmentCode's placement around the body
@@ -52,8 +52,8 @@ def render(name, faces, out):
     ax.add_collection(PolyCollection(faces, facecolor=BODY_FILL, edgecolor="none"))
     for front, xy in panels_world(spec):
         ax.fill(xy[:, 0], xy[:, 1], color=FRONT_FILL if front else BACK_FILL, ec=OUTLINE, lw=0.6)
-    ax.set_xlim(-62, 62)
-    ax.set_ylim(12, 172)
+    ax.set_xlim(-67, 67)           # down to the feet for full-length trousers, same 240:310 frame
+    ax.set_ylim(-1, 172)
     ax.set_aspect("equal")
     ax.axis("off")
     fig.subplots_adjust(0, 0, 1, 1)

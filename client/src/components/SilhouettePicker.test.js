@@ -42,11 +42,27 @@ test('picking a silhouette gives its default knobs; sleeve and length can be cha
   expect(screen.queryByLabelText('Length')).not.toBeInTheDocument();
 });
 
-test('skirts have no sleeve knob and say that trousers are not supported yet', () => {
+test('skirts have no sleeve knob; shorts are not supported yet', () => {
   render(<Harness type="bottom" initial={{ template: 'skirt_aline', length: 'knee' }} />);
-  expect(screen.getByText(/Only skirts for now/)).toBeInTheDocument();
+  expect(screen.getByText(/for shorts choose/)).toBeInTheDocument();
   expect(screen.queryByLabelText('Sleeve')).not.toBeInTheDocument();
   expect(screen.getByLabelText('Length')).toHaveValue('knee');
+});
+
+test('bottoms offer skirts and three trousers; trousers have their own lengths', () => {
+  const onChange = jest.fn();
+  render(<Harness type="bottom" initial={{ template: 'skirt_aline', length: 'midi' }} onChange={onChange} />);
+  const srcs = screen.getAllByRole('presentation').map((i) => i.getAttribute('src'));
+  expect(srcs.slice(3)).toEqual(['/silhouettes/pants_straight.png', '/silhouettes/pants_slim.png', '/silhouettes/pants_wide.png']);
+
+  fireEvent.click(screen.getByRole('button', { name: /Wide-leg trousers/ }));
+  expect(onChange).toHaveBeenLastCalledWith({ template: 'pants_wide', length: 'full' });
+  const lengths = [...screen.getByLabelText('Length').querySelectorAll('option')].map((o) => o.value);
+  expect(lengths).toEqual(['cropped', 'full']);
+  expect(screen.queryByLabelText('Sleeve')).not.toBeInTheDocument();
+
+  fireEvent.change(screen.getByLabelText('Length'), { target: { value: 'cropped' } });
+  expect(onChange).toHaveBeenLastCalledWith({ template: 'pants_wide', length: 'cropped' });
 });
 
 test.each(['outerwear', 'shoes', 'accessory', ''])('nothing to pick for "%s"', (type) => {

@@ -5,6 +5,9 @@ confirms. Sizes are not here: centimetres come from the seller's size chart (wee
 
   TEMPLATES[name] = {"type", "title", "meta": GarmentCode meta.upper/wb/bottom, "set": fixed params}
   KNOBS: sleeve (none/short/3-4/long), length (category), flare (low/mid/high), neckline, slit.
+  Trousers: GarmentCode's Pants (straight / slim / wide by pants.width and pants.flare), length only.
+  Jackets and coats are not here: GarmentCode's bodice has no front opening (both front halves are sewn
+  at the centre), no lining and no pockets; its lapel is only a piece sewn along a V neckline.
 
 design(name, **knobs) -> GarmentCode design dict (default.yaml + template + knobs).
 Usage: python templates.py --gc <GarmentCode> [--out runs/day6]  # builds every template on the
@@ -39,12 +42,21 @@ TEMPLATES = {
                    "meta": ("Shirt", None, None), "set": {"shirt.width": 1.0, "shirt.flare": 0.95}},
     "top_loose": {"type": "top", "title": "Топ / футболка / блузка прямая",
                   "meta": ("Shirt", None, None), "set": {}},
+    # trousers: straight waistband at the waist (rise 1.0); pants.width = the leg's base width (crotch
+    # extension x 1.0-1.5), pants.flare = the hem against the leg (0.5-1.2)
+    "pants_straight": {"type": "pants", "title": "Брюки прямые",
+                       "meta": (None, "StraightWB", "Pants"), "set": {"pants.width": 1.0, "pants.flare": 1.0}},
+    "pants_slim": {"type": "pants", "title": "Брюки узкие",
+                   "meta": (None, "StraightWB", "Pants"), "set": {"pants.width": 1.0, "pants.flare": 0.75}},
+    "pants_wide": {"type": "pants", "title": "Брюки широкие",
+                   "meta": (None, "StraightWB", "Pants"), "set": {"pants.width": 1.5, "pants.flare": 1.1}},
 }
 
 SLEEVE = {"none": None, "short": 0.25, "3/4": 0.6, "long": 1.0}  # sleeve.length, fraction of arm
 # length categories -> GarmentCode fractions (skirts: of leg length; tops: of waist line)
 LENGTH = {"skirt": {"mini": 0.25, "knee": 0.45, "midi": 0.65, "maxi": 0.9},
-          "top": {"cropped": 0.9, "regular": 1.25, "long": 1.6}}
+          "top": {"cropped": 0.9, "regular": 1.25, "long": 1.6},
+          "pants": {"cropped": 0.72, "full": 0.85}}   # pants: of the leg below the hip line (M: ~92 / ~101 cm)
 FLARE = {"PencilSkirt": ("pencil-skirt.flare", {"low": 0.9, "mid": 1.05, "high": 1.2}),
          "Skirt2": ("skirt.flare", {"low": 5, "mid": 10, "high": 18}),
          "SkirtCircle": ("flare-skirt.suns", {"low": 0.35, "mid": 0.6, "high": 1.0})}
@@ -52,7 +64,8 @@ NECK_DEPTH = {"high": 0.3, "round": 0.4, "square": 0.6, "v": 1.0}
 NECK = {"round": "CircleNeckHalf", "v": "VNeckHalf", "square": "SquareNeckHalf", "high": "CircleNeckHalf"}
 DEFAULT_KNOBS = {"dress": {"sleeve": "short", "length": "knee", "flare": "mid", "neckline": "round", "slit": False},
                  "skirt": {"length": "knee", "flare": "mid", "slit": False},
-                 "top": {"sleeve": "short", "length": "regular", "neckline": "round"}}
+                 "top": {"sleeve": "short", "length": "regular", "neckline": "round"},
+                 "pants": {"length": "full"}}
 
 
 def _set(design, dotted, value):
@@ -84,7 +97,9 @@ def design(gc_dir, name, **knobs):
             _set(d, "shirt.length", LENGTH["top"][k["length"]])
         else:
             _set(d, "shirt.length", 1.0)  # dress: the bodice ends at the waist (GarmentCode default 1.2 = below it)
-    if bottom:
+    if bottom == "Pants":
+        _set(d, "pants.length", LENGTH["pants"][k["length"]])
+    elif bottom:
         frac = LENGTH["skirt"][k["length"]]
         prefix = {"PencilSkirt": "pencil-skirt", "Skirt2": "skirt", "SkirtCircle": "flare-skirt"}[bottom]
         _set(d, f"{prefix}.length", frac)

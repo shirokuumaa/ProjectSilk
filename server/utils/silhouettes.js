@@ -1,21 +1,27 @@
 // server/utils/silhouettes.js
 //
-// Силуэт товара — фасон, который выбрал продавец: один из наших 8 шаблонов GarmentCode
+// Силуэт товара — фасон, который выбрал продавец: один из наших 11 шаблонов GarmentCode
 // (research/patterns/templates.py) и ручки рукав/длина. По нему и по сетке строятся
 // выкройки каждого размера (services/patternJobs.js).
 // Тот же список — в client/src/utils/silhouettes.js; совпадение проверяет test/silhouettes.test.js.
 
 export const SILHOUETTE_TEMPLATES = {
   dress: ['dress_fitted', 'dress_aline', 'dress_flared'],
-  bottom: ['skirt_pencil', 'skirt_aline', 'skirt_flared'],
+  bottom: ['skirt_pencil', 'skirt_aline', 'skirt_flared', 'pants_straight', 'pants_slim', 'pants_wide'],
   top: ['top_fitted', 'top_loose'],
 };
 
 export const SLEEVES = ['none', 'short', '3/4', 'long'];
 const SKIRT_LENGTHS = ['mini', 'knee', 'midi', 'maxi'];
 export const LENGTHS = { dress: SKIRT_LENGTHS, bottom: SKIRT_LENGTHS, top: ['cropped', 'regular', 'long'] };
+// брюки — тоже «низ», но со своими длинами (LENGTH["pants"] в templates.py)
+const PANTS_LENGTHS = ['cropped', 'full'];
+const isPants = (template) => typeof template === 'string' && template.startsWith('pants_');
 // как DEFAULT_KNOBS в templates.py
 const DEFAULTS = { dress: { sleeve: 'short', length: 'knee' }, bottom: { length: 'knee' }, top: { sleeve: 'short', length: 'regular' } };
+
+/** Длины, из которых выбирают для шаблона этого типа. */
+export const lengthsFor = (garmentType, template) => (isPants(template) ? PANTS_LENGTHS : LENGTHS[garmentType]);
 
 export const SILHOUETTE_ERROR = 'This silhouette does not match the garment type.';
 
@@ -36,13 +42,14 @@ export function parseSilhouette(raw, garmentType) {
   }
   if (!s) return { silhouette: null };
   if (!silhouetteFits(garmentType, s)) return { error: SILHOUETTE_ERROR };
-  const knobs = { ...DEFAULTS[garmentType] };
+  const knobs = isPants(s.template) ? { length: 'full' } : { ...DEFAULTS[garmentType] };
   if ('sleeve' in knobs && s.sleeve != null) {
     if (!SLEEVES.includes(s.sleeve)) return { error: 'Sleeve must be sleeveless, short, 3/4 or long.' };
     knobs.sleeve = s.sleeve;
   }
   if (s.length != null) {
-    if (!LENGTHS[garmentType].includes(s.length)) return { error: `Length must be one of: ${LENGTHS[garmentType].join(', ')}.` };
+    const lengths = lengthsFor(garmentType, s.template);
+    if (!lengths.includes(s.length)) return { error: `Length must be one of: ${lengths.join(', ')}.` };
     knobs.length = s.length;
   }
   return { silhouette: { template: s.template, ...knobs } };

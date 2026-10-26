@@ -38,8 +38,8 @@ IDEAL_EASE = {"tight": 2, "regular": 6, "loose": 16}
 STRETCH_SHARE = {"none": 0, "slight": 0.05, "stretchy": 0.15}
 HEIGHT = 166.0          # sizes carry no height; lengths come from the garment measurements (as in research)
 OUT_OF_RANGE_CM = 1.0   # the MPFB body misses a girth by more than this -> the figure is outside our range
-# the template type in templates.py for our garment types
-KIND = {"dress": "dress", "bottom": "skirt", "top": "top"}
+# the template types in templates.py for our garment types
+KIND = {"dress": ("dress",), "bottom": ("skirt", "pants"), "top": ("top",)}
 GIRTHS = {"chest": "bust", "waist": "waist", "hips": "hips"}
 
 
@@ -179,7 +179,7 @@ def main():
     out = Path(a.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
     if KIND.get(job.get("garmentType")) is None:
-        result = {"sizes": [], "failed": [], "error": "Patterns are built only for dresses, skirts and tops."}
+        result = {"sizes": [], "failed": [], "error": "Patterns are built only for dresses, skirts, trousers and tops."}
     else:
         result = run(job, out)
     json.dump(result, open(out / "result.json", "w"), indent=1)

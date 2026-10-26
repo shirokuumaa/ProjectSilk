@@ -10,7 +10,7 @@
 
 import React from 'react';
 import {
-  LENGTHS, SLEEVES, hasSleeve, silhouetteImage, silhouetteWith, silhouettesFor,
+  SLEEVES, hasSleeve, lengthsFor, silhouetteImage, silhouetteWith, silhouettesFor,
 } from '../utils/silhouettes';
 
 export default function SilhouettePicker({ garmentType, value, onChange }) {
@@ -25,7 +25,7 @@ export default function SilhouettePicker({ garmentType, value, onChange }) {
       <p style={styles.note}>
         Pick the closest shape. We draft a sewing pattern for every size in your size chart,
         so buyers can try the item on.
-        {garmentType === 'bottom' && ' Only skirts for now — for trousers and shorts choose “None of these”.'}
+        {garmentType === 'bottom' && ' Skirts and trousers for now — for shorts choose “None of these”.'}
       </p>
 
       <div style={styles.grid}>
@@ -69,7 +69,7 @@ export default function SilhouettePicker({ garmentType, value, onChange }) {
           <label style={styles.label}>
             Length
             <select value={value.length} onChange={knob('length')} style={styles.select}>
-              {LENGTHS[garmentType].map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+              {lengthsFor(garmentType, value.template).map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
             </select>
           </label>
         </div>

@@ -183,21 +183,27 @@ class Drafter:
     def measure(self, spec=None):
         spec = spec or self.build()[0]
         P = W.Pattern([{"pattern": spec}])
-        cls = {"dress": {"torso", "skirt", "wb"}, "skirt": {"skirt", "wb"}, "top": {"torso"}}[self.kind]
+        cls = {"dress": {"torso", "skirt", "wb"}, "skirt": {"skirt", "wb"}, "top": {"torso"},
+               "pants": {"pants", "wb"}}[self.kind]
         keys = P.keys(cls)
         m = {}
         which = self.length_panels
         lk = [k for k in keys if which == "all" or (P.front(k) == (which == "front"))] or keys
         # length along the body: bodice by height (shoulder to its hem), skirt along the fabric
-        # (furthest distance from the waist edge) — a flat circle-skirt sector is taller than the skirt
+        # (furthest distance from the waist edge) — a flat circle-skirt sector is taller than the skirt;
+        # trousers: the outseam, the leg panel's height (its side edge is straight up)
         torso = [k for k in lk if P.panels[k]["cls"] == "torso"]
         skirt = [k for k in lk if P.panels[k]["cls"] == "skirt"]
-        wb = [k for k in lk if P.panels[k]["cls"] == "wb"]
+        pants = [k for k in lk if P.panels[k]["cls"] == "pants"]
+        wb_h = max((float(np.ptp(P.world(k)[:, 1])) for k in lk if P.panels[k]["cls"] == "wb"), default=0.0)
         m["length"] = (np.ptp(P.yrange(torso)) if torso else 0.0) \
             + max((float(np.percentile(distance_field(P, k)[0], 99.5)) for k in skirt), default=0.0) \
-            + max((float(np.ptp(P.world(k)[:, 1])) for k in wb), default=0.0)
+            + max((float(np.ptp(P.world(k)[:, 1])) for k in pants), default=0.0) + wb_h
         if self.kind == "skirt":
             m["waist"], m["hips"] = P.skirt_waist(keys), P.skirt_hips(keys)
+        elif self.kind == "pants":   # hips at the body's hip line below the waist (above it the crotch curve
+            m["waist"] = P.skirt_waist(keys)                      # has not started)
+            m["hips"] = P.skirt_hips(keys, depth=wb_h + self.gcbody["hips_line"])
         else:
             arm = armhole_bottom(P, keys)
             m["chest"] = P.circumference(keys, (arm - 1.0) if arm else self.levels["bust_y"], extent=True)
@@ -223,7 +229,8 @@ class Drafter:
 
     def knobs_for(self, m):
         upper, wb, bottom = TEMPLATES[self.template]["meta"]
-        prefix = {"PencilSkirt": "pencil-skirt", "Skirt2": "skirt", "SkirtCircle": "flare-skirt"}.get(bottom)
+        prefix = {"PencilSkirt": "pencil-skirt", "Skirt2": "skirt", "SkirtCircle": "flare-skirt",
+                  "Pants": "pants"}.get(bottom)
         if m == "length":
             return [("design", "shirt.length")] if self.kind == "top" else [("design", f"{prefix}.length")]
         if m == "chest":
@@ -232,7 +239,7 @@ class Drafter:
             return ([("design", "shirt.flare")] if upper == "Shirt" else []) + [("body", "waist")]
         if m == "hips":
             return {"Skirt2": [("design", "skirt.flare")], "SkirtCircle": [("design", "flare-skirt.suns")],
-                    "PencilSkirt": [("body", "hips")]}.get(bottom, [])
+                    "PencilSkirt": [("body", "hips")], "Pants": [("body", "hips")]}.get(bottom, [])
         if m == "sleeve":
             return [("design", "sleeve.length")]
         return []
