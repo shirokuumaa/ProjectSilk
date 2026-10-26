@@ -88,3 +88,18 @@ test('a missing file with no generic shape (shoes) is explained, not silently in
   expect(await screen.findByText('The 3D model of Ankle Boots could not be loaded, so it is not shown on the figure.')).toBeInTheDocument();
   expect(loaded).toEqual(['http://localhost:5050/uploads/models/missing.glb']);
 });
+
+test('a coat with no 3D model is not put on the figure invisibly: "Check size" and an explanation', async () => {
+  open([{ _id: 'coat', title: 'Wool Coat', garmentType: 'outerwear', sizeChart: [{ size: 'M', chest: 100, waist: 90, hips: 104 }] }]);
+
+  expect(await screen.findByText(/no 3D model, not shown on the figure/)).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Wear' })).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Check size' }));
+  expect(await screen.findByText(
+    'Wool Coat has no 3D model yet, and there is no generic shape for coats and jackets, so it is not shown on the figure. '
+    + 'The size advice still works — it comes from the seller’s size chart.',
+  )).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Take off' })).not.toBeInTheDocument();
+  expect(loaded).toEqual([]);
+});

@@ -586,7 +586,7 @@ export default function WardrobePage() {
                         ? `${Number(it.price || 0).toLocaleString('en-US')} ₸ · ${type}`
                         : template
                           ? `No 3D model yet · worn as a generic ${template.label}`
-                          : 'No 3D model yet'}
+                          : 'No 3D model yet · not shown on the figure'}
                     </div>
                     <div className={styles.ac}>
                       <button className={`${styles.gbtn} ${styles.sm}`} onClick={() => toggleWear(it)}>

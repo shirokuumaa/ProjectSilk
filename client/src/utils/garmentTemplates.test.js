@@ -71,3 +71,25 @@ describe('an item without a garment type', () => {
     expect(offFigureReason({ name: 'Tee', garmentType: 'top' })).toBeNull();
   });
 });
+
+describe('items with no generic shape (coats, shoes, accessories)', () => {
+  test.each([
+    ['outerwear', 'Wool Coat', 'coats and jackets'],
+    ['shoes', 'Leather Sneakers', 'shoes'],
+    ['accessory', 'Silk Scarf', 'accessories'],
+  ])('%s without a 3D model is explained, not invisible', (garmentType, name, noun) => {
+    expect(offFigureReason({ garmentType, name })).toBe(
+      `${name} has no 3D model yet, and there is no generic shape for ${noun}, so it is not shown on the figure.`,
+    );
+  });
+
+  test('with a size chart the buyer is told the size advice still works', () => {
+    const coat = { garmentType: 'outerwear', name: 'Wool Coat', sizeChart: [{ size: 'M', chest: 100 }] };
+    expect(offFigureReason(coat)).toMatch(/The size advice still works/);
+  });
+
+  test('with its own 3D model or drapes by size it is worn', () => {
+    expect(offFigureReason({ garmentType: 'shoes', name: 'Boots', model3d: '/uploads/models/boots.glb' })).toBeNull();
+    expect(offFigureReason({ garmentType: 'outerwear', name: 'Coat', sizeModels: [{ size: 'M', model3d: '/m.glb' }] })).toBeNull();
+  });
+});

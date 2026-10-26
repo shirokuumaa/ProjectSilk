@@ -46,15 +46,22 @@ export function garmentTypeOf(item) {
   return typeFromCategory(item?.category);
 }
 
+// для каких вещей нет шаблона — во множественном числе, для текста покупателю
+const NO_TEMPLATE_NOUN = { outerwear: 'coats and jackets', shoes: 'shoes', accessory: 'accessories' };
+
 /**
- * Почему вещи нет на фигуре — словами покупателя; null — вещь надевается.
+ * Почему вещи нет на фигуре — словами покупателя; null — вещь надевается
+ * (своя модель, ткань по размерам или шаблон своего типа).
  */
 export function offFigureReason(item) {
   const name = item?.name || item?.title || 'This item';
-  if (!garmentTypeOf(item)) {
+  const type = garmentTypeOf(item);
+  if (!type) {
     return `${name}: type not set. The seller has not said what kind of item this is, so it is not shown on the figure.`;
   }
-  return null;
+  if (item.model3d || item.sizeModels?.length || templateFor(item)) return null;
+  const sizeNote = item.sizeChart?.length ? ' The size advice still works — it comes from the seller’s size chart.' : '';
+  return `${name} has no 3D model yet, and there is no generic shape for ${NO_TEMPLATE_NOUN[type]}, so it is not shown on the figure.${sizeNote}`;
 }
 
 /** Пояснение покупателю: файл 3D-модели вещи не загрузился; template — что надето вместо неё. */

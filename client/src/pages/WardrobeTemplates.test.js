@@ -47,11 +47,17 @@ test('a skirt without a 3D model is worn as the generic skirt in the recommended
   await waitFor(() => expect(screen.getByTestId('worn')).toHaveTextContent(`/models/test-garments/skirt.glb|${size}|joined`));
 });
 
-test('boots (no generic shape) can only be size-checked', async () => {
+test('boots (no generic shape) can only be size-checked, and the buyer is told why', async () => {
   render(<MemoryRouter><WardrobePage /></MemoryRouter>);
   await screen.findByText('No 3D model yet · worn as a generic skirt');
   expect(screen.getAllByRole('button', { name: 'Wear' })).toHaveLength(1);
-  expect(screen.getByRole('button', { name: 'Check size' })).toBeInTheDocument();
+  expect(screen.getByText('No 3D model yet · not shown on the figure')).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Check size' }));
+  expect(await screen.findByText(
+    'Ankle Boots has no 3D model yet, and there is no generic shape for shoes, so it is not shown on the figure.',
+  )).toBeInTheDocument();
+  expect(screen.getByTestId('worn')).toHaveTextContent(/^$/);
 });
 
 test('a stretchy dress: the wardrobe shows the same size as the product page and drapes it in that size', async () => {

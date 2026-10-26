@@ -284,10 +284,11 @@ export default function TryOnAvatar() {
   }, [wardrobe, catalog]);
 
   const byId = useCallback((id) => items.find((i) => i.id === id) || null, [items]);
-  // в слоте из старого черновика может лежать вещь без типа — на фигуре её нет
+  // в слоте из старого черновика может лежать вещь, которую не показать (без типа,
+  // пальто без модели) — на фигуре её нет
   const wornById = useCallback((id) => {
     const item = byId(id);
-    return item?.garmentType ? item : null;
+    return item && !offFigureReason(item) ? item : null;
   }, [byId]);
 
   const worn = useMemo(
@@ -343,14 +344,14 @@ export default function TryOnAvatar() {
 
   const toggleItem = (item) => {
     setActiveId(item.id);
-    // без типа вещь не надевается: неизвестно, куда она садится; пояснение — в панели
-    if (!item.garmentType) return;
+    // вещь, которую не показать на фигуре (без типа; пальто, обувь, аксессуар без модели),
+    // не надевается невидимкой: только размер и пояснение в панели
+    if (offFigureReason(item)) return;
     const slotKey = item.garmentType;
     setSlots((prev) => applySlot(prev, slotKey, prev[slotKey] === item.id ? null : item.id));
   };
 
   const camY = ((profile?.heightCm || 170) / 100) * 0.52;
-  const missing3d = worn.filter((w) => !w.item.garmentUrl).length;
   const generic = worn.filter((w) => w.item.template);
 
   // ── экраны без данных ──
@@ -483,8 +484,8 @@ export default function TryOnAvatar() {
                     <span className={styles.slotName}>
                       {item ? item.name : <span style={{ color: 'var(--muted-2)' }}>empty</span>}
                     </span>
-                    {item && !item.model3d && (
-                      <span className={styles.no3d}>{item.template ? 'generic shape' : 'no 3D'}</span>
+                    {item && !item.model3d && item.template && (
+                      <span className={styles.no3d}>generic shape</span>
                     )}
                     {item && (
                       <button
@@ -514,15 +515,6 @@ export default function TryOnAvatar() {
               {generic.length === 1 ? ' has' : ' have'} no 3D model yet, so{' '}
               {generic.length === 1 ? `it is shown as a generic ${generic[0].item.template.label}` : 'they are shown as generic shapes'}{' '}
               in your size. The fit follows the seller’s size chart; the real item may look different.
-            </div>
-          )}
-
-          {missing3d > 0 && (
-            <div className={styles.notice}>
-              {missing3d === 1 ? 'One item has' : `${missing3d} items have`} no 3D model and
-              there is no generic shape for {missing3d === 1 ? 'its' : 'their'} type yet, so{' '}
-              {missing3d === 1 ? 'it does' : 'they do'} not appear on the figure. The size verdict
-              still works — it comes from the size chart, not from geometry.
             </div>
           )}
 
@@ -556,7 +548,7 @@ export default function TryOnAvatar() {
                         <div className={styles.itemName}>{item.name}</div>
                         <div className={styles.itemMeta}>
                           {item.category || '—'}
-                          {!item.garmentType ? ' · type not set' : item.model3d ? '' : item.template ? ` · no 3D model, shown as a generic ${item.template.label}` : ' · no 3D model'}
+                          {!item.garmentType ? ' · type not set' : item.model3d ? '' : item.template ? ` · no 3D model, shown as a generic ${item.template.label}` : ' · no 3D model, not shown on the figure'}
                           {glbStatus[item.garmentUrl] === 'error' ? ' · file failed to load' : ''}
                         </div>
 
@@ -587,7 +579,7 @@ export default function TryOnAvatar() {
                             className={`${styles.btn} ${styles.btnSm} ${on ? styles.btnOn : ''}`}
                             onClick={() => toggleItem(item)}
                           >
-                            {on ? 'Take off' : item.garmentType ? 'Wear' : 'Check size'}
+                            {on ? 'Take off' : offFigureReason(item) ? 'Check size' : 'Wear'}
                           </button>
                         </div>
                       </div>
