@@ -8,6 +8,8 @@ import { useNavigate } from "react-router-dom";
 import SizeChartEditor, { serializeSizeChart } from "../components/SizeChartEditor";
 import SellerHeader from "../components/SellerHeader";
 import FormErrors from "../components/FormErrors";
+import SilhouettePicker from "../components/SilhouettePicker";
+import { silhouetteFits } from "../utils/silhouettes";
 import { authFetch, becomeSeller, fetchMe, isLoggedIn } from "../utils/auth";
 
 // превью модели — тем же three.js, что и весь сайт (лениво: three нужен только при превью)
@@ -154,6 +156,7 @@ function SellerDashboard() {
 
   const [sizeChart, setSizeChart] = useState([]);
   const [garmentType, setGarmentType] = useState(""); // тип выбирает продавец, умолчания нет
+  const [silhouette, setSilhouette] = useState(null);  // фасон — по нему сервер строит выкройки
   const [stretch, setStretch] = useState("none");
   const [girthMode, setGirthMode] = useState("circumference");
 
@@ -395,6 +398,7 @@ function SellerDashboard() {
       fd.append("stretch", stretch);
       fd.append("girthMode", girthMode); // flat — сервер умножит обхваты на 2
       fd.append("sizeChart", JSON.stringify(serializeSizeChart(sizeChart)));
+      fd.append("silhouette", silhouette ? JSON.stringify(silhouette) : "");
       // имя файла задаёт расширение на сервере; у исходного File оно своё (jpg/webp)
       fd.append("image", processedBlob, processedBlob.name || "product.png");
 
@@ -415,6 +419,7 @@ function SellerDashboard() {
       setPrice("");
       setSizeChart([]);
       setStretch("none");
+      setSilhouette(null);
 
       if (processedUrl && String(processedUrl).startsWith("blob:")) {
         URL.revokeObjectURL(processedUrl);
@@ -435,6 +440,12 @@ function SellerDashboard() {
   }
 
   const canMake3D = aiOnline === true && aiFeatures?.triposr === true;
+
+  // сменили тип — силуэт другого типа больше не подходит
+  const changeType = (type) => {
+    setGarmentType(type);
+    setSilhouette((s) => (silhouetteFits(type, s) ? s : null));
+  };
 
   return (
     <div style={ui.page}>
@@ -512,12 +523,13 @@ function SellerDashboard() {
                 value={sizeChart}
                 onChange={setSizeChart}
                 garmentType={garmentType}
-                onGarmentTypeChange={setGarmentType}
+                onGarmentTypeChange={changeType}
                 stretch={stretch}
                 onStretchChange={setStretch}
                 girthMode={girthMode}
                 onGirthModeChange={setGirthMode}
               />
+              <SilhouettePicker garmentType={garmentType} value={silhouette} onChange={setSilhouette} />
 
               <div style={{ marginTop: 4 }}>
                 <button
@@ -685,6 +697,11 @@ export function EditProductForm({ product, onCancel, onSaved }) {
   const [price, setPrice] = useState(String(product.price ?? ""));
   const [category, setCategory] = useState(product.category || "Clothes");
   const [garmentType, setGarmentType] = useState(product.garmentType || ""); // у старых товаров типа нет
+  const [silhouette, setSilhouette] = useState(product.silhouette || null);
+  const changeType = (type) => {
+    setGarmentType(type);
+    setSilhouette((s) => (silhouetteFits(type, s) ? s : null));
+  };
   const [stretch, setStretch] = useState(product.stretch || "none"); // старые товары — «No stretch»
   // сервер хранит полные обхваты — с ними форма и открывается
   const [girthMode, setGirthMode] = useState("circumference");
@@ -720,6 +737,7 @@ export function EditProductForm({ product, onCancel, onSaved }) {
       fd.append("stretch", stretch);
       fd.append("girthMode", girthMode);
       fd.append("sizeChart", JSON.stringify(serializeSizeChart(sizeChart)));
+      fd.append("silhouette", silhouette ? JSON.stringify(silhouette) : "");
       if (image) fd.append("image", image, image.name);
       const r = await authFetch(`${API}/api/products/${product._id}`, { method: "PATCH", body: fd });
       if (!r.ok) throw new Error(await errorMessage(r, "Could not save the changes"));
@@ -757,13 +775,14 @@ export function EditProductForm({ product, onCancel, onSaved }) {
           value={sizeChart}
           onChange={setSizeChart}
           garmentType={garmentType}
-          onGarmentTypeChange={setGarmentType}
+          onGarmentTypeChange={changeType}
           stretch={stretch}
           onStretchChange={setStretch}
           girthMode={girthMode}
           onGirthModeChange={setGirthMode}
         />
         <p style={ui.meta}>Saved measurements are shown as full circumferences.</p>
+        <SilhouettePicker garmentType={garmentType} value={silhouette} onChange={setSilhouette} />
 
         <label style={ui.label}>
           New image (optional; JPEG, PNG or WebP, up to {MAX_IMAGE_MB} MB)

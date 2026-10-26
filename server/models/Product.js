@@ -65,6 +65,17 @@ const ProductSchema = new mongoose.Schema({
     enum: { values: GARMENT_TYPES, message: 'Garment type must be one of: top, bottom, dress, outerwear, shoes, accessory.' },
   },
 
+  // фасон, который выбрал продавец: шаблон GarmentCode и ручки (utils/silhouettes.js).
+  // По нему и по сетке сервер строит выкройки каждого размера. Нет — «None of these».
+  silhouette: {
+    type: new mongoose.Schema({
+      template: { type: String, required: true },
+      sleeve:   { type: String },
+      length:   { type: String },
+    }, { _id: false }),
+    default: undefined,
+  },
+
   // подсказка для низа: брюки (две штанины) или юбка. Необязательна — без неё
   // примерка определяет это по геометрии вещи (client/src/utils/garmentDrape.js).
   legs: { type: String, enum: ['split', 'joined'] },

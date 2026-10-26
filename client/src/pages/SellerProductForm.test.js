@@ -92,3 +92,19 @@ test('the garment type starts empty and must be chosen before saving', async () 
   const post = authFetch.mock.calls.find(([url, o]) => /\/api\/products$/.test(url) && o?.method === 'POST');
   expect(post[1].body.get('garmentType')).toBe('dress');
 });
+
+test('the chosen silhouette is sent with the product and dropped when the type changes', async () => {
+  await openForm();
+  fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Wrap Dress' } });
+  fireEvent.change(screen.getByLabelText('Price, ₸'), { target: { value: '19900' } });
+  fireEvent.change(screen.getByLabelText('Garment type'), { target: { value: 'top' } });
+  fireEvent.click(screen.getByRole('button', { name: /Straight top/ }));
+  fireEvent.change(screen.getByLabelText('Garment type'), { target: { value: 'dress' } });
+  expect(screen.getByRole('button', { name: /None of these/ })).toHaveAttribute('aria-pressed', 'true');
+
+  fireEvent.click(screen.getByRole('button', { name: /Flared/ }));
+  fireEvent.click(screen.getByRole('button', { name: 'Save product' }));
+  await screen.findByText(/Product saved/);
+  const post = authFetch.mock.calls.find(([url, o]) => /\/api\/products$/.test(url) && o?.method === 'POST');
+  expect(JSON.parse(post[1].body.get('silhouette'))).toEqual({ template: 'dress_flared', sleeve: 'short', length: 'knee' });
+});

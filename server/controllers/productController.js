@@ -2,6 +2,7 @@
 import mongoose from 'mongoose';
 import Product, { GARMENT_TYPES } from '../models/Product.js';
 import WardrobeItem from '../models/WardrobeItem.js';
+import { parseSilhouette, silhouetteFits } from '../utils/silhouettes.js';
 import { execFile } from 'child_process';
 import util from 'util';
 import fs from 'fs';
@@ -202,6 +203,8 @@ export const addProduct = async (req, res) => {
     // тип обязателен: от него зависит, куда вещь садится на фигуре
     const garmentType = String(req.body.garmentType ?? '');
     if (!GARMENT_TYPES.includes(garmentType)) return fail(400, 'Please choose the garment type.');
+    const sil = parseSilhouette(req.body.silhouette, garmentType);
+    if (sil.error) return fail(400, sil.error);
     const girthMode = girthModeOf(req.body);
     if (!girthMode) return fail(400, 'Measurements must be given as full circumference or flat width.');
     const title = String(req.body.title ?? '').trim();
@@ -225,6 +228,7 @@ export const addProduct = async (req, res) => {
       price: priceNum,
       category: String(category || 'Clothes'),
       garmentType,
+      silhouette: sil.silhouette || undefined,
       stretch: req.body.stretch || 'none',
       sizeChart: parseSizeChart(req.body.sizeChart, girthMode) ?? [],
       legs: req.body.legs || undefined,
@@ -276,6 +280,13 @@ export const updateProduct = async (req, res) => {
     }
     if (b.category !== undefined) product.category = String(b.category);
     if (b.garmentType !== undefined) product.garmentType = String(b.garmentType);
+    if (b.silhouette !== undefined) {
+      const sil = parseSilhouette(b.silhouette, product.garmentType);
+      if (sil.error) return fail(400, sil.error);
+      product.silhouette = sil.silhouette || undefined;
+    } else if (product.silhouette && !silhouetteFits(product.garmentType, product.silhouette)) {
+      product.silhouette = undefined;   // тип сменили — силуэт другого типа больше не подходит
+    }
     if (b.stretch !== undefined) product.stretch = b.stretch || 'none';
     const girthMode = girthModeOf(b);
     if (!girthMode) return fail(400, 'Measurements must be given as full circumference or flat width.');

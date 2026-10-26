@@ -126,3 +126,14 @@ test('an old product without a type: the form asks for it instead of saving it a
   await waitFor(() => expect(authFetch).toHaveBeenCalled());
   expect(authFetch.mock.calls[0][1].body.get('garmentType')).toBe('dress');
 });
+
+test('the edit form opens with the saved silhouette and sends it back', async () => {
+  authFetch.mockResolvedValue({ ok: true, status: 200, json: async () => PRODUCT });
+  renderForm({ product: { ...PRODUCT, silhouette: { template: 'top_fitted', sleeve: 'long', length: 'cropped' } } });
+
+  expect(screen.getByRole('button', { name: /Fitted top/ })).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.getByLabelText('Sleeve')).toHaveValue('long');
+  fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+  await waitFor(() => expect(authFetch).toHaveBeenCalled());
+  expect(JSON.parse(authFetch.mock.calls[0][1].body.get('silhouette'))).toEqual({ template: 'top_fitted', sleeve: 'long', length: 'cropped' });
+});
