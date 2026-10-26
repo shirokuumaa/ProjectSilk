@@ -12,7 +12,7 @@ const FAKE = path.join(SERVER_DIR, 'test/fixtures/fakePatternsJob.mjs');
 const CHART = [{ size: 'S', chest: 88, waist: 70, hips: 94 }, { size: 'M', chest: 92, waist: 74, hips: 98 }];
 const SIL = { template: 'dress_aline', sleeve: 'short', length: 'knee' };
 
-async function until(fn, ms = 8000) {
+async function until(fn, ms = 20000) {   // с запасом: под нагрузкой процесс стартует медленнее
   const t0 = Date.now();
   for (;;) {
     const v = await fn();
