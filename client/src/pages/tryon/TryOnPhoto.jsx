@@ -1,6 +1,6 @@
 import React, { useState } from "react";
-import axios from "axios";
-import { getBaseURL } from "../../assistant/api"; // Берем адрес из нашего api.js
+import { Navigate } from "react-router-dom";
+import { photoTryOnEnabled, sendPhotoTryOn } from "../../utils/photoTryOn";
 
 function TryOnPhoto() {
   const [humanImg, setHumanImg] = useState(null); // Фото человека
@@ -31,15 +31,11 @@ function TryOnPhoto() {
       formData.append("human", humanImg);
       formData.append("garment", garmentImg);
 
-      // 2. Отправляем на Lightning AI
-      // Используем getBaseURL(), куда мы вставили ссылку на туннель
-      const response = await axios.post(`${getBaseURL()}/tryon`, formData, {
-        headers: { "Content-Type": "multipart/form-data" },
-        responseType: "blob", // Ожидаем картинку в ответе
-      });
+      // 2. Отправляем на наш сервер (выключено — utils/photoTryOn.js)
+      const blob = await sendPhotoTryOn(formData);
 
       // 3. Показываем результат
-      const imageUrl = URL.createObjectURL(response.data);
+      const imageUrl = URL.createObjectURL(blob);
       setResultImg(imageUrl);
       
     } catch (error) {
@@ -120,4 +116,7 @@ function TryOnPhoto() {
   );
 }
 
-export default TryOnPhoto;
+// Примерка по фото выключена: страница ведёт на примерку на аватаре (utils/photoTryOn.js)
+export default function TryOnPhotoPage() {
+  return photoTryOnEnabled() ? <TryOnPhoto /> : <Navigate to="/tryon/avatar" replace />;
+}

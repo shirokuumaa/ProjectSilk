@@ -25,16 +25,15 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import axios from 'axios';
 
 import styles from './Wardrobe.module.css';
 import GlbViewer from '../components/GlbViewer';
 import BodyToggle from '../components/BodyToggle';
-import { getBaseURL } from '../assistant/api';
 import { loadBodyProfile, isProfileComplete } from '../utils/bodyProfileApi';
 import { findBestSize, getStressMap, sizeChartOf, STRETCH_NOTES } from '../utils/fitCalculator';
 import { brokenModelNote, garmentTypeOf, offFigureReason, templateFor } from '../utils/garmentTemplates';
 import { pickSizeModel } from '../utils/sizeModels';
+import { photoTryOnEnabled, sendPhotoTryOn } from '../utils/photoTryOn';
 import {
   getWardrobe, saveWardrobe, clearWardrobe, importFromFavorites, addOutfit, WARDROBE_EVENT,
   pruneWardrobe,
@@ -233,11 +232,8 @@ export default function WardrobePage() {
       fd.append('human', aiHuman);
       fd.append('garment', aiGarment);
       fd.append('category', 'dresses');
-      const res = await axios.post(`${getBaseURL()}/tryon`, fd, {
-        headers: { 'Content-Type': 'multipart/form-data' },
-        responseType: 'blob',
-      });
-      setStageImg(URL.createObjectURL(res.data));
+      // только наш сервер; пока примерка по фото выключена, запроса нет (utils/photoTryOn.js)
+      setStageImg(URL.createObjectURL(await sendPhotoTryOn(fd)));
     } catch {
       alert('Photo try-on is not connected yet — the /tryon endpoint is not responding.');
     } finally {
@@ -345,12 +341,15 @@ export default function WardrobePage() {
             ◍ On my avatar
           </button>
 
-          <button
-            className={`${styles.md} ${mode === 'photo' ? styles.mdOn : ''}`}
-            onClick={() => setMode('photo')}
-          >
-            ▣ On my photo
-          </button>
+          {/* примерка по фото выключена — кнопки нет (utils/photoTryOn.js) */}
+          {photoTryOnEnabled() && (
+            <button
+              className={`${styles.md} ${mode === 'photo' ? styles.mdOn : ''}`}
+              onClick={() => setMode('photo')}
+            >
+              ▣ On my photo
+            </button>
+          )}
 
           <button
             className={`${styles.md} ${styles.mdCam}`}
@@ -360,7 +359,7 @@ export default function WardrobePage() {
           </button>
 
           <span className={styles.modesRt}>
-            Avatar and camera are free · photo has a daily limit
+            {photoTryOnEnabled() ? 'Avatar and camera are free · photo has a daily limit' : 'Avatar and camera are free'}
           </span>
         </div>
 

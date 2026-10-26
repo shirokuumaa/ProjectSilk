@@ -109,3 +109,11 @@ test('a dress whose 3D file is missing is worn as the generic dress, with an exp
   await waitFor(() => expect(screen.getByTestId('worn')).toHaveTextContent('/uploads/stub/dress.glb|-|joined'));
   expect(screen.getByText('The 3D model of Red Dress could not be loaded, so it is shown as a generic dress.')).toBeInTheDocument();
 });
+
+test('photo try-on is hidden: no "On my photo" mode and no photo limit note', async () => {
+  render(<MemoryRouter><WardrobePage /></MemoryRouter>);
+  await screen.findByText('No 3D model yet · worn as a generic skirt');
+  expect(screen.queryByRole('button', { name: /On my photo/ })).not.toBeInTheDocument();
+  expect(screen.getByText('Avatar and camera are free')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /On my avatar/ })).toBeInTheDocument();
+});

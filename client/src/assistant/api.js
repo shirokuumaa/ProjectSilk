@@ -1,6 +1,8 @@
 // client/src/assistant/api.js
 // Единая точка доступа к API ассистента/каталога
 
+import { photoTryOnUrl } from "../utils/photoTryOn";
+
 const KEY_BASE = "psilk_api_base";
 
 export function getBaseURL() {
@@ -110,7 +112,12 @@ export async function health() {
 // ==========================================
 // 🔥 НОВАЯ ФУНКЦИЯ ДЛЯ ВИРТУАЛЬНОЙ ПРИМЕРКИ
 // ==========================================
+// Фото — только на наш сервер и только когда примерка по фото включена (utils/photoTryOn.js);
+// на туннель getBaseURL() они больше не уходят.
 export async function tryOn({ human, garment }) {
+  const url = photoTryOnUrl();
+  if (!url) throw new Error("Photo try-on is turned off.");
+
   // 1. Создаем форму, как для отправки файлов
   const formData = new FormData();
 
@@ -128,11 +135,12 @@ export async function tryOn({ human, garment }) {
     type: "image/jpeg",
   });
 
-  console.log("🚀 Sending TryOn request to:", `${getBaseURL()}/tryon`);
+  console.log("🚀 Sending TryOn request to:", url);
 
   // 4. Отправляем запрос на Python сервер
-  const response = await fetch(`${getBaseURL()}/tryon`, {
+  const response = await fetch(url, {
     method: "POST",
+    credentials: "include",
     body: formData,
     headers: {
       // Важно: Content-Type здесь НЕ указываем, React Native сам подставит multipart/form-data
