@@ -10,6 +10,7 @@ import SellerHeader from "../components/SellerHeader";
 import FormErrors from "../components/FormErrors";
 import SilhouettePicker from "../components/SilhouettePicker";
 import ColorField from "../components/ColorField";
+import PatternStatus from "../components/PatternStatus";
 import { imageColor } from "../utils/garmentColor";
 import { silhouetteFits } from "../utils/silhouettes";
 import { authFetch, becomeSeller, fetchMe, isLoggedIn } from "../utils/auth";
@@ -601,6 +602,9 @@ function SellerDashboard() {
 
 /* ───────────────────────── мои товары ───────────────────────── */
 
+// пока у товара строятся выкройки, список перечитывается — статус меняется в фоне
+export const PATTERN_POLL_MS = 5000;
+
 function MyProducts({ reloadKey }) {
   const [items, setItems] = useState(null); // null — ещё грузим
   const [error, setError] = useState("");
@@ -620,6 +624,13 @@ function MyProducts({ reloadKey }) {
   }, []);
 
   useEffect(() => { load(); }, [load, reloadKey]);
+
+  const drafting = !!items?.some((p) => p.patterns?.status === "queued");
+  useEffect(() => {
+    if (!drafting) return undefined;
+    const t = setInterval(load, PATTERN_POLL_MS);
+    return () => clearInterval(t);
+  }, [drafting, load]);
 
   const remove = async (p) => {
     if (!window.confirm(`Delete “${p.title}”? This cannot be undone.`)) return;
@@ -654,6 +665,7 @@ function MyProducts({ reloadKey }) {
               {" · "}{p.sizeChart?.length ? `${p.sizeChart.length} sizes` : "no size chart"}
               {" · "}{p.model3d ? "3D model" : "no 3D model"}
             </div>
+            <PatternStatus product={p} />
           </div>
           <div style={{ display: "flex", gap: 8 }}>
             <button
