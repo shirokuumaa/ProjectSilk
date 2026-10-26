@@ -24,8 +24,41 @@ const TEMPLATES = {
   dress:    { label: 'dress',    legs: 'joined', url: '/uploads/stub/dress.glb' },
 };
 
+export const GARMENT_TYPES = ['top', 'bottom', 'dress', 'outerwear', 'shoes', 'accessory'];
+
+/** Тип по явному слову в категории (старые товары гардероба); иначе — не угадываем. */
+function typeFromCategory(category = '') {
+  const c = String(category).toLowerCase();
+  if (c.includes('dress')) return 'dress';
+  if (c.includes('bottom') || c.includes('pant') || c.includes('skirt') || c.includes('jean')) return 'bottom';
+  if (c.includes('shoe') || c.includes('boot')) return 'shoes';
+  if (c.includes('coat') || c.includes('jacket') || c.includes('outer')) return 'outerwear';
+  return null;
+}
+
+/**
+ * Тип вещи для примерки: тип товара, иначе явное слово в категории.
+ * null — тип не задан: вещь не надевается (раньше такие считались верхом,
+ * и платье садилось на фигуру футболкой).
+ */
+export function garmentTypeOf(item) {
+  if (GARMENT_TYPES.includes(item?.garmentType)) return item.garmentType;
+  return typeFromCategory(item?.category);
+}
+
+/**
+ * Почему вещи нет на фигуре — словами покупателя; null — вещь надевается.
+ */
+export function offFigureReason(item) {
+  const name = item?.name || item?.title || 'This item';
+  if (!garmentTypeOf(item)) {
+    return `${name}: type not set. The seller has not said what kind of item this is, so it is not shown on the figure.`;
+  }
+  return null;
+}
+
 function pick(item) {
-  const type = item?.garmentType;
+  const type = garmentTypeOf(item);
   const text = `${item?.name || ''} ${item?.title || ''} ${item?.category || ''}`.toLowerCase();
 
   if (type === 'top') {

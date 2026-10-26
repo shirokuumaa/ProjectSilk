@@ -136,7 +136,7 @@ export default function ProductCardTall({ product, addToCart, onAvatar }) {
           image: slides[0],
           category,
           model3d: model3d || '',
-          garmentType: product?.garmentType || 'top',
+          garmentType: product?.garmentType || null, // без типа — не «верх»
           sizeChart: sizeChartOf(product), // с тянучестью ткани — панель считает размер сама
         }));
       }}

@@ -144,6 +144,8 @@ export default function SizeChartEditor({
           onChange={(e) => onGarmentTypeChange(e.target.value)}
           style={styles.select}
         >
+          {/* без типа товар не сохранить: от типа зависит, куда вещь садится на фигуре */}
+          {!garmentType && <option value="" disabled>Choose a type…</option>}
           {GARMENT_TYPES.map((t) => (
             <option key={t.value} value={t.value}>{t.label}</option>
           ))}

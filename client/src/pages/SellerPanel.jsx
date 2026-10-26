@@ -153,7 +153,7 @@ function SellerDashboard() {
   const [category, setCategory] = useState("Clothes");
 
   const [sizeChart, setSizeChart] = useState([]);
-  const [garmentType, setGarmentType] = useState("top");
+  const [garmentType, setGarmentType] = useState(""); // тип выбирает продавец, умолчания нет
   const [stretch, setStretch] = useState("none");
   const [girthMode, setGirthMode] = useState("circumference");
 
@@ -377,6 +377,7 @@ function SellerDashboard() {
       ...(title.trim() ? [] : ["Please enter a title."]),
       ...(price !== "" && Number.isFinite(priceNum) && priceNum >= 0 ? [] : ["Please enter a price (a positive number)."]),
       ...(processedBlob ? [] : ["Please add a product image."]),
+      ...(garmentType ? [] : ["Please choose the garment type."]),
     ];
     if (missing.length) {
       setError(missing);
@@ -630,7 +631,7 @@ function MyProducts({ reloadKey }) {
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontWeight: 600, color: "var(--ink)" }}>{p.title}</div>
             <div style={ui.meta}>
-              {Number(p.price || 0).toLocaleString("en-US")} ₸ · {p.garmentType || "top"}
+              {Number(p.price || 0).toLocaleString("en-US")} ₸ · {p.garmentType || "type not set"}
               {" · "}{p.sizeChart?.length ? `${p.sizeChart.length} sizes` : "no size chart"}
               {" · "}{p.model3d ? "3D model" : "no 3D model"}
             </div>
@@ -683,7 +684,7 @@ export function EditProductForm({ product, onCancel, onSaved }) {
   const [title, setTitle] = useState(product.title || "");
   const [price, setPrice] = useState(String(product.price ?? ""));
   const [category, setCategory] = useState(product.category || "Clothes");
-  const [garmentType, setGarmentType] = useState(product.garmentType || "top");
+  const [garmentType, setGarmentType] = useState(product.garmentType || ""); // у старых товаров типа нет
   const [stretch, setStretch] = useState(product.stretch || "none"); // старые товары — «No stretch»
   // сервер хранит полные обхваты — с ними форма и открывается
   const [girthMode, setGirthMode] = useState("circumference");
@@ -705,6 +706,7 @@ export function EditProductForm({ product, onCancel, onSaved }) {
     const problems = [
       ...(title.trim() ? [] : ["The title cannot be empty."]),
       ...(price !== "" && Number.isFinite(priceNum) && priceNum >= 0 ? [] : ["Price must be a positive number."]),
+      ...(garmentType ? [] : ["Please choose the garment type."]),
     ];
     if (problems.length) return setError(problems);
     setSaving(true);

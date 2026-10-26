@@ -1,6 +1,6 @@
 // server/controllers/productController.js
 import mongoose from 'mongoose';
-import Product from '../models/Product.js';
+import Product, { GARMENT_TYPES } from '../models/Product.js';
 import WardrobeItem from '../models/WardrobeItem.js';
 import { execFile } from 'child_process';
 import util from 'util';
@@ -134,6 +134,7 @@ const withDefaults = (p) => (p ? { stretch: 'none', ...p } : p);
 /** Свои тексты для полей; остальные — по названию поля. */
 const FIELD_MESSAGES = {
   stretch: 'Fabric stretch must be none, slight or stretchy.',
+  garmentType: 'Please choose the garment type.',
 };
 
 /** Текст ошибок mongoose («Path `price` is required») наружу не отдаём — только наши сообщения и названия полей. */
@@ -197,7 +198,10 @@ export const addProduct = async (req, res) => {
     const imageFile = req.files?.image?.[0];
     if (!imageFile) return fail(400, 'Product image is required.');
 
-    const { name, category = 'Clothes', garmentType = 'top' } = req.body;
+    const { name, category = 'Clothes' } = req.body;
+    // тип обязателен: от него зависит, куда вещь садится на фигуре
+    const garmentType = String(req.body.garmentType ?? '');
+    if (!GARMENT_TYPES.includes(garmentType)) return fail(400, 'Please choose the garment type.');
     const girthMode = girthModeOf(req.body);
     if (!girthMode) return fail(400, 'Measurements must be given as full circumference or flat width.');
     const title = String(req.body.title ?? '').trim();
@@ -220,7 +224,7 @@ export const addProduct = async (req, res) => {
       name: String(name || title).trim(),
       price: priceNum,
       category: String(category || 'Clothes'),
-      garmentType: String(garmentType || 'top'),
+      garmentType,
       stretch: req.body.stretch || 'none',
       sizeChart: parseSizeChart(req.body.sizeChart, girthMode) ?? [],
       legs: req.body.legs || undefined,

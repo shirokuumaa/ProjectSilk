@@ -1,5 +1,5 @@
 // Шаблон для вещи без 3D-модели: по типу вещи, а для низа — по штанинам или названию.
-import { templateFor } from './garmentTemplates';
+import { garmentTypeOf, offFigureReason, templateFor } from './garmentTemplates';
 
 test.each([
   [{ garmentType: 'top', name: 'Cotton Tee' }, 'tee'],
@@ -44,5 +44,30 @@ test('every template file exists in public/', () => {
     const t = templateFor({ garmentType: types[id], name: names[id] || id });
     expect(t.id).toBe(id);
     expect(fs.existsSync(path.join(__dirname, '../../public', t.url))).toBe(true);
+  });
+});
+
+describe('an item without a garment type', () => {
+  test.each([
+    [{ garmentType: 'dress', category: 'Clothes' }, 'dress'],
+    [{ garmentType: 'shoes' }, 'shoes'],
+    [{ category: 'Ankle boots' }, 'shoes'],          // явное слово в категории
+    [{ category: 'Dresses' }, 'dress'],
+    [{ category: 'Clothes' }, null],                  // раньше — «верх» по умолчанию
+    [{ category: 'Electronics' }, null],
+    [{ garmentType: 'hat', category: 'Clothes' }, null],
+    [{}, null],
+  ])('%o → %s', (item, type) => {
+    expect(garmentTypeOf(item)).toBe(type);
+  });
+
+  test('is not worn as a generic tee and is explained as "type not set"', () => {
+    const item = { name: 'Test dress', category: 'Clothes' };
+    expect(templateFor(item)).toBeNull();
+    expect(offFigureReason(item)).toMatch(/^Test dress: type not set\./);
+  });
+
+  test('an item with a type has no off-figure reason', () => {
+    expect(offFigureReason({ name: 'Tee', garmentType: 'top' })).toBeNull();
   });
 });

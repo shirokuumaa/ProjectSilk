@@ -46,7 +46,7 @@ import { placeByHeight } from '../../utils/garmentPlacement';
 import { loadBodyProfile, isProfileComplete } from '../../utils/bodyProfileApi';
 import { findBestSize, getStressMap, sizeChartOf } from '../../utils/fitCalculator';
 import { getWardrobe, pruneWardrobe, WARDROBE_EVENT } from '../../utils/wardrobeStorage';
-import { templateFor } from '../../utils/garmentTemplates';
+import { garmentTypeOf, offFigureReason, templateFor } from '../../utils/garmentTemplates';
 import {
   pickSizeModel, figureShape, transferToFigure, pushOutOfBody, simFitMode,
 } from '../../utils/sizeModels';
@@ -263,14 +263,15 @@ export default function TryOnAvatar() {
 
     return wardrobe.map((w) => {
       const p = byId.get(String(w.id)) || {};
+      const category = w.category || p.category || '';
       const item = {
         id: w.id,
         name: w.name || p.title || 'Item',
         image: toPublicUrl(w.image || p.image),
-        category: w.category || p.category || '',
+        category,
         price: w.price ?? p.price,
         model3d: toPublicUrl(w.model3d || p.model3d || ''),
-        garmentType: p.garmentType || 'top',
+        garmentType: garmentTypeOf({ garmentType: p.garmentType, category }), // null — тип не задан
         layer: typeof p.layer === 'number' ? p.layer : 1,
         sizeChart: sizeChartOf(p), // с тянучестью ткани товара
         legs: p.legs || null,
@@ -283,10 +284,15 @@ export default function TryOnAvatar() {
   }, [wardrobe, catalog]);
 
   const byId = useCallback((id) => items.find((i) => i.id === id) || null, [items]);
+  // в слоте из старого черновика может лежать вещь без типа — на фигуре её нет
+  const wornById = useCallback((id) => {
+    const item = byId(id);
+    return item?.garmentType ? item : null;
+  }, [byId]);
 
   const worn = useMemo(
-    () => SLOTS.map((s) => ({ slot: s, item: byId(slots[s.key]) })).filter((x) => x.item),
-    [slots, byId],
+    () => SLOTS.map((s) => ({ slot: s, item: wornById(slots[s.key]) })).filter((x) => x.item),
+    [slots, wornById],
   );
 
   const active = byId(activeId) || worn[0]?.item || null;
@@ -320,7 +326,9 @@ export default function TryOnAvatar() {
 
   const toggleItem = (item) => {
     setActiveId(item.id);
-    const slotKey = SLOTS.some((s) => s.key === item.garmentType) ? item.garmentType : 'top';
+    // без типа вещь не надевается: неизвестно, куда она садится; пояснение — в панели
+    if (!item.garmentType) return;
+    const slotKey = item.garmentType;
     setSlots((prev) => applySlot(prev, slotKey, prev[slotKey] === item.id ? null : item.id));
   };
 
@@ -455,7 +463,7 @@ export default function TryOnAvatar() {
             <div className={styles.sectionLabel}>Worn now</div>
             <div className={styles.slots} style={{ marginTop: 8 }}>
               {SLOTS.map((s) => {
-                const item = byId(slots[s.key]);
+                const item = wornById(slots[s.key]);
                 return (
                   <div key={s.key} className={`${styles.slot} ${item ? styles.slotFilled : ''}`}>
                     <span className={styles.slotKind}>{s.label}</span>
@@ -478,6 +486,10 @@ export default function TryOnAvatar() {
               })}
             </div>
           </div>
+
+          {active && offFigureReason(active) && (
+            <div className={styles.notice}>{offFigureReason(active)}</div>
+          )}
 
           {generic.length > 0 && (
             <div className={styles.notice}>
@@ -512,7 +524,7 @@ export default function TryOnAvatar() {
             ) : (
               <div className={styles.list} style={{ marginTop: 8 }}>
                 {items.map((item) => {
-                  const on = Object.values(slots).includes(item.id);
+                  const on = worn.some((w) => w.item.id === item.id);
                   const best = item.sizeChart.length && isProfileComplete(profile)
                     ? findBestSize(profile, item.sizeChart).recommended?.size
                     : null;
@@ -527,7 +539,7 @@ export default function TryOnAvatar() {
                         <div className={styles.itemName}>{item.name}</div>
                         <div className={styles.itemMeta}>
                           {item.category || '—'}
-                          {item.model3d ? '' : item.template ? ` · no 3D model, shown as a generic ${item.template.label}` : ' · no 3D model'}
+                          {!item.garmentType ? ' · type not set' : item.model3d ? '' : item.template ? ` · no 3D model, shown as a generic ${item.template.label}` : ' · no 3D model'}
                           {glbStatus[item.garmentUrl] === 'error' ? ' · file failed to load' : ''}
                         </div>
 
@@ -558,7 +570,7 @@ export default function TryOnAvatar() {
                             className={`${styles.btn} ${styles.btnSm} ${on ? styles.btnOn : ''}`}
                             onClick={() => toggleItem(item)}
                           >
-                            {on ? 'Take off' : 'Wear'}
+                            {on ? 'Take off' : item.garmentType ? 'Wear' : 'Check size'}
                           </button>
                         </div>
                       </div>

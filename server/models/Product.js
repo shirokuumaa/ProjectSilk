@@ -29,6 +29,8 @@ const SizeEntrySchema = new mongoose.Schema({
   stretch: { type: Number, default: 0, min: 0, max: 50 },
 }, { _id: false });
 
+export const GARMENT_TYPES = ['top', 'bottom', 'dress', 'outerwear', 'shoes', 'accessory'];
+
 const ProductSchema = new mongoose.Schema({
   title:    { type: String, required: true },
   name:     { type: String },
@@ -55,11 +57,12 @@ const ProductSchema = new mongoose.Schema({
     default: 'none',
   },
 
-  // тип вещи — определяет, на какую часть тела надевается и порядок слоёв
+  // тип вещи — определяет, на какую часть тела надевается и порядок слоёв.
+  // Обязателен при создании (productController); умолчания нет: у старых товаров
+  // без типа примерка пишет «Type not set», а не надевает их как верх.
   garmentType: {
     type: String,
-    enum: ['top', 'bottom', 'dress', 'outerwear', 'shoes', 'accessory'],
-    default: 'top',
+    enum: { values: GARMENT_TYPES, message: 'Garment type must be one of: top, bottom, dress, outerwear, shoes, accessory.' },
   },
 
   // подсказка для низа: брюки (две штанины) или юбка. Необязательна — без неё

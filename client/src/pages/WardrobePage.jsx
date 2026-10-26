@@ -33,7 +33,7 @@ import BodyToggle from '../components/BodyToggle';
 import { getBaseURL } from '../assistant/api';
 import { loadBodyProfile, isProfileComplete } from '../utils/bodyProfileApi';
 import { findBestSize, getStressMap, sizeChartOf, STRETCH_NOTES } from '../utils/fitCalculator';
-import { templateFor } from '../utils/garmentTemplates';
+import { garmentTypeOf, offFigureReason, templateFor } from '../utils/garmentTemplates';
 import { pickSizeModel } from '../utils/sizeModels';
 import {
   getWardrobe, saveWardrobe, clearWardrobe, importFromFavorites, addOutfit, WARDROBE_EVENT,
@@ -129,7 +129,7 @@ export default function WardrobePage() {
         name: c.name || c.title || it.name,
         price: c.price ?? it.price,
         model3d: c.model3d || it.model3d,
-        garmentType: c.garmentType || it.garmentType || guessType(c.category || it.category),
+        garmentType: garmentTypeOf({ garmentType: c.garmentType || it.garmentType, category: c.category || it.category }),
         sizeChart: Array.isArray(c.sizeChart) && c.sizeChart.length ? sizeChartOf(c) : it.sizeChart,
         stretch: c.stretch || 'none',
         sizeModels: c.sizeModels || null,   // ткань, просимулированная по размерам
@@ -186,7 +186,9 @@ export default function WardrobePage() {
     // An item with no 3D model can still be selected: the fit verdict comes
     // from the seller's size chart, geometry is not involved. If there is a
     // generic shape for its type, that shape is worn in the buyer's size.
-    const type = item.garmentType || guessType(item.category);
+    // без типа вещь не надевается: неизвестно, куда она садится (пояснение — в колонке Fit)
+    const type = garmentTypeOf(item);
+    if (!type) return;
     const template = templateFor({ ...item, garmentType: type });
     if (!item.model3d && !template) return;
 
@@ -491,6 +493,9 @@ export default function WardrobePage() {
             {active && (
               <>
                 <div className={styles.lbl}>Fit</div>
+                {offFigureReason(active) && (
+                  <div className={styles.callout} style={{ marginBottom: 12 }}>{offFigureReason(active)}</div>
+                )}
                 {fit?.all?.length ? (
                   <div className={styles.box} style={{ marginBottom: 16 }}>
                     <div className={styles.vh}>
@@ -552,23 +557,26 @@ export default function WardrobePage() {
               </p>
             ) : view.map((it) => {
               const on = isWorn(it.id);
+              const type = garmentTypeOf(it);
               const has3d = !!it.model3d;
-              const template = has3d ? null : templateFor({ ...it, garmentType: it.garmentType || guessType(it.category) });
+              const template = has3d ? null : templateFor(it);
               return (
                 <div key={it.id} className={`${styles.it} ${activeId === it.id ? styles.itOn : ''}`}>
                   <img className={styles.th} src={toPublicUrl(it.image)} alt="" />
                   <div style={{ minWidth: 0 }}>
                     <div className={styles.nm}>{it.name}</div>
-                    <div className={`${styles.sb} ${has3d ? '' : styles.sbWarn}`}>
-                      {has3d
-                        ? `${Number(it.price || 0).toLocaleString('en-US')} ₸ · ${it.garmentType || guessType(it.category)}`
+                    <div className={`${styles.sb} ${has3d && type ? '' : styles.sbWarn}`}>
+                      {!type
+                        ? 'Type not set · not shown on the figure'
+                        : has3d
+                        ? `${Number(it.price || 0).toLocaleString('en-US')} ₸ · ${type}`
                         : template
                           ? `No 3D model yet · worn as a generic ${template.label}`
                           : 'No 3D model yet'}
                     </div>
                     <div className={styles.ac}>
                       <button className={`${styles.gbtn} ${styles.sm}`} onClick={() => toggleWear(it)}>
-                        {on ? 'Take off' : has3d || template ? 'Wear' : 'Check size'}
+                        {on ? 'Take off' : type && (has3d || template) ? 'Wear' : 'Check size'}
                       </button>
                     </div>
                   </div>
@@ -619,13 +627,4 @@ function M({ k, v }) {
 function easeWidth(ease) {
   const pct = ((Number(ease) + 5) / 25) * 100;
   return `${Math.max(5, Math.min(100, pct))}%`;
-}
-
-function guessType(category = '') {
-  const c = String(category).toLowerCase();
-  if (c.includes('dress')) return 'dress';
-  if (c.includes('bottom') || c.includes('pant') || c.includes('skirt') || c.includes('jean')) return 'bottom';
-  if (c.includes('shoe') || c.includes('boot')) return 'shoes';
-  if (c.includes('coat') || c.includes('jacket') || c.includes('outer')) return 'outerwear';
-  return 'top';
 }

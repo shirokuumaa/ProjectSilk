@@ -56,6 +56,7 @@ test('after saving, the image file field is empty again', async () => {
   await openForm();
   fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Tee' } });
   fireEvent.change(screen.getByLabelText('Price, ₸'), { target: { value: '9900' } });
+  fireEvent.change(screen.getByLabelText('Garment type'), { target: { value: 'top' } });
   const before = screen.getByLabelText(/Product image/);
   fireEvent.click(screen.getByRole('button', { name: 'Save product' }));
   await screen.findByText(/Product saved/);
@@ -69,5 +70,25 @@ test('saving an empty form names every missing field at once', async () => {
   const alert = screen.getByRole('alert');
   expect(alert).toHaveTextContent('Please enter a title.');
   expect(alert).toHaveTextContent('Please enter a price (a positive number).');
+  expect(alert).toHaveTextContent('Please choose the garment type.');
   expect(authFetch).not.toHaveBeenCalledWith(expect.stringMatching(/\/api\/products$/), expect.objectContaining({ method: 'POST' }));
+});
+
+test('the garment type starts empty and must be chosen before saving', async () => {
+  await openForm();
+  const type = screen.getByLabelText('Garment type');
+  expect(type).toHaveValue('');
+  expect(screen.getByRole('option', { name: 'Choose a type…' })).toBeDisabled();
+
+  fireEvent.change(screen.getByLabelText('Title'), { target: { value: 'Wrap Dress' } });
+  fireEvent.change(screen.getByLabelText('Price, ₸'), { target: { value: '19900' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save product' }));
+  expect(screen.getByRole('alert')).toHaveTextContent('Please choose the garment type.');
+  expect(authFetch).not.toHaveBeenCalledWith(expect.stringMatching(/\/api\/products$/), expect.objectContaining({ method: 'POST' }));
+
+  fireEvent.change(type, { target: { value: 'dress' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save product' }));
+  await screen.findByText(/Product saved/);
+  const post = authFetch.mock.calls.find(([url, o]) => /\/api\/products$/.test(url) && o?.method === 'POST');
+  expect(post[1].body.get('garmentType')).toBe('dress');
 });

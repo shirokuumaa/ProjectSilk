@@ -72,3 +72,17 @@ test('a stretchy dress: the wardrobe shows the same size as the product page and
   expect(screen.getByText('Stretchy fabric — fits snugly')).toBeInTheDocument();
   await waitFor(() => expect(screen.getByTestId('worn')).toHaveTextContent(`|${expected.recommended.size}|`));
 });
+
+test('an old product without a type is not worn as a top: "Type not set" and a size check only', async () => {
+  const old = { _id: 'old', title: 'Test dress', category: 'Clothes', sizeChart: [] };
+  localStorage.setItem('wardrobeItems', JSON.stringify([{ id: 'old', name: 'Test dress', image: '' }]));
+  global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 200, json: async () => [old] });
+
+  render(<MemoryRouter><WardrobePage /></MemoryRouter>);
+  expect(await screen.findByText('Type not set · not shown on the figure')).toBeInTheDocument();
+  expect(screen.queryByRole('button', { name: 'Wear' })).not.toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: 'Check size' }));
+  expect(await screen.findByText(/Test dress: type not set\./)).toBeInTheDocument();
+  expect(screen.getByTestId('worn')).toHaveTextContent(/^$/);
+});

@@ -110,3 +110,19 @@ test('editing opens with full circumferences and says so', () => {
   expect(screen.getByLabelText('Full circumference')).toBeChecked();
   expect(screen.getByText('Saved measurements are shown as full circumferences.')).toBeInTheDocument();
 });
+
+test('an old product without a type: the form asks for it instead of saving it as a top', async () => {
+  const { garmentType, ...old } = PRODUCT;
+  authFetch.mockResolvedValue({ ok: true, status: 200, json: async () => ({ ...old, garmentType: 'dress' }) });
+  renderForm({ product: old });
+
+  expect(screen.getByLabelText('Garment type')).toHaveValue('');
+  fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+  expect(screen.getByRole('alert')).toHaveTextContent('Please choose the garment type.');
+  expect(authFetch).not.toHaveBeenCalled();
+
+  fireEvent.change(screen.getByLabelText('Garment type'), { target: { value: 'dress' } });
+  fireEvent.click(screen.getByRole('button', { name: 'Save changes' }));
+  await waitFor(() => expect(authFetch).toHaveBeenCalled());
+  expect(authFetch.mock.calls[0][1].body.get('garmentType')).toBe('dress');
+});

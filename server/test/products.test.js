@@ -8,7 +8,7 @@ import {
 
 const MB = 1024 * 1024;
 
-function createProduct(token, { title = 'Silk dress', price = '25000', image = ['dress.png', PNG], model } = {}) {
+function createProduct(token, { title = 'Silk dress', price = '25000', garmentType = 'dress', image = ['dress.png', PNG], model } = {}) {
   const files = {};
   if (image) files.image = image;
   if (model) files.model3d = model;
@@ -18,7 +18,7 @@ function createProduct(token, { title = 'Silk dress', price = '25000', image = [
     fields: {
       title,
       price,
-      garmentType: 'dress',
+      ...(garmentType == null ? {} : { garmentType }),
       sizeChart: JSON.stringify([{ size: 'M', chest: 92, waist: 74, hips: 98 }]),
     },
   });
@@ -82,6 +82,9 @@ describe('products', () => {
       ['без картинки', { image: null }, 400],
       ['без названия', { title: '' }, 400],
       ['цена «abc»', { price: 'abc' }, 400],
+      ['без типа вещи', { garmentType: null }, 400],
+      ['пустой тип вещи', { garmentType: '' }, 400],
+      ['тип «hat»', { garmentType: 'hat' }, 400],
     ];
 
     for (const [name, opts, status] of cases) {
@@ -105,6 +108,15 @@ describe('products', () => {
       assert.equal((await api('PATCH', `/api/products/${product._id}`, { ...patch, token: sellerB.token })).status, 403);
       assert.equal((await api('PATCH', `/api/products/${product._id}`, { ...patch, token: buyer.token })).status, 403);
       assert.equal((await api('PATCH', `/api/products/${product._id}`, patch)).status, 401);
+    });
+
+    it('тип вещи можно сменить, но не стереть и не выдумать', async () => {
+      const patch = (garmentType) => api('PATCH', `/api/products/${product._id}`, { token: sellerA.token, body: { garmentType } });
+      assert.equal((await patch('')).status, 400);
+      assert.equal((await patch('hat')).status, 400);
+      const r = await patch('bottom');
+      assert.equal(r.status, 200);
+      assert.equal(r.json.garmentType, 'bottom');
     });
 
     it('файл от чужого продавца не записывается', async () => {
