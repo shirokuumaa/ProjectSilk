@@ -1,0 +1,15 @@
+{
+  "_note": "Demo straight trousers, every size. Body: the general women's chart from open third-party tables (mpfb_body.CHARTS['zara'], as on day 7). Garment = body + 2 cm at the waist and hips (fit 'tight', ideal ease 2 in fitCalculator.js, so the job's figure is the chart's own figure); outseam ~101 cm for a 166 cm figure, +0.5 cm a size. No store data or photos.",
+  "product": "demo_trousers",
+  "garmentType": "bottom",
+  "stretch": "none",
+  "silhouette": {"template": "pants_straight", "length": "full"},
+  "sizeChart": [
+    {"size": "XS", "waist": 64, "hips": 92, "length": 100.0, "fit": "tight"},
+    {"size": "S", "waist": 68, "hips": 96, "length": 100.5, "fit": "tight"},
+    {"size": "M", "waist": 72, "hips": 100, "length": 101.0, "fit": "tight"},
+    {"size": "L", "waist": 78, "hips": 106, "length": 101.5, "fit": "tight"},
+    {"size": "XL", "waist": 84, "hips": 112, "length": 102.0, "fit": "tight"},
+    {"size": "XXL", "waist": 90, "hips": 118, "length": 102.5, "fit": "tight"}
+  ]
+}
