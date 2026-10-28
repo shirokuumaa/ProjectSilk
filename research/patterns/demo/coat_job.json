@@ -1,0 +1,66 @@
+{
+ "_note": "Demo straight knee-length coat, every size. Body: the general women's chart from open third-party tables (mpfb_body.CHARTS['zara']). Chest = bust + 16 (fit 'loose', ideal ease 16 in fitCalculator.js, so the job's figure is the chart's own figure); straight cut, waist = chest + 2 (a straight knee-length shell narrower at the waist would not pass over the hips). Shoulders, length and sleeve from average women's charts for a 166 cm figure. No store data or photos.",
+ "product": "demo_coat",
+ "garmentType": "outerwear",
+ "stretch": "none",
+ "silhouette": {
+  "template": "coat",
+  "length": "knee"
+ },
+ "sizeChart": [
+  {
+   "size": "XS",
+   "chest": 98,
+   "waist": 100,
+   "length": 98,
+   "shoulder": 37,
+   "sleeve": 60,
+   "fit": "loose"
+  },
+  {
+   "size": "S",
+   "chest": 102,
+   "waist": 104,
+   "length": 99,
+   "shoulder": 38,
+   "sleeve": 60.5,
+   "fit": "loose"
+  },
+  {
+   "size": "M",
+   "chest": 106,
+   "waist": 108,
+   "length": 100,
+   "shoulder": 39,
+   "sleeve": 61,
+   "fit": "loose"
+  },
+  {
+   "size": "L",
+   "chest": 112,
+   "waist": 114,
+   "length": 101,
+   "shoulder": 40.5,
+   "sleeve": 61.5,
+   "fit": "loose"
+  },
+  {
+   "size": "XL",
+   "chest": 118,
+   "waist": 120,
+   "length": 102,
+   "shoulder": 42,
+   "sleeve": 62,
+   "fit": "loose"
+  },
+  {
+   "size": "XXL",
+   "chest": 124,
+   "waist": 126,
+   "length": 103,
+   "shoulder": 43.5,
+   "sleeve": 62.5,
+   "fit": "loose"
+  }
+ ]
+}
