@@ -311,9 +311,12 @@ def _span_points(h, front):
 
 
 def _wrist_index(g, start=1):
-    for j in range(max(start, 1), len(g) - 1):
-        if g[j] > 5 and g[j] <= g[j - 1] and g[j] <= g[j + 1] and g[j + 1:j + 20].max() > g[j] + 2:
-            return j
+    """The narrowest of the narrowings followed by a widening: on a full arm (zara XXL, plus) the elbow is a
+    narrowing too, and taking the first one measured the arm to the elbow (35.5 cm, "wrist" 23.6)."""
+    found = [j for j in range(max(start, 1), len(g) - 1)
+             if g[j] > 5 and g[j] <= g[j - 1] and g[j] <= g[j + 1] and g[j + 1:j + 20].max() > g[j] + 2]
+    if found:
+        return min(found, key=lambda j: g[j])
     return int(np.argmin(np.where(g > 5, g, np.inf)))
 
 
