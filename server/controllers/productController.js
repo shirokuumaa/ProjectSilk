@@ -44,7 +44,7 @@ function parseSizeChart(raw, girthMode = 'circumference') {
     const parsed = typeof raw === 'string' ? JSON.parse(raw) : raw;
     if (!Array.isArray(parsed)) return [];
     // каждая строка должна иметь size и хотя бы один обмер
-    const rows = parsed.filter((s) => s && s.size && (s.chest || s.waist || s.hips || s.length || s.sleeve));
+    const rows = parsed.filter((s) => s && s.size && (s.chest || s.waist || s.hips || s.length || s.sleeve || s.shoulder));
     if (girthMode !== 'flat') return rows;
     return rows.map((r) => {
       const out = { ...r };

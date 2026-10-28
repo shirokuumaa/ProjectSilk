@@ -45,7 +45,7 @@ const FIELDS_BY_TYPE = {
   top:       ['chest', 'waist', 'length', 'sleeve'],
   bottom:    ['waist', 'hips', 'length'],
   dress:     ['chest', 'waist', 'hips', 'length', 'sleeve'],
-  outerwear: ['chest', 'waist', 'length', 'sleeve'],
+  outerwear: ['shoulder', 'chest', 'waist', 'length', 'sleeve'],
   shoes:     ['length'],
   accessory: [],
 };
@@ -56,6 +56,7 @@ const FIELD_LABELS = {
   hips:   'Hips',
   length: 'Length',
   sleeve: 'Sleeve',
+  shoulder: 'Shoulders',
 };
 
 const GIRTH_FIELDS = ['chest', 'waist', 'hips'];
@@ -76,7 +77,7 @@ const PRESETS = {
 
 const emptyRow = (size) => ({
   size,
-  chest: '', waist: '', hips: '', length: '', sleeve: '',
+  chest: '', waist: '', hips: '', length: '', sleeve: '', shoulder: '',
   fit: 'regular',
   stretch: 0,
 });
@@ -316,7 +317,7 @@ export function serializeSizeChart(rows) {
     .map((r) => {
       // тянучесть ткани уходит полем товара stretch, не строками сетки
       const out = { size: String(r.size).trim(), fit: r.fit || 'regular' };
-      for (const f of ['chest', 'waist', 'hips', 'length', 'sleeve']) {
+      for (const f of ['chest', 'waist', 'hips', 'length', 'sleeve', 'shoulder']) {
         const n = Number(r[f]);
         if (r[f] !== '' && r[f] != null && Number.isFinite(n) && n > 0) out[f] = n;
       }

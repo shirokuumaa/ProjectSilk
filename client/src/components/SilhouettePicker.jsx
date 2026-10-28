@@ -2,7 +2,7 @@
 //
 // Выбор фасона продавцом: картинки наших шаблонов своего типа (utils/silhouettes.js),
 // рукав и длина. По силуэту и сетке сервер строит выкройку каждого размера.
-// Для типов без шаблонов (верхняя одежда, обувь, аксессуары) ничего не показывает.
+// Для типов без шаблонов (обувь, аксессуары) ничего не показывает.
 //
 // Использование:
 //   <SilhouettePicker garmentType={type} value={silhouette} onChange={setSilhouette} />
@@ -26,6 +26,7 @@ export default function SilhouettePicker({ garmentType, value, onChange }) {
         Pick the closest shape. We draft a sewing pattern for every size in your size chart,
         so buyers can try the item on.
         {garmentType === 'bottom' && ' Skirts and trousers for now — for shorts choose “None of these”.'}
+        {garmentType === 'outerwear' && ' Jackets and coats are drafted closed, with lapels and long sleeves — buttons and pockets are not shown.'}
       </p>
 
       <div style={styles.grid}>

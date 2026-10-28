@@ -16,6 +16,7 @@ const SizeEntrySchema = new mongoose.Schema({
   // длины (см)
   length: { type: Number },   // длина изделия целиком
   sleeve: { type: Number },   // длина рукава
+  shoulder: { type: Number }, // ширина плеч: от шва до шва по спинке (верхняя одежда)
 
   // как задуман крой — влияет на то, какая прибавка считается нормальной
   fit: {

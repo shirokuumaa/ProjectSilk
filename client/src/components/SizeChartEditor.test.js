@@ -1,7 +1,7 @@
 // Форма сетки: у каждой мерки — схема и подсказка; выбор «Full circumference» / «Flat (half) width».
 import { fireEvent, render, screen, within } from '@testing-library/react';
 import { useState } from 'react';
-import SizeChartEditor from './SizeChartEditor';
+import SizeChartEditor, { serializeSizeChart } from './SizeChartEditor';
 
 function Editor({ initial = [{ size: 'S', chest: '', waist: '', hips: '', length: '', sleeve: '', fit: 'regular' }], type = 'dress', onMode }) {
   const [rows, setRows] = useState(initial);
@@ -32,6 +32,19 @@ test('trousers: waistband-to-hem length, no bust or sleeve', () => {
   expect(screen.getByText('From the top of the waistband down to the hem.')).toBeInTheDocument();
   expect(screen.queryByRole('img', { name: 'How to measure bust' })).not.toBeInTheDocument();
   expect(screen.queryByRole('img', { name: 'How to measure sleeve' })).not.toBeInTheDocument();
+});
+
+test('outerwear: shoulders across the back, with its own diagram and hint', () => {
+  render(<Editor type="outerwear" />);
+  expect(screen.getByRole('img', { name: 'How to measure shoulders' })).toBeInTheDocument();
+  expect(screen.getByText('Lay the garment flat, back up, and measure straight across from one shoulder seam to the other.'))
+    .toBeInTheDocument();
+  expect(screen.queryByRole('img', { name: 'How to measure hips' })).not.toBeInTheDocument();
+});
+
+test('the shoulder width is kept when the chart is saved', () => {
+  expect(serializeSizeChart([{ size: 'M', chest: '106', shoulder: '38', sleeve: '', fit: 'loose' }]))
+    .toEqual([{ size: 'M', fit: 'loose', chest: 106, shoulder: 38 }]);
 });
 
 test('"Flat (half) width": hints and headers switch, the diagram draws a straight line across', () => {

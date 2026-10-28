@@ -65,7 +65,23 @@ test('bottoms offer skirts and three trousers; trousers have their own lengths',
   expect(onChange).toHaveBeenLastCalledWith({ template: 'pants_wide', length: 'cropped' });
 });
 
-test.each(['outerwear', 'shoes', 'accessory', ''])('nothing to pick for "%s"', (type) => {
+test('outerwear offers a jacket and a coat with lengths but no sleeve choice', () => {
+  const onChange = jest.fn();
+  render(<Harness type="outerwear" onChange={onChange} />);
+  const srcs = screen.getAllByRole('presentation').map((i) => i.getAttribute('src'));
+  expect(srcs).toEqual(['/silhouettes/jacket.png', '/silhouettes/coat.png']);
+  expect(screen.getByText(/drafted closed, with lapels and long sleeves/)).toBeInTheDocument();
+
+  fireEvent.click(screen.getByRole('button', { name: /Coat/ }));
+  expect(onChange).toHaveBeenLastCalledWith({ template: 'coat', length: 'knee' });
+  fireEvent.click(screen.getByRole('button', { name: /Jacket/ }));
+  expect(onChange).toHaveBeenLastCalledWith({ template: 'jacket', length: 'hip' });
+  const lengths = [...screen.getByLabelText('Length').querySelectorAll('option')].map((o) => o.value);
+  expect(lengths).toEqual(['hip', 'thigh', 'knee']);
+  expect(screen.queryByLabelText('Sleeve')).not.toBeInTheDocument();
+});
+
+test.each(['shoes', 'accessory', ''])('nothing to pick for "%s"', (type) => {
   const { container } = render(<Harness type={type} />);
   expect(container).toBeEmptyDOMElement();
 });

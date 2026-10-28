@@ -36,9 +36,10 @@ const TEXT = {
     bottom: 'From the top of the waistband down to the hem.',
   },
   sleeve: 'From the shoulder seam to the end of the cuff.',
+  shoulder: 'Lay the garment flat, back up, and measure straight across from one shoulder seam to the other.',
 };
 
-const LABELS = { chest: 'Bust', waist: 'Waist', hips: 'Hips', length: 'Length', sleeve: 'Sleeve' };
+const LABELS = { chest: 'Bust', waist: 'Waist', hips: 'Hips', length: 'Length', sleeve: 'Sleeve', shoulder: 'Shoulders' };
 
 function Girth({ y, x1, x2, mode }) {
   if (mode === 'flat') {
@@ -66,6 +67,8 @@ function Diagram({ field, mode, bottom }) {
       : <line className={styles.measure} x1="47" y1="10" x2="47" y2="96" />;
   } else if (field === 'sleeve') {
     mark = <line className={styles.measure} x1="61" y1="15" x2="71" y2="36" />;
+  } else if (field === 'shoulder') {
+    mark = <line className={styles.measure} x1="18" y1="14" x2="62" y2="14" />;
   }
   return (
     <svg className={styles.svg} viewBox="0 0 80 100" role="img" aria-label={`How to measure ${LABELS[field].toLowerCase()}`}>
@@ -78,6 +81,7 @@ function Diagram({ field, mode, bottom }) {
 export function measureHint(field, { mode = 'circumference', bottom = false } = {}) {
   if (field === 'length') return bottom ? TEXT.length.bottom : TEXT.length.top;
   if (field === 'sleeve') return TEXT.sleeve;
+  if (field === 'shoulder') return TEXT.shoulder;
   return TEXT[field]?.[mode] || '';
 }
 

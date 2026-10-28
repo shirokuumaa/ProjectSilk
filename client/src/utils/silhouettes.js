@@ -1,6 +1,6 @@
 // client/src/utils/silhouettes.js
 //
-// Силуэты, из которых продавец выбирает фасон: наши 11 шаблонов GarmentCode
+// Силуэты, из которых продавец выбирает фасон: наши 13 шаблонов GarmentCode
 // (research/patterns/templates.py). По силуэту и размерной сетке сервер строит
 // выкройку каждого размера (scripts/garments/patterns_job.py).
 // Картинки — public/silhouettes/<template>.png (research/patterns/render_silhouettes.py):
@@ -27,6 +27,11 @@ export const SILHOUETTES = {
     { template: 'top_fitted', label: 'Fitted top', hint: 'Close to the body' },
     { template: 'top_loose', label: 'Straight top', hint: 'Straight, loose cut' },
   ],
+  // закрытая оболочка с лацканами и длинным рукавом (в GarmentCode нет разреза спереди)
+  outerwear: [
+    { template: 'jacket', label: 'Jacket', hint: 'Straight, with lapels, to the hips' },
+    { template: 'coat', label: 'Coat', hint: 'Straight, with lapels, to the knee' },
+  ],
 };
 
 export const SLEEVES = [
@@ -51,6 +56,11 @@ export const LENGTHS = {
     { value: 'regular', label: 'Regular' },
     { value: 'long', label: 'Long' },
   ],
+  outerwear: [
+    { value: 'hip', label: 'Hip' },
+    { value: 'thigh', label: 'Mid-thigh' },
+    { value: 'knee', label: 'Knee' },
+  ],
 };
 
 // брюки — тоже «низ», но со своими длинами (LENGTH["pants"] в templates.py)
@@ -65,7 +75,10 @@ export const DEFAULT_KNOBS = {
   dress: { sleeve: 'short', length: 'knee' },
   bottom: { length: 'knee' },
   top: { sleeve: 'short', length: 'regular' },
+  outerwear: { length: 'hip' },          // рукав всегда длинный — его не выбирают
 };
+// свои ручки шаблона, как "knobs" у шаблона в templates.py
+const TEMPLATE_KNOBS = { coat: { length: 'knee' } };
 
 /** Длины, из которых выбирают для шаблона этого типа. */
 export const lengthsFor = (garmentType, template) => (isPants(template) ? PANTS_LENGTHS : LENGTHS[garmentType] || []);
@@ -77,7 +90,7 @@ export const silhouetteImage = (template) => `/silhouettes/${template}.png`;
 /** Силуэт с ручками по умолчанию для типа; null — у типа нет силуэтов. */
 export function silhouetteWith(garmentType, template) {
   if (!silhouettesFor(garmentType).some((s) => s.template === template)) return null;
-  return { template, ...(isPants(template) ? { length: 'full' } : DEFAULT_KNOBS[garmentType]) };
+  return { template, ...(isPants(template) ? { length: 'full' } : { ...DEFAULT_KNOBS[garmentType], ...TEMPLATE_KNOBS[template] }) };
 }
 
 /** Силуэт ещё подходит к типу? (тип могли сменить после выбора) */

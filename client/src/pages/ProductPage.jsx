@@ -21,6 +21,7 @@ const CHART_FIELDS = [
   ['hips', 'Hips'],
   ['length', 'Length'],
   ['sleeve', 'Sleeve'],
+  ['shoulder', 'Shoulders'],
 ];
 const FIT_LABELS = { tight: 'Fitted', regular: 'Regular', loose: 'Loose / oversized' };
 

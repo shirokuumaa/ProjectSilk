@@ -1,9 +1,9 @@
 """Tests of the size fitting (size_fit.py): the bracket search for knobs whose response peaks, the fitted dress's
-waist and the trousers templates.
+waist, the trousers templates and the jacket / coat (shoulders, chest and waist fitted together, hip clearance).
 
 Usage (from research/patterns/): .envs/mac/bin/python -m unittest test_size_fit
 The body tests need the MPFB size bodies (local, not in git: python mpfb_body.py --all --out runs/allsizes/bodies)
-and are skipped without them; all tests take ~20 s.
+and are skipped without them; all tests take ~2-3 min (the coat fit alone ~1.5 min).
 """
 import sys
 import unittest
@@ -71,6 +71,29 @@ class Bodies(unittest.TestCase):
             widths[t] = sum(P.width_at(k, P.world(k)[:, 1].min() + 1.0) for k in P.keys({"pants"}))
         self.assertLess(widths["pants_slim"], widths["pants_straight"])
         self.assertLess(widths["pants_straight"], widths["pants_wide"])
+
+    def test_jacket_shoulders_follow_the_shoulder_knob(self):
+        D = drafter("jacket", length="hip")
+        widths = []
+        for e in (0.95, 1.05, 1.15):
+            D.ease["shoulder_w"] = e
+            widths.append(D.measure()["shoulder"])
+        self.assertTrue(all(b > a + 1 for a, b in zip(widths, widths[1:])), widths)
+
+    def test_jacket_chest_and_waist_are_fitted_together(self):
+        D = drafter("jacket", length="hip")
+        m = D.fit_pair("chest", "waist", 106.0, 108.0, iters=6)
+        self.assertLessEqual(abs(m["chest"] - 106.0), 0.5, m)
+        self.assertLessEqual(abs(m["waist"] - 108.0), 0.5, m)
+
+    def test_coat_is_fitted_within_1cm_and_its_hem_passes_over_the_hips(self):
+        target = {"length": 100.0, "shoulder": 39.0, "chest": 106.0, "waist": 108.0, "sleeve": 61.0}
+        D = drafter("coat", length="knee")
+        fit = S.fit_drafter(D, target)
+        for k, v in target.items():
+            self.assertLessEqual(abs(fit["after"][k] - v), 1.0, (k, fit["after"][k], v))
+        self.assertGreaterEqual(fit["after"]["hips"], D.gcbody["hips"] + S.OUTER_HIP_EASE - 0.5)
+        self.assertFalse(fit["self_intersecting"])
 
 
 if __name__ == "__main__":

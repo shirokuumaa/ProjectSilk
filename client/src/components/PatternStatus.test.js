@@ -12,13 +12,14 @@ test.each([
     'warn', 'Patterns ready: S. Not drafted: XXXL — This size is outside the body range we can model yet.'],
   [{ garmentType: 'bottom' }, 'muted', 'No silhouette — choose one in Edit to draft patterns.'],
   [{ garmentType: 'bottom', silhouette: { template: 'skirt_aline' } }, 'muted', 'Add a size chart to draft patterns.'],
+  [{ garmentType: 'outerwear' }, 'muted', 'No silhouette — choose one in Edit to draft patterns.'],
 ])('%o', (product, tone, text) => {
   const s = patternStatus(product);
   expect(s.tone).toBe(tone);
   expect(s.text).toMatch(text instanceof RegExp ? text : new RegExp(`^${text.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}$`));
 });
 
-test.each(['outerwear', 'shoes', 'accessory', undefined])('no status for %s', (garmentType) => {
+test.each(['shoes', 'accessory', undefined])('no status for %s', (garmentType) => {
   expect(patternStatus({ garmentType })).toBeNull();
   const { container } = render(<PatternStatus product={{ garmentType }} />);
   expect(container).toBeEmptyDOMElement();

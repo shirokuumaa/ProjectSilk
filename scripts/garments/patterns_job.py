@@ -13,7 +13,7 @@ The research code does the work (research/patterns/, see its README, "day 7" and
 
 Usage: <research env python> scripts/garments/patterns_job.py --job job.json --out <dir>
   job.json: {"product", "garmentType", "stretch", "silhouette": {"template", "sleeve"?, "length"},
-             "sizeChart": [{"size", "chest"?, "waist"?, "hips"?, "length"?, "sleeve"?, "fit"?}]}
+             "sizeChart": [{"size", "chest"?, "waist"?, "hips"?, "length"?, "shoulder"?, "sleeve"?, "fit"?}]}
   -> <dir>/result.json: {"sizes": [{"size", "body", "target", "measured", "within_1cm", "box"}],
                          "failed": [{"size", "error"}]}  (errors are for the seller, in English)
      <dir>/bodies/, bodies_mpfb/, cases/<size>/, boxes/<size>/
@@ -39,15 +39,19 @@ STRETCH_SHARE = {"none": 0, "slight": 0.05, "stretchy": 0.15}
 HEIGHT = 166.0          # sizes carry no height; lengths come from the garment measurements (as in research)
 OUT_OF_RANGE_CM = 1.0   # the MPFB body misses a girth by more than this -> the figure is outside our range
 # the template types in templates.py for our garment types
-KIND = {"dress": ("dress",), "bottom": ("skirt", "pants"), "top": ("top",)}
+KIND = {"dress": ("dress",), "bottom": ("skirt", "pants"), "top": ("top",), "outerwear": ("outerwear",)}
 GIRTHS = {"chest": "bust", "waist": "waist", "hips": "hips"}
+# the figure of an outerwear size comes from the chest only: a jacket or coat is a straight shell (templates.py),
+# its waist is a style (boxy or belted), not the wearer's waist
+FIGURE_GIRTHS = {"outerwear": {"chest": "bust"}}
 
 
-def size_body(row, stretch):
+def size_body(row, stretch, garment_type=None):
     """The figure a size is cut for: {bust, waist, hips} (cm), or an error for the seller."""
     ease = IDEAL_EASE.get(row.get("fit") or "regular", IDEAL_EASE["regular"])
     share = STRETCH_SHARE.get(stretch or "none", 0)
-    known = {b: (float(row[g]) - ease) / (1 - share) for g, b in GIRTHS.items() if row.get(g)}
+    girths = FIGURE_GIRTHS.get(garment_type, GIRTHS)
+    known = {b: (float(row[g]) - ease) / (1 - share) for g, b in girths.items() if row.get(g)}
     if not known:
         return None, "The size chart has no bust, waist or hips for this size."
     import mpfb_body
@@ -61,7 +65,7 @@ def size_body(row, stretch):
 
 def targets(row):
     """Garment measurements the pattern is fitted to (full circumferences, cm)."""
-    return {k: float(row[k]) for k in ("length", "chest", "waist", "hips", "sleeve") if row.get(k)}
+    return {k: float(row[k]) for k in ("length", "shoulder", "chest", "waist", "hips", "sleeve") if row.get(k)}
 
 
 def drafter_class():
@@ -85,7 +89,7 @@ def drafter_class():
             self.design = design(GC, self.template, **knobs)
             self.ease = {"bust": 1.0, "waist": 1.0, "hips": 1.0}
             # dresses and skirts: length over all panels; tops: the back length, as most stores measure it
-            self.length_panels = "back" if self.kind == "top" else "all"
+            self.length_panels = "back" if self.kind in ("top", "outerwear") else "all"
 
     return ProductDrafter
 
@@ -125,7 +129,7 @@ def run(job, out):
     for row in job["sizeChart"]:
         size = str(row["size"])
         try:
-            body, err = size_body(row, stretch)
+            body, err = size_body(row, stretch, job.get("garmentType"))
             if err:
                 failed.append({"size": size, "error": err})
                 continue
@@ -179,7 +183,7 @@ def main():
     out = Path(a.out).resolve()
     out.mkdir(parents=True, exist_ok=True)
     if KIND.get(job.get("garmentType")) is None:
-        result = {"sizes": [], "failed": [], "error": "Patterns are built only for dresses, skirts, trousers and tops."}
+        result = {"sizes": [], "failed": [], "error": "Patterns are built only for dresses, skirts, trousers, tops and outerwear."}
     else:
         result = run(job, out)
     json.dump(result, open(out / "result.json", "w"), indent=1)

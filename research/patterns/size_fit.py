@@ -111,6 +111,24 @@ def armhole_bottom(P, keys):
     return float(np.median(tops)) if tops else None
 
 
+OUTER_HIP_EASE = 4.0   # cm over the body's hips at the hip line for a jacket or coat (it cannot open)
+
+
+def shoulder_width(P, keys):
+    """Across the back from one shoulder seam end to the other: the shoulder seams are the back torso edges sewn
+    to the front torso that run more across than down."""
+    xs = []
+    for k in keys:
+        if P.panels[k]["cls"] != "torso" or P.front(k):
+            continue
+        for e in range(len(P.panels[k]["edges"])):
+            w = P.edge_world(k, e)
+            if np.ptp(w[:, 0]) > np.ptp(w[:, 1]) and any(P.panels[q]["cls"] == "torso" and P.front(q)
+                                                         for q in P.partners(k, e)):
+                xs.append(w[:, 0])
+    return float(np.ptp(np.concatenate(xs))) if xs else float("nan")
+
+
 class Drafter:
     def __init__(self, item, size):
         self.item, self.size = item, size
@@ -133,7 +151,7 @@ class Drafter:
     def get(self, knob):
         src, key = knob
         if src == "body":
-            return self.ease[key]
+            return self.ease.get(key, 1.0)
         node = self.design
         for k in key.split("."):
             node = node[k]
@@ -161,6 +179,10 @@ class Drafter:
             lo = 0.9
         if key.endswith("skirt.length"):   # a mini dress's skirt is shorter than GarmentCode's sampling range (0.2)
             lo = 0.1
+        if key == "shirt.width" and self.kind == "outerwear":   # a jacket's chest ease (+16 cm and more) is beyond
+            hi = 1.6                                                # the 1.3 x bust GarmentCode samples for shirts
+        if key == "sleeve.length":   # our MPFB arm is ~45-47 cm against GarmentCode's 51.6: a store's long sleeve
+            hi = 1.5                 # (~60 cm) needs more than their 1.15 x arm — it reaches over the hand
         return float(lo), float(hi)
 
     # ── build + measure ──
@@ -184,7 +206,7 @@ class Drafter:
         spec = spec or self.build()[0]
         P = W.Pattern([{"pattern": spec}])
         cls = {"dress": {"torso", "skirt", "wb"}, "skirt": {"skirt", "wb"}, "top": {"torso"},
-               "pants": {"pants", "wb"}}[self.kind]
+               "pants": {"pants", "wb"}, "outerwear": {"torso"}}[self.kind]
         keys = P.keys(cls)
         m = {}
         which = self.length_panels
@@ -212,6 +234,11 @@ class Drafter:
                                  for e in range(len(P.panels[k]["edges"]))
                                  if any(P.panels[q]["cls"] in ("skirt", "wb") for q in P.partners(k, e)))
                 m["hips"] = P.circumference(keys, self.levels["hip_y"])
+            if self.kind == "outerwear":   # a straight shell: waist and (if it gets there) hips across the panels
+                m["shoulder"] = shoulder_width(P, keys)
+                m["waist"] = P.circumference(keys, self.levels["waist_y"])
+                if min(P.world(k)[:, 1].min() for k in keys) < self.levels["hip_y"]:
+                    m["hips"] = P.circumference(keys, self.levels["hip_y"])
         if P.keys({"sleeve"}):
             m["sleeve"] = self.sleeve_length(P)
         return m
@@ -232,14 +259,17 @@ class Drafter:
         prefix = {"PencilSkirt": "pencil-skirt", "Skirt2": "skirt", "SkirtCircle": "flare-skirt",
                   "Pants": "pants"}.get(bottom)
         if m == "length":
-            return [("design", "shirt.length")] if self.kind == "top" else [("design", f"{prefix}.length")]
+            return [("design", "shirt.length")] if bottom is None else [("design", f"{prefix}.length")]
+        if m == "shoulder":
+            return [("body", "shoulder_w")]
         if m == "chest":
             return ([("design", "shirt.width")] if upper == "Shirt" else []) + [("body", "bust")]
         if m == "waist":
             return ([("design", "shirt.flare")] if upper == "Shirt" else []) + [("body", "waist")]
         if m == "hips":
             return {"Skirt2": [("design", "skirt.flare")], "SkirtCircle": [("design", "flare-skirt.suns")],
-                    "PencilSkirt": [("body", "hips")], "Pants": [("body", "hips")]}.get(bottom, [])
+                    "PencilSkirt": [("body", "hips")], "Pants": [("body", "hips")]}.get(
+                bottom, [("design", "shirt.flare")] if self.kind == "outerwear" else [])
         if m == "sleeve":
             return [("design", "sleeve.length")]
         return []
@@ -295,6 +325,33 @@ class Drafter:
             return last
         return self.measure().get(m, np.nan), None, "no knob"
 
+    def fit_pair(self, ma, mb, ta, tb, iters=4):
+        """Measurements ma, mb fitted together by their first knobs (Newton steps on a 2x2 finite-difference
+        Jacobian): a straight shirt's width moves its waist and its flare moves the chest, so one-at-a-time
+        bisection keeps undoing the other (chest -1.6 cm on the jacket after two passes)."""
+        ka, kb = self.knobs_for(ma)[0], self.knobs_for(mb)[0]
+        h = 0.02
+        for _ in range(iters):
+            m = self.measure()
+            ea, eb = m[ma] - ta, m[mb] - tb
+            if max(abs(ea), abs(eb)) <= 0.3:
+                break
+            va, vb = self.get(ka), self.get(kb)
+            self.set(ka, va + h)
+            m1 = self.measure()
+            self.set(ka, va)
+            self.set(kb, vb + h)
+            m2 = self.measure()
+            self.set(kb, vb)
+            J = np.array([[m1[ma] - m[ma], m2[ma] - m[ma]], [m1[mb] - m[mb], m2[mb] - m[mb]]]) / h
+            try:
+                da, db = np.linalg.solve(J, [-ea, -eb])
+            except np.linalg.LinAlgError:
+                break
+            self.set(ka, float(np.clip(va + da, *self.bounds(ka))))
+            self.set(kb, float(np.clip(vb + db, *self.bounds(kb))))
+        return self.measure()
+
     @staticmethod
     def scan(f, lo, hi, flo, fhi, target, v0, n=8):
         """A bracket [a, b] inside [lo, hi] whose ends lie on both sides of the target (the one nearest the
@@ -321,15 +378,30 @@ def fit_item(item, size):
 
 
 def fit_drafter(D, target):
-    """Fit the drafter's knobs to the garment measurements target {length, chest, waist, hips, sleeve}
+    """Fit the drafter's knobs to the garment measurements target {length, shoulder, chest, waist, hips, sleeve}
     (also used by scripts/garments/patterns_job.py for a seller's product)."""
     before = D.measure()
     log = {}
     for _ in range(2):               # two passes: a later knob can move an earlier measurement (flare -> chest)
-        for m in ("length", "chest", "waist", "hips", "sleeve"):
+        for m in ("length", "shoulder", "chest", "waist", "hips", "sleeve"):
             if m in target and m in before:
                 val, knob, steps = D.fit_one(m, target[m])
                 log[m] = {"knob": None if knob is None else ".".join(knob), "steps": steps}
+    upper = TEMPLATES[D.template]["meta"][0]
+    if upper == "Shirt" and "chest" in target and "waist" in target:
+        now = D.measure()
+        if "waist" in now and max(abs(now[m] - target[m]) for m in ("chest", "waist")) > TOL / 2:
+            D.fit_pair("chest", "waist", target["chest"], target["waist"], iters=6)
+            log["chest+waist"] = {"knob": "design.shirt.width+design.shirt.flare", "steps": "newton"}
+            for m in ("length", "shoulder", "sleeve"):     # the width moved the shoulder slope and the length
+                if m in target and m in now:
+                    D.fit_one(m, target[m])
+    # a jacket or coat is a closed straight shell: its hem must pass over the hips, even if that widens the waist
+    if D.kind == "outerwear" and "hips" not in target:
+        hips = D.measure().get("hips")
+        if hips is not None and hips < D.gcbody["hips"] + OUTER_HIP_EASE:
+            val, knob, steps = D.fit_one("hips", D.gcbody["hips"] + OUTER_HIP_EASE)
+            log["hips"] = {"knob": None if knob is None else ".".join(knob), "steps": steps, "hip_clearance": True}
     spec, bad = D.build()
     after = D.measure(spec)
     knobs = {".".join(k): round(D.get(k), 3) for m in log for k in D.knobs_for(m)[:2]}

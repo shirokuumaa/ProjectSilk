@@ -12,11 +12,11 @@ const ROOT = path.resolve(SERVER_DIR, '..');
 describe('silhouette list', () => {
   const ours = Object.values(SILHOUETTE_TEMPLATES).flat().sort();
 
-  it('matches the 11 templates of research/patterns/templates.py', () => {
+  it('matches the 13 templates of research/patterns/templates.py', () => {
     const py = fs.readFileSync(path.join(ROOT, 'research/patterns/templates.py'), 'utf8');
     const block = py.slice(py.indexOf('TEMPLATES = {'), py.indexOf('\n}\n', py.indexOf('TEMPLATES = {')));
     const names = [...block.matchAll(/^\s+"(\w+)": \{"type"/gm)].map((m) => m[1]).sort();
-    assert.equal(names.length, 11);
+    assert.equal(names.length, 13);
     assert.deepEqual(ours, names);
   });
 
@@ -49,6 +49,15 @@ describe('parseSilhouette', () => {
     assert.ok(parseSilhouette('{"template":"pants_straight"}', 'dress').error);
   });
 
+  it('jackets and coats are outerwear: the coat to the knee by default, lengths hip / thigh / knee', () => {
+    assert.deepEqual(parseSilhouette('{"template":"jacket"}', 'outerwear').silhouette, { template: 'jacket', length: 'hip' });
+    assert.deepEqual(parseSilhouette('{"template":"coat"}', 'outerwear').silhouette, { template: 'coat', length: 'knee' });
+    assert.deepEqual(parseSilhouette({ template: 'coat', length: 'thigh', sleeve: 'short' }, 'outerwear').silhouette,
+      { template: 'coat', length: 'thigh' });
+    assert.match(parseSilhouette({ template: 'jacket', length: 'maxi' }, 'outerwear').error, /hip, thigh, knee/);
+    assert.ok(parseSilhouette('{"template":"coat"}', 'top').error);
+  });
+
   it('a silhouette of another type or unknown knobs — error', () => {
     assert.ok(parseSilhouette('{"template":"skirt_aline"}', 'dress').error);
     assert.ok(parseSilhouette('{"template":"dress_aline"}', 'outerwear').error);
@@ -76,6 +85,14 @@ describe('silhouette on a product', () => {
     const r = await create({ garmentType: 'dress', silhouette: JSON.stringify({ template: 'dress_flared', sleeve: 'none', length: 'midi' }) });
     assert.equal(r.status, 201);
     assert.deepEqual(r.json.silhouette, { template: 'dress_flared', sleeve: 'none', length: 'midi' });
+  });
+
+  it('an outerwear product keeps its shoulder widths in the size chart', async () => {
+    const chart = [{ size: 'M', chest: 106, waist: 108, length: 65, shoulder: 38, sleeve: 60, fit: 'loose' }];
+    const r = await create({ garmentType: 'outerwear', silhouette: JSON.stringify({ template: 'jacket' }), sizeChart: JSON.stringify(chart) });
+    assert.equal(r.status, 201);
+    assert.equal(r.json.sizeChart[0].shoulder, 38);
+    assert.deepEqual(r.json.silhouette, { template: 'jacket', length: 'hip' });
   });
 
   it('of another type → 400', async () => {

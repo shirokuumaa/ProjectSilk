@@ -1,4 +1,4 @@
-"""Pictures of our 11 templates for the seller's silhouette picker (client/public/silhouettes/<template>.png).
+"""Pictures of our 13 templates for the seller's silhouette picker (client/public/silhouettes/<template>.png).
 
 Each template (templates.py, default knobs) is drafted on our MPFB body of size M (runs/allsizes/bodies,
 mpfb_body.py --all) and drawn from the front: the pattern panels in GarmentCode's placement around the body

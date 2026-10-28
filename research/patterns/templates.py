@@ -6,8 +6,10 @@ confirms. Sizes are not here: centimetres come from the seller's size chart (wee
   TEMPLATES[name] = {"type", "title", "meta": GarmentCode meta.upper/wb/bottom, "set": fixed params}
   KNOBS: sleeve (none/short/3-4/long), length (category), flare (low/mid/high), neckline, slit.
   Trousers: GarmentCode's Pants (straight / slim / wide by pants.width and pants.flare), length only.
-  Jackets and coats are not here: GarmentCode's bodice has no front opening (both front halves are sewn
-  at the centre), no lining and no pockets; its lapel is only a piece sewn along a V neckline.
+  Jackets and coats: GarmentCode's bodice has no front opening (both front halves are sewn at the centre), no
+  lining and no pockets, so they are a closed shell — a straight Shirt with ease, long sleeves, a deep V and
+  SimpleLapel lapels; a jacket to the hips, a coat to the knee (length knob hip / thigh / knee).
+  A template may carry its own default knobs ("knobs").
 
 design(name, **knobs) -> GarmentCode design dict (default.yaml + template + knobs).
 Usage: python templates.py --gc <GarmentCode> [--out runs/day6]  # builds every template on the
@@ -19,6 +21,10 @@ import sys
 from pathlib import Path
 
 import yaml
+
+# lapels of the closed jacket / coat: a deep V (fc_depth of the neck depth, 0.3-2) with SimpleLapel along it
+LAPELS = {"collar.fc_depth": 1.6, "collar.component.style": "SimpleLapel", "collar.component.depth": 7,
+          "collar.component.lapel_standing": False, "sleeve.end_width": 0.75}   # + a sleeve narrowing to the cuff
 
 TEMPLATES = {
     # dresses
@@ -50,13 +56,21 @@ TEMPLATES = {
                    "meta": (None, "StraightWB", "Pants"), "set": {"pants.width": 1.0, "pants.flare": 0.75}},
     "pants_wide": {"type": "pants", "title": "Брюки широкие",
                    "meta": (None, "StraightWB", "Pants"), "set": {"pants.width": 1.5, "pants.flare": 1.1}},
+    # outerwear: a closed shell with lapels (no front opening in GarmentCode); shirt.width = chest ease
+    "jacket": {"type": "outerwear", "title": "Жакет / пиджак (закрытая оболочка с лацканами)",
+               "meta": ("Shirt", None, None), "knobs": {"length": "hip"}, "set": LAPELS | {"shirt.width": 1.15,
+                                                                                          "shirt.flare": 1.05}},
+    "coat": {"type": "outerwear", "title": "Пальто (закрытая оболочка с лацканами)",
+             "meta": ("Shirt", None, None), "knobs": {"length": "knee"}, "set": LAPELS | {"shirt.width": 1.2,
+                                                                                         "shirt.flare": 1.15}},
 }
 
 SLEEVE = {"none": None, "short": 0.25, "3/4": 0.6, "long": 1.0}  # sleeve.length, fraction of arm
 # length categories -> GarmentCode fractions (skirts: of leg length; tops: of waist line)
 LENGTH = {"skirt": {"mini": 0.25, "knee": 0.45, "midi": 0.65, "maxi": 0.9},
           "top": {"cropped": 0.9, "regular": 1.25, "long": 1.6},
-          "pants": {"cropped": 0.72, "full": 0.85}}   # pants: of the leg below the hip line (M: ~92 / ~101 cm)
+          "pants": {"cropped": 0.72, "full": 0.85},   # pants: of the leg below the hip line (M: ~92 / ~101 cm)
+          "outerwear": {"hip": 1.65, "thigh": 2.1, "knee": 2.85}}   # outerwear: of the shoulder-waist line
 FLARE = {"PencilSkirt": ("pencil-skirt.flare", {"low": 0.9, "mid": 1.05, "high": 1.2}),
          "Skirt2": ("skirt.flare", {"low": 5, "mid": 10, "high": 18}),
          "SkirtCircle": ("flare-skirt.suns", {"low": 0.35, "mid": 0.6, "high": 1.0})}
@@ -65,7 +79,8 @@ NECK = {"round": "CircleNeckHalf", "v": "VNeckHalf", "square": "SquareNeckHalf",
 DEFAULT_KNOBS = {"dress": {"sleeve": "short", "length": "knee", "flare": "mid", "neckline": "round", "slit": False},
                  "skirt": {"length": "knee", "flare": "mid", "slit": False},
                  "top": {"sleeve": "short", "length": "regular", "neckline": "round"},
-                 "pants": {"length": "full"}}
+                 "pants": {"length": "full"},
+                 "outerwear": {"sleeve": "long", "length": "hip", "neckline": "v"}}
 
 
 def _set(design, dotted, value):
@@ -78,7 +93,7 @@ def _set(design, dotted, value):
 def design(gc_dir, name, **knobs):
     t = TEMPLATES[name]
     d = copy.deepcopy(yaml.safe_load(open(Path(gc_dir) / "assets/design_params/default.yaml"))["design"])
-    k = {**DEFAULT_KNOBS[t["type"]], **knobs}
+    k = {**DEFAULT_KNOBS[t["type"]], **t.get("knobs", {}), **knobs}
     upper, wb, bottom = t["meta"]
     _set(d, "meta.upper", upper)
     _set(d, "meta.wb", wb)
@@ -94,7 +109,7 @@ def design(gc_dir, name, **knobs):
         # front neck depth (GarmentCode default 0.4, min 0.3); day 6 had 1.0 for "round" — a scoop down to the bust
         _set(d, "collar.fc_depth", NECK_DEPTH[k["neckline"]])
         if bottom is None:
-            _set(d, "shirt.length", LENGTH["top"][k["length"]])
+            _set(d, "shirt.length", LENGTH["outerwear" if t["type"] == "outerwear" else "top"][k["length"]])
         else:
             _set(d, "shirt.length", 1.0)  # dress: the bodice ends at the waist (GarmentCode default 1.2 = below it)
     if bottom == "Pants":
