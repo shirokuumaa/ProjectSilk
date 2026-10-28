@@ -379,7 +379,7 @@ export default function AvatarCreate() {
           hips: Math.round(h * 0.55 * k),
           shoulders: Math.round(h * 0.24 * k),
           inseam: Math.round(h * 0.46),
-          armLength: Math.round(h * 0.345),
+          armLength: Math.round(h * 0.36),       // ARM_PER_HEIGHT в scripts/avatar/config.py
         }));
         alert(
           'Rough estimate from your height and body type. Photo-based estimation is coming soon.'

@@ -9,8 +9,10 @@ const figures = Object.entries(calibration.validation.testFigures);
 describe('solveControls matches the Python solver', () => {
   test.each(figures)('%s', (name, fig) => {
     const { controls } = solveControls(fig.requested, calibration);
+    // до 0,001: коэффициенты в JSON округлены до 6 знаков; у plus2 (рука по росту, ноги дороже в
+    // регуляризации) это 0,0008 по морфу — меньше 0,01 см по меркам
     calibration.controls.forEach((c, i) => {
-      expect(controls[i]).toBeCloseTo(fig.controls[c], 3);
+      expect(Math.abs(controls[i] - fig.controls[c])).toBeLessThan(1e-3);
     });
   });
 });
@@ -60,6 +62,17 @@ describe('solveAvatar', () => {
       expect(r.weights[`${c}_incr`] * r.weights[`${c}_decr`]).toBe(0);
     });
   });
+});
+
+test('arm length: the buyer\'s own, else 0.36 of the height (straight arms, 59–62 cm norm)', () => {
+  const four = { heightCm: 166, chest: 90, waist: 70, hips: 98 };
+  const free = solveAvatar(four);
+  expect(free.inRange).toBe(true);
+  expect(free.predicted.arm_length).toBeCloseTo(0.36 * 166, 0);
+  expect(free.predicted.inseam).toBeGreaterThan(76.5);           // the arm does not shorten the legs
+  const own = solveAvatar({ ...four, armLength: 55 });
+  expect(own.predicted.arm_length).toBeCloseTo(55, 0);
+  expect(calibration.defaults.armLengthPerHeight).toBe(0.36);
 });
 
 test('profileTargets ignores empty and non-numeric fields', () => {

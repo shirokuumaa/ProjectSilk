@@ -72,7 +72,8 @@ class MPFB:
         self.labels = lab
 
     def solve(self, height, bust, waist, hips):
-        targets = {"height": height, "bust": bust, "waist": waist, "hips": hips}
+        # arm and inseam from the height, as the app does without them (calibrate.with_defaults)
+        targets = calibrate.with_defaults({"height": height, "bust": bust, "waist": waist, "hips": hips})
         u, f, res = calibrate.solve(calibrate.TrueModel(self.body), targets)
         return u, res
 

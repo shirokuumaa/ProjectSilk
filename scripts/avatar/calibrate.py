@@ -202,6 +202,16 @@ def realistic_targets(n):
     return out
 
 
+def with_defaults(target):
+    """Длина руки, которой не дали, — доля роста (config.ARM_PER_HEIGHT). Так же подбирает браузер
+    (avatarMorphs.solveAvatar, calibration.defaults) и тела симуляции (research/patterns/mpfb_body.py):
+    иначе рука остаётся нейтральной (~45 см вместо 59–62)."""
+    t = dict(target)
+    if t.get("height") and t.get("arm_length") is None:
+        t["arm_length"] = config.ARM_PER_HEIGHT * t["height"]
+    return t
+
+
 def r6(x):
     return float(f"{x:.6g}")
 
@@ -269,14 +279,17 @@ def main():
     reachable_err = np.array(reachable_err)
 
     # 5. реалистичные фигуры: правило «в диапазоне» не должно пропускать ошибку > допуска
-    def realistic(keys, n):
+    def realistic(keys, n, defaults=False):
         rows = []
         for target in realistic_targets(n):
             target = {m: (target[m] if m in keys else None) for m in M}
+            given = [m for m in M if target[m] is not None]
+            if defaults:                       # как в браузере: рука по росту — оценка, в допуск
+                target = with_defaults(target)  # «в диапазоне» не входит
             u, _, res = solve(sur, target)
-            ok = max(abs(v) for v in res.values()) <= accept
+            ok = max(abs(res[m]) for m in given) <= accept
             got = truth(u)
-            true_err = max(abs(got[i] - target[m]) for i, m in enumerate(M) if target[m] is not None)
+            true_err = max(abs(got[i] - target[m]) for i, m in enumerate(M) if m in given)
             rows.append((ok, true_err))
         rows = np.array(rows)
         inside = rows[rows[:, 0] == 1, 1]
@@ -285,7 +298,7 @@ def main():
                 "p95ErrorInRangeCm": round(float(np.percentile(inside, 95)), 2) if len(inside) else None}
 
     realistic_all = realistic(set(M), 300)
-    realistic_req = realistic({"height", "bust", "waist", "hips"}, 300)
+    realistic_req = realistic({"height", "bust", "waist", "hips"}, 300, defaults=True)
     log("realistic (all 7)", realistic_all, "realistic (4 required)", realistic_req)
 
     calibration = {
@@ -316,6 +329,10 @@ def main():
             "iterations": 30, "fdStep": 1e-3, "regularization": config.REGULARIZATION,
             "stage2": {"controls": config.STAGE2_CONTROLS, "whenResidualAboveCm": config.STAGE2_RESIDUAL_CM,
                        "rule": "solve with stage2 controls fixed at 0; if any |residual| > whenResidualAboveCm, solve again with all controls"},
+        },
+        "defaults": {
+            "armLengthPerHeight": config.ARM_PER_HEIGHT,
+            "rule": "arm_length not given -> this share of height; not counted for inRange (solveAvatar, mpfb_body.py)",
         },
         "range": {
             "toleranceCm": config.TOLERANCE_CM,

@@ -19,7 +19,7 @@ DEFINITIONS = {
     "waist": "Horizontal torso girth at the natural waist level: where the neutral body is narrowest, kept at the same fraction of the crotch-to-nipple distance (see waistLevel); arms excluded.",
     "hips": "Horizontal girth at the level of maximum buttock prominence: where the neutral body's buttocks protrude furthest back, kept at the same fraction of the crotch-to-nipple distance (see hipLevel); hands excluded.",
     "shoulder": "Back shoulder width: surface distance across the back from left to right shoulder point via the cervicale (C7), tape bridges hollows. Shoulder point = corner of the front silhouette where the shoulder line turns into the arm.",
-    "arm_length": "Shoulder point to outer elbow point to outer wrist point (along the slightly bent A-pose arm), averaged over both arms.",
+    "arm_length": "Shoulder point to outer elbow point to outer wrist point (along the straight A-pose arm), averaged over both arms.",
     "inseam": "Crotch point to floor.",
 }
 

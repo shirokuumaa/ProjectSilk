@@ -5,7 +5,8 @@
 # (обычно через scripts/avatar/build.sh).
 #
 # Что делает:
-#   1. Создаёт нейтральную взрослую женщину в A-позе.
+#   1. Создаёт нейтральную взрослую женщину в A-позе и выпрямляет ей руки: у MPFB локти согнуты
+#      и кисти вынесены вперёд, а рукава выкроек GarmentCode — прямые трубы по линии руки.
 #   2. Для каждого нашего морфа запекает разницу «крайнее значение − нейтральная»
 #      в отдельный shape key. Ступни при любом значении остаются на полу.
 #   3. Удаляет все ключи MPFB: остаются Basis и 16 наших.
@@ -110,6 +111,81 @@ def vertex_group_members(obj, group_name):
     return np.array([any(g.group == index and g.weight > 0 for g in v.groups) for v in obj.data.vertices])
 
 
+def straighten_arms(obj, armature):
+    """Ровная A-поза: плечо — во фронтальной плоскости под прежним углом, предплечье и кисть — по линии плеча.
+
+    Поза запекается в основу и во все наши shape keys (каждый — через тот же скелет с теми же весами), затем
+    становится позой покоя скелета. Возвращает новую нейтральную фигуру (координаты Blender).
+    У MPFB локти согнуты, кисти вынесены вперёд на ~15 см: рукав-труба выкройки не шёл за предплечьем
+    (research/patterns/README.md, «Рукав на болванке с согнутыми локтями»).
+    """
+    if not any(m.type == "ARMATURE" for m in obj.modifiers):
+        raise RuntimeError("the body has no armature modifier")
+    bpy.context.view_layer.objects.active = armature
+    bpy.ops.object.mode_set(mode="POSE")
+    world = armature.matrix_world
+
+    def direction(pb):
+        return (world.to_3x3() @ (pb.tail - pb.head)).normalized()
+
+    def turn(pb, target):
+        """Повернуть кость так, чтобы она смотрела в target (кратчайший поворот, без лишнего скручивания)."""
+        q = direction(pb).rotation_difference(target)
+        m = pb.matrix.copy()
+        head = m.to_translation()
+        rot = (world.to_3x3().inverted() @ q.to_matrix() @ world.to_3x3()).to_4x4()
+        m.translation = (0, 0, 0)
+        m = rot @ m
+        m.translation = head
+        pb.matrix = m
+        bpy.context.view_layer.update()
+
+    for side in ("l", "r"):
+        up, low, hand = (armature.pose.bones[f"{b}_{side}"] for b in ("upperarm", "lowerarm", "hand"))
+        d = direction(up)
+        flat = Vector((d.x, 0.0, d.z)).normalized()        # без наклона вперёд/назад (вперёд у Blender — −Y)
+        turn(up, flat)
+        turn(low, direction(up))
+        turn(hand, direction(low))
+        log(f"arm {side}: upper {tuple(round(c, 3) for c in direction(up))}, "
+            f"forearm {tuple(round(c, 3) for c in direction(low))}, hand {tuple(round(c, 3) for c in direction(hand))}")
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+    # запекаем: основа и каждый ключ через скелет (ключ на 1, остальные на 0)
+    keys = obj.data.shape_keys.key_blocks
+    n = len(obj.data.vertices)
+
+    def evaluated():
+        bpy.context.view_layer.update()
+        ev = obj.evaluated_get(bpy.context.evaluated_depsgraph_get())
+        return get_coords(ev.data.vertices, n)
+
+    for k in keys:
+        k.value = 0.0
+    base = evaluated()
+    posed = {}
+    for k in keys[1:]:
+        k.value = 1.0
+        posed[k.name] = evaluated()
+        k.value = 0.0
+
+    bpy.context.view_layer.objects.active = armature
+    bpy.ops.object.mode_set(mode="POSE")
+    bpy.ops.pose.select_all(action="SELECT")
+    bpy.ops.pose.armature_apply(selected=False)
+    bpy.ops.object.mode_set(mode="OBJECT")
+
+    obj.data.vertices.foreach_set("co", base.ravel())
+    keys[0].data.foreach_set("co", base.ravel())
+    for name, co in posed.items():
+        keys[name].data.foreach_set("co", co.ravel())
+    obj.data.update()
+    drift = np.abs(evaluated() - base).max()
+    if drift > 1e-5:
+        raise RuntimeError(f"rest pose does not match the baked arms ({drift} m)")
+    return base
+
+
 def pick_landmarks(obj, armature, neutral, body):
     """Точки-ориентиры на нейтральной фигуре (координаты Blender)."""
     pts = neutral
@@ -153,7 +229,10 @@ def pick_landmarks(obj, armature, neutral, body):
         forearm /= np.linalg.norm(forearm)
         bisector = (upper + forearm) / np.linalg.norm(upper + forearm)
         ring = ids[(np.abs((pts[ids] - elbow) @ bisector) < 0.006) & (np.linalg.norm(pts[ids] - elbow, axis=1) < 0.06)]
-        outward = upper - forearm                      # наружу от угла сгиба
+        if upper @ forearm > np.cos(np.radians(10)):   # рука прямая (straighten_arms): внешняя точка локтя —
+            outward = np.array([0.0, 1.0, 0.0])        # сзади (локтевой отросток; спина у MakeHuman — +Y)
+        else:
+            outward = upper - forearm                  # наружу от угла сгиба
         marks[f"elbow_{side}"] = pts[ring[np.argmax((pts[ring] - elbow) @ outward)]]
 
         # запястье: кольцо вершин в плоскости сустава, самая наружная точка
@@ -280,6 +359,7 @@ def main():
     armature = HumanService.add_builtin_rig(obj, "game_engine", import_weights=True)
     if armature is None:
         raise RuntimeError("could not add game_engine rig")
+    neutral = straighten_arms(obj, armature)
     landmarks = pick_landmarks(obj, armature, neutral, body)
 
     # убираем вспомогательную геометрию и лишние группы вершин

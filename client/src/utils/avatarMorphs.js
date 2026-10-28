@@ -248,8 +248,13 @@ export function solveAvatar(profile, cal = defaultCalibration) {
   if (missing.length) {
     return { inRange: false, reason: 'missing', missing, controls: null, weights: null, residuals: {} };
   }
+  // длина руки, которую не ввели, — доля роста (calibrate.with_defaults): иначе рука нейтральной
+  // фигуры (~45 см вместо 59–62), а тела симуляции строятся с этой долей
+  const given = Object.keys(targets).filter((m) => targets[m] != null);
+  if (cal.defaults && targets.arm_length == null) targets.arm_length = cal.defaults.armLengthPerHeight * targets.height;
   const { controls, predicted, residuals } = solveControls(targets, cal);
-  const maxResidual = Math.max(...Object.values(residuals).map(Math.abs));
+  // «в диапазоне» — по введённым обмерам; рука по росту — только оценка
+  const maxResidual = Math.max(...given.filter((m) => m in residuals).map((m) => Math.abs(residuals[m])));
   const k = keyWeights(controls);
   const weights = Object.fromEntries(cal.keys.map((key, i) => [key, k[i]]));
   return {
