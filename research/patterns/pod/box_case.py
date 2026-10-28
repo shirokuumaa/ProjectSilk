@@ -10,7 +10,9 @@ Usage: .envs/gcsim/bin/python pod/box_case.py --gc .envs/src/GarmentCode --case-
 import argparse
 import json
 import os
+import shutil
 import sys
+import tempfile
 import time
 import types
 from pathlib import Path
@@ -23,11 +25,15 @@ def main():
     a = ap.parse_args()
     gc, case_dir, bodies, out, config = (Path(p).resolve() for p in (a.gc, a.case_dir, a.bodies, a.out, a.config))
     out.mkdir(parents=True, exist_ok=True)
-    os.chdir(gc)
+    # GarmentCode reads ./system.json (the bodies folder) and ./assets from the working directory: each process works
+    # in its own folder — in GarmentCode's own folder two box builds at once read each other's bodies folder
+    work = Path(tempfile.mkdtemp(prefix="box_case_"))
+    (work / "assets").symlink_to(gc / "assets")
+    os.chdir(work)
     sys.path.insert(0, str(gc))
     json.dump({"output": str(out), "datasets_path": "", "datasets_sim": "",
                "sim_configs_path": str(gc / "assets" / "Sim_props"), "bodies_default_path": str(bodies),
-               "body_samples_path": ""}, open(gc / "system.json", "w"), indent=1)
+               "body_samples_path": ""}, open(work / "system.json", "w"), indent=1)
     stub = types.ModuleType("pygarment.meshgen.render.pythonrender")
     stub.render_images = lambda *args, **kwargs: None
     sys.modules["pygarment.meshgen.render.pythonrender"] = stub
@@ -52,6 +58,8 @@ def main():
     box.serialize(paths, store_panels=False, uv_config=uv)
     print("BOX", json.dumps({"case": a.case, "body": a.body, "box_s": round(time.time() - t0, 1),
                              "dir": str(paths.out_el)}))
+    os.chdir(out)
+    shutil.rmtree(work)                      # removes the assets link, not GarmentCode's assets
 
 
 if __name__ == "__main__":
