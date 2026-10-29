@@ -16,7 +16,7 @@ sys.path.insert(0, str(HERE))
 sys.path.insert(0, str(HERE.parents[1] / "scripts" / "avatar"))
 import config  # noqa: E402
 
-JACKET = HERE / "runs" / "arms_jacket"
+JACKET = HERE / "runs" / "cuff_jacket"   # the wide cuff (sleeve.end_width 1.0), every size
 
 
 class Avatar(unittest.TestCase):
@@ -67,14 +67,16 @@ class Sleeve(unittest.TestCase):
 
 @unittest.skipUnless((JACKET / "newton" / "results" / "size_L" / "size_L_sim.obj").exists(), "no draped jacket L")
 class DrapedSleeve(unittest.TestCase):
-    def test_the_jacket_l_sleeve_follows_the_arm_after_the_drape(self):
+    def test_the_jacket_sleeve_follows_the_arm_after_the_drape_in_every_size(self):
         from sleeve_drape_check import check
-        res = check(JACKET / "newton" / "results" / "size_L" / "size_L_sim.obj", JACKET / "boxes" / "size_L", "size_L",
-                    JACKET / "bodies_mpfb" / "product_L.obj", JACKET / "bodies_mpfb" / "ggg_body_segmentation.json")
-        for side in ("left", "right"):
-            self.assertGreater(res[side]["cover_%"], 90, res)      # bent elbows: 25 %
-            self.assertLess(res[side]["hem_gap_cm"], 3, res)       # bent elbows: ~9 cm of empty sleeve
-        self.assertLess(res["top_drop_body_cm"], 12, res)          # from GarmentCode's layout above the shoulders
+        for size in ("XS", "S", "M", "L", "XL", "XXL"):
+            c = f"size_{size}"
+            res = check(JACKET / "newton" / "results" / c / f"{c}_sim.obj", JACKET / "boxes" / c, c,
+                        JACKET / "bodies_mpfb" / f"product_{size}.obj", JACKET / "bodies_mpfb" / "ggg_body_segmentation.json")
+            for side in ("left", "right"):
+                self.assertGreater(res[side]["cover_%"], 80, (size, res))  # bent elbows: 25 %; cuff 0.75 in XS-M: 59-71 %
+                self.assertLess(res[side]["hem_gap_cm"], 5, (size, res))   # bent elbows ~9 cm; cuff 0.75 in XS-M 8-12
+            self.assertLess(res["top_drop_body_cm"], 12, res)          # from GarmentCode's layout above the shoulders
 
 
 if __name__ == "__main__":

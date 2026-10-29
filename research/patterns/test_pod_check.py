@@ -44,11 +44,11 @@ class DesignOverrides(unittest.TestCase):
     def test_a_research_job_can_set_garmentcode_parameters(self):
         import patterns_job
         rows = {r["name"]: r["levels"] for r in json.load(open(BODIES / "bodies.json"))}
-        D = patterns_job.drafter_class()("M", {"template": "jacket", "length": "hip", "design": {"sleeve.end_width": 1.0}},
+        D = patterns_job.drafter_class()("M", {"template": "jacket", "length": "hip", "design": {"sleeve.end_width": 0.75}},
                                          BODIES, "zara_M", rows)
-        self.assertEqual(D.design["sleeve"]["end_width"]["v"], 1.0)
+        self.assertEqual(D.design["sleeve"]["end_width"]["v"], 0.75)
         plain = patterns_job.drafter_class()("M", {"template": "jacket", "length": "hip"}, BODIES, "zara_M", rows)
-        self.assertEqual(plain.design["sleeve"]["end_width"]["v"], 0.75)
+        self.assertEqual(plain.design["sleeve"]["end_width"]["v"], 1.0)      # the template's wide cuff
 
 
 if __name__ == "__main__":

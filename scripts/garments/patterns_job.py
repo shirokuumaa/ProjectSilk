@@ -88,7 +88,7 @@ def drafter_class():
             knobs = {k: silhouette[k] for k in ("sleeve", "length") if silhouette.get(k)}
             self.design = design(GC, self.template, **knobs)
             # research jobs only (the server's silhouettes never carry it): GarmentCode parameters to try,
-            # e.g. {"sleeve.end_width": 1.0} — research/patterns/demo/sleeve_test_*.json
+            # e.g. {"sleeve.end_width": 1.0} — research/patterns/demo/sleeve_test_*.json (now the template's own)
             for k, v in (silhouette.get("design") or {}).items():
                 self.set(("design", k), v)
             self.ease = {"bust": 1.0, "waist": 1.0, "hips": 1.0}

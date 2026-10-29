@@ -24,7 +24,10 @@ import yaml
 
 # lapels of the closed jacket / coat: a deep V (fc_depth of the neck depth, 0.3-2) with SimpleLapel along it
 LAPELS = {"collar.fc_depth": 1.6, "collar.component.style": "SimpleLapel", "collar.component.depth": 7,
-          "collar.component.lapel_standing": False, "sleeve.end_width": 0.75}   # + a sleeve narrowing to the cuff
+          "collar.component.lapel_standing": False, "sleeve.end_width": 1.0}
+# the cuff as wide as the sleeve: with 0.75 (narrowing to the cuff) the XS-M sleeves turned off the arm in the first
+# 20 frames and hung off the forearm (59-71 % of the arm covered; 1.0: 85-99 %, L-XXL unchanged 96-98 %),
+# README «Короткий сеанс: пояса и манжет»
 
 TEMPLATES = {
     # dresses
