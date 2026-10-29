@@ -19,6 +19,7 @@ import ProductDetailsField, {
 import StockField from "../components/StockField";
 import SellerOrders from "../components/SellerOrders";
 import SellerLanding from "../components/SellerLanding";
+import SellerOverview from "../components/SellerOverview";
 import { CURRENCIES, currencySymbol, formatPrice } from "../utils/money";
 import { imageColor } from "../utils/garmentColor";
 import { silhouetteFits } from "../utils/silhouettes";
@@ -182,6 +183,7 @@ function SellerDashboard() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [listKey, setListKey] = useState(0); // смена — перечитать «My products»
+  const [myItems, setMyItems] = useState(null); // товары продавца — для сводки вверху
 
   // статус AI
   const [aiOnline, setAiOnline] = useState(null); // null | true | false
@@ -474,7 +476,8 @@ function SellerDashboard() {
 
   return (
     <div style={ui.page}>
-      <h2 style={{ ...ui.h2, marginBottom: 4 }}>👕 Add a product</h2>
+      <SellerOverview products={myItems} />
+      <h2 style={{ ...ui.h2, marginBottom: 4 }}>Add a product</h2>
 
       {/* индикатор AI */}
       <div style={{ margin: "8px 0 16px", fontSize: 13 }}>
@@ -621,7 +624,7 @@ function SellerDashboard() {
 
       {/* заказы — выше товаров: их надо обработать */}
       <SellerOrders />
-      <MyProducts reloadKey={listKey} />
+      <MyProducts reloadKey={listKey} onItems={setMyItems} />
     </div>
   );
 }
@@ -631,8 +634,10 @@ function SellerDashboard() {
 // пока у товара строятся выкройки, список перечитывается — статус меняется в фоне
 export const PATTERN_POLL_MS = 5000;
 
-function MyProducts({ reloadKey }) {
+function MyProducts({ reloadKey, onItems }) {
   const [items, setItems] = useState(null); // null — ещё грузим
+  // сводка вверху кабинета считает по этому же списку — без второго запроса
+  useEffect(() => { if (items) onItems?.(items); }, [items, onItems]);
   const [error, setError] = useState("");
   const [deletingId, setDeletingId] = useState(null);
   const [editingId, setEditingId] = useState(null);
