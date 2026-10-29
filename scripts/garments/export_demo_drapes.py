@@ -14,7 +14,8 @@
 #   research/patterns/.envs/mac/bin/python scripts/garments/export_demo_drapes.py            # S и L (Newton, 18.10)
 #   … export_demo_drapes.py --run allsizes   # все размеры: GLB из simtest_report.py --no-render
 #        по runs/allsizes/newton (renders/), болванки runs/allsizes/bodies
-#   … export_demo_drapes.py --run arms --jobs trousers:arms_trousers,jacket:arms_jacket:L,coat:arms_coat:L
+#   … export_demo_drapes.py --run arms --jobs trousers:arms_trousers,jacket:cuff_jacket,coat:cuff_coat
+#        (брюки — с привязкой пояса 20 Н/м, жакет и пальто — с широким манжетом; README «Короткий сеанс»)
 #        + товары конвейера продавца (scripts/garments/patterns_job.py): GLB из runs/<job>/report/renders,
 #        болванки runs/<job>/bodies/product_<размер>, фигура размера — из runs/<job>/result.json
 
@@ -74,7 +75,7 @@ def z_offsets():
 
 def job_items(spec):
     """Товары конвейера продавца: "id:run[:размер картинки],…" → {id: {"run", "image", "sizes": [(size, figure, dz)]}}.
-    Размер картинки — S, если не указан (у жакета и пальто — L: в XS–M длинный рукав пока висит мимо руки). Фигура размера —
+    Размер картинки — S, если не указан. Фигура размера —
     из result.json; морфы — тем же подбором, что строил болванку (mpfb_body.MPFB.solve), сдвиг — от неё."""
     mp = MPFB()
     out = {}

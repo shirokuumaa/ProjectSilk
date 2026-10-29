@@ -28,8 +28,10 @@ INPUTS="$R/inputs" BOXES="$R/boxes" OUT="$R/newton" MU=0.2 ONLY="$OTHERS" bash p
 INPUTS="$R/inputs" BOXES="$R/boxes" OUT="$R/newton" MU=0.5 ONLY="$SKIRTS" bash pod/newton_test.sh
 tar czf "$R/newton_results.tar.gz" -C "$R" newton
 
-# trousers (0.5: the waistband holds them), jacket and coat (0.2: they hang from the shoulders); the cases from
-# each job's result (bodies product_<size>)
+# trousers (0.5: the waistband holds them; waist attachment 20 N/m and 60 frames after the release — with 0.5 N/m
+# the seams pulled the waistband 5 cm low, README «Короткий сеанс»), jacket and coat (0.2: they hang from the
+# shoulders; inputs built with the wide-cuff template since 29.10, runs/cuff_<item> there); the cases from each
+# job's result (bodies product_<size>)
 for ITEM in trousers:0.5 jacket:0.2 coat:0.2; do
   T="$P/runs/arms_${ITEM%%:*}"
   if [ ! -f "$T/result.json" ]; then echo "skip $T: no result.json"; continue; fi
@@ -41,7 +43,8 @@ sizes = json.load(open(t / "result.json"))["sizes"]
 json.dump([{"case": s["case"], "bodies": "mpfb", "body": f"product_{s['size']}"} for s in sizes],
           open(t / "cases.json", "w"), indent=1)
 EOF
-  INPUTS="$T" BOXES="$T/boxes" OUT="$T/newton" MU="${ITEM##*:}" bash pod/newton_test.sh
+  K=""; S=""; [ "${ITEM%%:*}" = trousers ] && K=20 && S=60
+  INPUTS="$T" BOXES="$T/boxes" OUT="$T/newton" MU="${ITEM##*:}" ATTACH_KE="$K" SETTLE="$S" bash pod/newton_test.sh
   tar czf "$T/newton_results.tar.gz" -C "$T" newton
 done
 echo "== all done in $(( ($(date +%s) - START) / 60 )) min"

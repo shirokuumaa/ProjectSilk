@@ -1,5 +1,5 @@
 {
- "source": "Newton 1.7 (SolverStyle3D) on our MPFB base avatar, every size on its own size body; skirts and trousers friction 0.5, others 0.2; research/patterns/runs/arms, runs/arms_trousers, runs/arms_jacket, runs/arms_coat",
+ "source": "Newton 1.7 (SolverStyle3D) on our MPFB base avatar, every size on its own size body; skirts and trousers friction 0.5, others 0.2; research/patterns/runs/arms, runs/arms_trousers, runs/cuff_jacket, runs/cuff_coat",
  "items": {
   "dress": {
    "case": "03_dress",
@@ -259,7 +259,7 @@
   "trousers": {
    "case": "arms_trousers/size",
    "image": "/models/demo-garments/trousers.jpg",
-   "imageMb": 0.025,
+   "imageMb": 0.026,
    "models": [
     {
      "size": "XS",
@@ -342,15 +342,15 @@
    ]
   },
   "jacket": {
-   "case": "arms_jacket/size",
+   "case": "cuff_jacket/size",
    "image": "/models/demo-garments/jacket.jpg",
    "imageMb": 0.024,
    "models": [
     {
      "size": "XS",
      "file": "/models/demo-garments/jacket_XS.glb",
-     "mb": 0.437,
-     "triangles": 23998,
+     "mb": 0.453,
+     "triangles": 24882,
      "zOffsetM": 0.04231,
      "body": {
       "heightCm": 166.0,
@@ -362,8 +362,8 @@
     {
      "size": "S",
      "file": "/models/demo-garments/jacket_S.glb",
-     "mb": 0.458,
-     "triangles": 25200,
+     "mb": 0.478,
+     "triangles": 26278,
      "zOffsetM": 0.04443,
      "body": {
       "heightCm": 166.0,
@@ -375,8 +375,8 @@
     {
      "size": "M",
      "file": "/models/demo-garments/jacket_M.glb",
-     "mb": 0.481,
-     "triangles": 26466,
+     "mb": 0.504,
+     "triangles": 27730,
      "zOffsetM": 0.04601,
      "body": {
       "heightCm": 166.0,
@@ -388,8 +388,8 @@
     {
      "size": "L",
      "file": "/models/demo-garments/jacket_L.glb",
-     "mb": 0.516,
-     "triangles": 28396,
+     "mb": 0.536,
+     "triangles": 29496,
      "zOffsetM": 0.04922,
      "body": {
       "heightCm": 166.0,
@@ -401,8 +401,8 @@
     {
      "size": "XL",
      "file": "/models/demo-garments/jacket_XL.glb",
-     "mb": 0.553,
-     "triangles": 30408,
+     "mb": 0.576,
+     "triangles": 31688,
      "zOffsetM": 0.04942,
      "body": {
       "heightCm": 166.0,
@@ -414,8 +414,8 @@
     {
      "size": "XXL",
      "file": "/models/demo-garments/jacket_XXL.glb",
-     "mb": 0.576,
-     "triangles": 31692,
+     "mb": 0.6,
+     "triangles": 33044,
      "zOffsetM": 0.0482,
      "body": {
       "heightCm": 166.0,
@@ -427,15 +427,15 @@
    ]
   },
   "coat": {
-   "case": "arms_coat/size",
+   "case": "cuff_coat/size",
    "image": "/models/demo-garments/coat.jpg",
    "imageMb": 0.025,
    "models": [
     {
      "size": "XS",
      "file": "/models/demo-garments/coat_XS.glb",
-     "mb": 0.572,
-     "triangles": 31530,
+     "mb": 0.597,
+     "triangles": 32928,
      "zOffsetM": 0.04231,
      "body": {
       "heightCm": 166.0,
@@ -447,8 +447,8 @@
     {
      "size": "S",
      "file": "/models/demo-garments/coat_S.glb",
-     "mb": 0.604,
-     "triangles": 33286,
+     "mb": 0.623,
+     "triangles": 34362,
      "zOffsetM": 0.04443,
      "body": {
       "heightCm": 166.0,
@@ -460,8 +460,8 @@
     {
      "size": "M",
      "file": "/models/demo-garments/coat_M.glb",
-     "mb": 0.64,
-     "triangles": 35286,
+     "mb": 0.66,
+     "triangles": 36416,
      "zOffsetM": 0.04601,
      "body": {
       "heightCm": 166.0,
@@ -473,8 +473,8 @@
     {
      "size": "L",
      "file": "/models/demo-garments/coat_L.glb",
-     "mb": 0.703,
-     "triangles": 38792,
+     "mb": 0.724,
+     "triangles": 39938,
      "zOffsetM": 0.04922,
      "body": {
       "heightCm": 166.0,
@@ -486,8 +486,8 @@
     {
      "size": "XL",
      "file": "/models/demo-garments/coat_XL.glb",
-     "mb": 0.743,
-     "triangles": 40974,
+     "mb": 0.769,
+     "triangles": 42392,
      "zOffsetM": 0.04942,
      "body": {
       "heightCm": 166.0,
@@ -499,8 +499,8 @@
     {
      "size": "XXL",
      "file": "/models/demo-garments/coat_XXL.glb",
-     "mb": 0.781,
-     "triangles": 43086,
+     "mb": 0.808,
+     "triangles": 44584,
      "zOffsetM": 0.0482,
      "body": {
       "heightCm": 166.0,
