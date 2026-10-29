@@ -1,6 +1,6 @@
 // Недоделанное спрятано (docs/PRODUCT_REVIEW.md, задача 2): ассистент, поиск по картинке,
 // меню-заглушка категорий, панель разработчика в AR. Код оставлен, включается флагами.
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import TopBar from './components/TopBar';
 import RightDock from './components/RightDock';
@@ -17,7 +17,7 @@ const FLAGS = ['REACT_APP_ASSISTANT', 'REACT_APP_IMAGE_SEARCH', 'REACT_APP_CATEG
 const ENV = { ...process.env };
 beforeEach(() => {
   FLAGS.forEach((f) => delete process.env[f]);
-  navigator.mediaDevices = { getUserMedia: () => new Promise(() => {}) };
+  navigator.mediaDevices = { getUserMedia: jest.fn(() => new Promise(() => {})) };
   jest.spyOn(HTMLCanvasElement.prototype, 'getContext').mockReturnValue(null);
 });
 afterEach(() => {
@@ -79,4 +79,13 @@ describe('AR page', () => {
     expect(arDevToolsEnabled('?debug')).toBe(true);
     expect(arDevToolsEnabled('?sku=1&debug=1')).toBe(true);
   });
+});
+
+test('AR asks for the camera only after "Turn on camera", and says the video stays on the computer', () => {
+  render(<MemoryRouter><TryOnAR /></MemoryRouter>);
+  expect(screen.getByText(/The video stays on this computer/)).toBeInTheDocument();
+  expect(navigator.mediaDevices.getUserMedia).not.toHaveBeenCalled();
+  fireEvent.click(screen.getByRole('button', { name: 'Turn on camera' }));
+  expect(navigator.mediaDevices.getUserMedia).toHaveBeenCalledTimes(1);
+  expect(screen.queryByRole('button', { name: 'Turn on camera' })).not.toBeInTheDocument();
 });

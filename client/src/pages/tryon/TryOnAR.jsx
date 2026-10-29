@@ -328,8 +328,10 @@ export default function TryOnAr() {
     r.readAsDataURL(f);
   };
 
-  // ── camera ──
+  // ── camera: только после «Turn on camera» — сначала покупатель видит, зачем она и куда идёт видео ──
+  const [cameraOn, setCameraOn] = useState(false);
   useEffect(() => {
+    if (!cameraOn) return undefined;
     let stop = false;
     let localVideo = null;
     (async () => {
@@ -359,7 +361,7 @@ export default function TryOnAr() {
         localVideo.srcObject = null;
       }
     };
-  }, [pushToast]);
+  }, [pushToast, cameraOn]);
 
   // ── pose landmarker (on device) ──
   useEffect(() => {
@@ -1096,6 +1098,19 @@ export default function TryOnAr() {
             borderRadius: 999, fontSize: 12, zIndex: 10, maxWidth: '80%', textAlign: 'center',
           }}>
             {toast}
+          </div>
+        )}
+
+        {!cameraOn && (
+          <div style={{ position: 'absolute', inset: 0, zIndex: 6, display: 'grid', placeItems: 'center', background: 'var(--ink)' }}>
+            <div className="ui-card" style={{ maxWidth: 440, padding: 'var(--sp-6)', display: 'grid', gap: 'var(--sp-3)', textAlign: 'center' }}>
+              <h2 style={{ margin: 0 }}>Try it on with your camera</h2>
+              <p style={{ margin: 0, color: 'var(--muted)', lineHeight: 1.55 }}>
+                Your webcam shows the item on you in real time. The video stays on this computer
+                and is not sent anywhere.
+              </p>
+              <button className="ui-btn ui-btn--primary ui-btn--lg" onClick={() => setCameraOn(true)}>Turn on camera</button>
+            </div>
           </div>
         )}
 
