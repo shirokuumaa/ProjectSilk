@@ -21,6 +21,7 @@ import styles from './ProductCardTall.module.css';
 import SizeAdvisor from './SizeAdvisor';
 import { addToWardrobe as addWardrobeHelper } from '../utils/wardrobeStorage';
 import { sizeChartOf } from '../utils/fitCalculator';
+import { cartSizeFor } from '../utils/cart';
 
 const API_BASE = process.env.REACT_APP_API || 'http://localhost:5050';
 const toPublicUrl = (s = '') => (String(s).startsWith('/uploads') ? `${API_BASE}${s}` : s);
@@ -89,12 +90,15 @@ export default function ProductCardTall({ product, addToCart, onAvatar }) {
   const handleAdd = (e) => {
     e.stopPropagation();
     if (typeof addToCart === 'function') {
-      addToCart({
+      // размер — рекомендованный по обмерам покупателя (без обмеров — без размера)
+      const ok = addToCart({
         id: sku, _id: sku,
         name: name || title || 'Item',
         price: price || 0,
         image: slides[0], category, quantity: 1,
+        size: cartSizeFor(product),
       });
+      if (ok === false) return;
       setAdded(true);
       setTimeout(() => setAdded(false), 900);
     } else {

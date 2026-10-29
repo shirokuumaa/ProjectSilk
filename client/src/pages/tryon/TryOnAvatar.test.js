@@ -148,3 +148,40 @@ describe('a printed product', () => {
     expect(textures).not.toHaveBeenCalled();
   });
 });
+
+describe('"Try on" from a product card: /tryon/avatar?sku=<id>', () => {
+  const TEE = { _id: 'tee', title: 'Basic Tee', garmentType: 'top', model3d: '/uploads/models/tee.glb', sizeChart: [] };
+
+  function openAt(path, catalog) {
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 200, json: async () => catalog });
+    render(<MemoryRouter initialEntries={[path]}><TryOnAvatar /></MemoryRouter>);
+  }
+  const savedIds = () => JSON.parse(localStorage.getItem('wardrobeItems') || '[]').map((x) => x.id);
+
+  test('the product goes into the wardrobe and onto the figure at once', async () => {
+    openAt('/tryon/avatar?sku=tee', [TEE]);
+    await waitFor(() => expect(loaded).toEqual(['http://localhost:5050/uploads/models/tee.glb']));
+    expect(savedIds()).toEqual(['tee']);
+    expect(screen.getAllByRole('button', { name: 'Take off' }).length).toBeGreaterThan(0);
+  });
+
+  test('an item already in the wardrobe is not added twice', async () => {
+    localStorage.setItem('wardrobeItems', JSON.stringify([{ id: 'tee', name: 'Basic Tee', image: '' }]));
+    openAt('/tryon/avatar?sku=tee', [TEE]);
+    await waitFor(() => expect(loaded).toHaveLength(1));
+    expect(savedIds()).toEqual(['tee']);
+  });
+
+  test('a coat with no 3D model is not worn invisibly: its explanation is shown', async () => {
+    openAt('/tryon/avatar?sku=coat', [{ _id: 'coat', title: 'Wool Coat', garmentType: 'outerwear', sizeChart: [] }]);
+    expect(await screen.findByText(/Wool Coat has no 3D model yet/)).toBeInTheDocument();
+    expect(loaded).toEqual([]);
+  });
+
+  test('an unknown sku puts nothing on and adds nothing', async () => {
+    openAt('/tryon/avatar?sku=nope', [TEE]);
+    expect(await screen.findByText('Your wardrobe is empty')).toBeInTheDocument();
+    expect(savedIds()).toEqual([]);
+    expect(loaded).toEqual([]);
+  });
+});

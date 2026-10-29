@@ -32,7 +32,7 @@ import React, {
   useRef,
   useState,
 } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Canvas } from '@react-three/fiber';
 import { OrbitControls } from '@react-three/drei';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
@@ -45,7 +45,7 @@ import { useAvatarBody } from '../../utils/avatarBody';
 import { seatGarment } from '../../utils/garmentPlacement';
 import { loadBodyProfile, isProfileComplete } from '../../utils/bodyProfileApi';
 import { findBestSize, getStressMap, sizeChartOf } from '../../utils/fitCalculator';
-import { getWardrobe, pruneWardrobe, WARDROBE_EVENT } from '../../utils/wardrobeStorage';
+import { addToWardrobe, getWardrobe, pruneWardrobe, WARDROBE_EVENT } from '../../utils/wardrobeStorage';
 import { brokenModelNote, garmentTypeOf, offFigureReason, templateFor } from '../../utils/garmentTemplates';
 import { tintGarment } from '../../utils/garmentColor';
 import { printGarment } from '../../utils/fabricPrint';
@@ -206,6 +206,9 @@ function Garment({
 
 export default function TryOnAvatar() {
   const nav = useNavigate();
+  // «Try on» с карточки или страницы товара: /tryon/avatar?sku=<id> — эту вещь надеть сразу
+  const [searchParams] = useSearchParams();
+  const pendingSku = useRef(searchParams.get('sku') || null);
 
   const [profile, setProfile] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(true);
@@ -242,7 +245,13 @@ export default function TryOnAvatar() {
       .then((list) => {
         if (!alive || !Array.isArray(list)) return;
         setCatalog(list);
-        setWardrobe(pruneWardrobe(list)); // удалённые продавцом товары — из гардероба
+        pruneWardrobe(list); // удалённые продавцом товары — из гардероба
+        // вещь из ?sku= — в гардероб (если её там нет); нет такого товара — ничего не надеваем
+        const sku = pendingSku.current;
+        const product = sku && list.find((p) => String(p._id || p.id) === sku);
+        if (product) addToWardrobe({ ...product, id: sku, image: toPublicUrl(product.image) });
+        else pendingSku.current = null;
+        setWardrobe(getWardrobe());
       })
       .catch(() => {});
     return () => { alive = false; };
@@ -306,6 +315,18 @@ export default function TryOnAvatar() {
   );
 
   const active = byId(activeId) || worn[0]?.item || null;
+
+  // вещь из ?sku= — надеть, как только пришёл каталог (до него тип вещи неизвестен)
+  useEffect(() => {
+    const sku = pendingSku.current;
+    if (!sku || !catalog.length) return;
+    const item = items.find((i) => String(i.id) === sku);
+    if (!item) return;
+    pendingSku.current = null;
+    setActiveId(item.id);
+    // вещь, которую не показать на фигуре, не надевается — в панели её размер и пояснение
+    if (!offFigureReason(item)) setSlots((prev) => applySlot(prev, item.garmentType, item.id));
+  }, [items, catalog]);
 
   // ── вердикт по размеру ──
   const fitResult = useMemo(() => {

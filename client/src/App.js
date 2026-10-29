@@ -27,6 +27,7 @@ import AssistantLayer from './components/AssistantLayer';
 import SiteFooter from './components/SiteFooter';
 import AccountSync from './components/AccountSync';
 import { AUTH_EVENT, isLoggedIn } from './utils/auth';
+import { addCartLines, removeCartLine } from './utils/cart';
 
 // служебные страницы — только в режиме разработки (DevOnly), код грузится лениво
 const Metrics = lazy(() => import('./pages/Metrics'));
@@ -57,36 +58,18 @@ function App() {
     return () => window.removeEventListener(AUTH_EVENT, reload);
   }, []);
 
-  const handleAddToCart = (product) => {
+  // товар или несколько (весь образ из гардероба); строка корзины — товар в одном размере
+  const handleAddToCart = (products) => {
     if (!isLoggedIn()) {
       alert('Please log in to add items to the cart.');
-      return;
+      return false;
     }
-
-    setCartItems((prev) => {
-      const existing = prev.find((item) => item.id === product.id);
-      if (existing) {
-        return prev.map((item) =>
-          item.id === product.id
-            ? { ...item, quantity: item.quantity + 1 }
-            : item
-        );
-      } else {
-        return [...prev, { ...product, quantity: 1 }];
-      }
-    });
+    setCartItems((prev) => addCartLines(prev, products));
+    return true;
   };
 
-  const handleRemoveFromCart = (id) => {
-    setCartItems((prev) =>
-      prev
-        .map((item) =>
-          item.id === id
-            ? { ...item, quantity: item.quantity - 1 }
-            : item
-        )
-        .filter((item) => item.quantity > 0)
-    );
+  const handleRemoveFromCart = (key) => {
+    setCartItems((prev) => removeCartLine(prev, key));
   };
 
   return (
@@ -124,7 +107,7 @@ function App() {
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
         <Route path="/favorites" element={<FavoritesPage />} />
-        <Route path="/wardrobe" element={<WardrobePage />} />
+        <Route path="/wardrobe" element={<WardrobePage addToCart={handleAddToCart} />} />
         <Route path="/tryon/photo" element={<TryOnPhoto />} />
         <Route path="/tryon/ar" element={<TryOnAR />} />
         <Route path="/tryon/avatar" element={<TryOnAvatar />} />

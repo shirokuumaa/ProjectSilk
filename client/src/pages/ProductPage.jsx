@@ -9,6 +9,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import SizeAdvisor from '../components/SizeAdvisor';
 import { addToWardrobe } from '../utils/wardrobeStorage';
+import { cartSizeFor } from '../utils/cart';
 import styles from './ProductPage.module.css';
 
 const API_BASE = process.env.REACT_APP_API || 'http://localhost:5050';
@@ -31,6 +32,7 @@ export default function ProductPage({ addToCart }) {
   const [product, setProduct] = useState(null);
   const [state, setState] = useState('loading'); // loading | ready | missing | error
   const [notice, setNotice] = useState('');
+  const [chosenSize, setChosenSize] = useState(null);   // размер, выбранный в разборе посадки
 
   useEffect(() => {
     let alive = true;
@@ -92,11 +94,13 @@ export default function ProductPage({ addToCart }) {
 
   const handleCart = () => {
     if (typeof addToCart !== 'function') return nav('/cart');
-    addToCart({
+    // выбранный размер, иначе рекомендованный по обмерам
+    const size = cartSizeFor(product, chosenSize);
+    const ok = addToCart({
       id: sku, _id: sku, name: displayName, price: product.price || 0,
-      image, category: product.category, quantity: 1,
+      image, category: product.category, quantity: 1, size,
     });
-    flash('Added to cart');
+    if (ok !== false) flash(size ? `Added to cart · size ${size}` : 'Added to cart');
   };
 
   return (
@@ -114,7 +118,7 @@ export default function ProductPage({ addToCart }) {
             {Number(product.price || 0).toLocaleString('en-US')} <span className={styles.priceUnit}>₸</span>
           </div>
 
-          <SizeAdvisor product={product} mode="full" />
+          <SizeAdvisor product={product} mode="full" onSizeChange={setChosenSize} />
 
           {chart.length > 0 && columns.length > 0 && (
             <div className={styles.chartBox}>

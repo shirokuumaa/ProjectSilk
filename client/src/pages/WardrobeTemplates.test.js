@@ -128,3 +128,29 @@ test('a printed product goes on the figure with its print tile and repeat', asyn
   await waitFor(() => expect(screen.getByTestId('worn'))
     .toHaveTextContent('|print http://localhost:5050/uploads/images/check.jpg 4'));
 });
+
+test('"Add to cart" puts the worn items into the cart in the size they are worn in', async () => {
+  const addToCart = jest.fn().mockReturnValue(true);
+  render(<MemoryRouter><WardrobePage addToCart={addToCart} /></MemoryRouter>);
+  const [wearSkirt] = await screen.findAllByRole('button', { name: 'Wear' });
+  fireEvent.click(wearSkirt);
+  await waitFor(() => expect(screen.getByTestId('worn')).toHaveTextContent('skirt.glb'));
+
+  fireEvent.click(screen.getByRole('button', { name: /^Add to cart/ }));
+  const size = findBestSize(PROFILE, sizeChartOf(CATALOG[0])).recommended.size;
+  expect(addToCart).toHaveBeenCalledWith([
+    expect.objectContaining({ id: 'skirt', name: 'Pleated Skirt', size }),
+  ]);
+});
+
+test('"Add to cart" takes the size the buyer picked for the item', async () => {
+  const addToCart = jest.fn().mockReturnValue(true);
+  render(<MemoryRouter><WardrobePage addToCart={addToCart} /></MemoryRouter>);
+  const [wearSkirt] = await screen.findAllByRole('button', { name: 'Wear' });
+  fireEvent.click(wearSkirt);
+  fireEvent.click(await screen.findByRole('button', { name: 'L' }));
+  await waitFor(() => expect(screen.getByTestId('worn')).toHaveTextContent('skirt.glb|L'));
+
+  fireEvent.click(screen.getByRole('button', { name: /^Add to cart/ }));
+  expect(addToCart).toHaveBeenCalledWith([expect.objectContaining({ id: 'skirt', size: 'L' })]);
+});

@@ -45,7 +45,7 @@ const toPublicUrl = (s = '') => (String(s || '').startsWith('/uploads') ? `${API
 const LABELS = { chest: 'Bust', waist: 'Waist', hips: 'Hips' };
 const LAYER_NAME = { 1: 'base layer', 2: 'mid layer', 3: 'outer layer' };
 
-export default function WardrobePage() {
+export default function WardrobePage({ addToCart }) {
   const navigate = useNavigate();
 
   const [mode, setMode] = useState('avatar');       // avatar | photo
@@ -617,7 +617,21 @@ export default function WardrobePage() {
           </button>
           <button
             className={`${styles.gbtn} ${styles.dark}`}
-            onClick={() => navigate('/cart')}
+            onClick={() => {
+              // в корзину — каждая вещь с фигуры в том размере, в котором надета
+              const lines = garments.map((g) => {
+                const item = view.find((i) => i.id === g.id) || {};
+                return {
+                  id: g.id, _id: g.id,
+                  name: g.name || item.name || 'Item',
+                  price: Number(g.price ?? item.price ?? 0),
+                  image: item.image || '', category: item.category,
+                  size: g.size?.size || null,
+                };
+              });
+              if (typeof addToCart === 'function' && addToCart(lines) === false) return;
+              navigate('/cart');
+            }}
             disabled={!worn.length}
           >
             Add to cart{wornPrice ? ` · ${wornPrice.toLocaleString('en-US')} ₸` : ''}

@@ -1,5 +1,5 @@
 // Страница товара /product/:id: загрузка, «not found», разбор размера с обмерами и без.
-import { render, screen } from '@testing-library/react';
+import { fireEvent, render, screen } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import ProductPage from './ProductPage';
 import { loadBodyProfile } from '../utils/bodyProfileApi';
@@ -25,11 +25,11 @@ function respond(status, body) {
   global.fetch = jest.fn().mockResolvedValue({ ok: status < 400, status, json: async () => body });
 }
 
-function renderAt(path = '/product/p1') {
+function renderAt(path = '/product/p1', addToCart = jest.fn()) {
   return render(
     <MemoryRouter initialEntries={[path]}>
       <Routes>
-        <Route path="/product/:id" element={<ProductPage addToCart={jest.fn()} />} />
+        <Route path="/product/:id" element={<ProductPage addToCart={addToCart} />} />
       </Routes>
     </MemoryRouter>,
   );
@@ -111,4 +111,33 @@ test('without stretch the same dress will not close', async () => {
   renderAt();
   expect(await screen.findByText(/No size will really work/)).toBeInTheDocument();
   expect(screen.queryByText(/Stretchy fabric/)).not.toBeInTheDocument();
+});
+
+describe('the size goes into the cart', () => {
+  const BODY = { heightCm: 166, chest: 90, waist: 70, hips: 96 };
+  beforeEach(() => {
+    localStorage.clear();
+    localStorage.setItem('bodyProfile', JSON.stringify(BODY));   // кэш обмеров, как после входа
+    loadBodyProfile.mockResolvedValue(BODY);
+  });
+
+  test('the recommended size when the buyer picked none', async () => {
+    respond(200, PRODUCT);
+    const addToCart = jest.fn().mockReturnValue(true);
+    renderAt('/product/p1', addToCart);
+    await screen.findByText('Your size is S');
+    fireEvent.click(screen.getByRole('button', { name: 'Add to cart' }));
+    expect(addToCart).toHaveBeenCalledWith(expect.objectContaining({ id: 'p1', size: 'S' }));
+    expect(screen.getByText('Added to cart · size S')).toBeInTheDocument();
+  });
+
+  test('the size the buyer picked', async () => {
+    respond(200, PRODUCT);
+    const addToCart = jest.fn().mockReturnValue(true);
+    renderAt('/product/p1', addToCart);
+    await screen.findByText('Your size is S');
+    fireEvent.click(screen.getByRole('button', { name: /^M/ }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add to cart' }));
+    expect(addToCart).toHaveBeenCalledWith(expect.objectContaining({ size: 'M' }));
+  });
 });

@@ -1,4 +1,5 @@
 import React from 'react';
+import { cartLineKey } from '../utils/cart';
 
 export default function CartPage({ cartItems, onRemove }) {
   return (
@@ -9,12 +10,13 @@ export default function CartPage({ cartItems, onRemove }) {
       ) : (
         <>
           <ul style={{ listStyle: "none", padding: 0 }}>
-            {cartItems.map((item, index) => (
-              <li key={index} style={{ marginBottom: "10px" }}>
-                {item.name} — {item.price} ₸
+            {cartItems.map((item) => (
+              <li key={cartLineKey(item)} style={{ marginBottom: "10px" }}>
+                {item.name}{item.size ? ` · size ${item.size}` : ''}
+                {item.quantity > 1 ? ` × ${item.quantity}` : ''} — {item.price} ₸
                 <button
                   style={{ marginLeft: "10px", background: "#ff88aa", color: "white", border: "none", padding: "5px 10px", borderRadius: "5px" }}
-                  onClick={() => onRemove(item.id)}
+                  onClick={() => onRemove(cartLineKey(item))}
                 >
                   Remove
                 </button>
