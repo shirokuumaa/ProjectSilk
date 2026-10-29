@@ -1,0 +1,37 @@
+/* client/src/components/SizePicker.module.css — выбор размера; цвета из tokens.css */
+
+.box { margin: 12px 0; }
+.header { font-weight: 600; font-size: var(--fs-md); margin-bottom: 8px; color: var(--ink); }
+.chosen { font-weight: 400; color: var(--muted); }
+
+.row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.size {
+  min-width: 52px;
+  padding: 8px 12px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--ink);
+  font-family: var(--font-mono);
+  font-size: var(--fs-base);
+  cursor: pointer;
+  display: grid;
+  justify-items: center;
+  gap: 2px;
+  position: relative;
+}
+.size:hover:not(:disabled) { border-color: var(--line-strong); }
+.on { background: var(--ink); color: var(--surface); border-color: var(--ink); }
+
+.out {
+  color: var(--muted-2);
+  background: var(--surface-2);
+  border-style: dashed;
+  cursor: not-allowed;
+  text-decoration: line-through;
+}
+
+.rec { position: absolute; top: 2px; right: 5px; font-size: 7px; color: var(--fit-good); }
+.sub { font-family: var(--font-ui); font-size: 10px; text-decoration: none; color: var(--muted); }
+.on .sub { color: var(--surface); }

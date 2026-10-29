@@ -1,15 +1,20 @@
 // client/src/pages/ProductPage.jsx
 //
-// Страница товара /product/:id: фото, название, цена, размерная сетка продавца
-// и полный разбор размера (SizeAdvisor, mode="full"). Без обмеров покупателя
-// SizeAdvisor сам показывает кнопку «Add your measurements» вместо разбора.
+// Страница товара /product/:id: галерея фото и примерка на аватаре прямо на странице,
+// название, цена, выбор размера (рекомендованный выбран заранее, нет в наличии — серым),
+// разбор размера (SizeAdvisor, mode="full"), описание, состав, уход, страна,
+// размерная сетка продавца. В корзину — выбранный размер.
 // Весь текст интерфейса — на английском, цвета — из styles/tokens.css.
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
 import SizeAdvisor from '../components/SizeAdvisor';
+import SizePicker from '../components/SizePicker';
+import ProductTryOn from '../components/ProductTryOn';
 import { addToWardrobe } from '../utils/wardrobeStorage';
-import { cartSizeFor } from '../utils/cart';
+import { loadBodyProfile, isProfileComplete } from '../utils/bodyProfileApi';
+import { findBestSize, sizeChartOf } from '../utils/fitCalculator';
+import { garmentTypeOf, offFigureReason } from '../utils/garmentTemplates';
 import styles from './ProductPage.module.css';
 
 const API_BASE = process.env.REACT_APP_API || 'http://localhost:5050';
@@ -26,17 +31,27 @@ const CHART_FIELDS = [
 ];
 const FIT_LABELS = { tight: 'Fitted', regular: 'Regular', loose: 'Loose / oversized' };
 
+/** Нет в наличии: продавец указал остаток 0. Остаток не указан — размер есть. */
+const soldOut = (row) => row?.stock === 0;
+
 export default function ProductPage({ addToCart }) {
   const { id } = useParams();
   const nav = useNavigate();
   const [product, setProduct] = useState(null);
   const [state, setState] = useState('loading'); // loading | ready | missing | error
   const [notice, setNotice] = useState('');
-  const [chosenSize, setChosenSize] = useState(null);   // размер, выбранный в разборе посадки
+  const [error, setError] = useState('');
+  const [profile, setProfile] = useState(null);
+  const [picked, setPicked] = useState(null);   // размер, выбранный покупателем
+  const [view, setView] = useState('photos');   // photos | avatar
+  const [photo, setPhoto] = useState(0);
 
   useEffect(() => {
     let alive = true;
     setState('loading');
+    setPicked(null);
+    setPhoto(0);
+    setView('photos');
     (async () => {
       try {
         const r = await fetch(`${API_BASE}/api/products/${encodeURIComponent(id)}`);
@@ -52,11 +67,26 @@ export default function ProductPage({ addToCart }) {
     return () => { alive = false; };
   }, [id]);
 
+  useEffect(() => {
+    let alive = true;
+    Promise.resolve(loadBodyProfile()).then((p) => { if (alive) setProfile(p); }).catch(() => {});
+    return () => { alive = false; };
+  }, []);
+
   const chart = useMemo(() => product?.sizeChart || [], [product]);
   const columns = useMemo(
     () => CHART_FIELDS.filter(([key]) => chart.some((row) => Number(row[key]) > 0)),
     [chart],
   );
+
+  // рекомендованный по обмерам — выбран заранее, если он в наличии
+  const recommended = useMemo(() => {
+    if (!product || !isProfileComplete(profile)) return null;
+    const rows = sizeChartOf(product);
+    return rows.length ? findBestSize(profile, rows).recommended?.size || null : null;
+  }, [product, profile]);
+  const recommendedOut = Boolean(recommended) && soldOut(chart.find((r) => r.size === recommended));
+  const size = picked ?? (recommended && !recommendedOut ? recommended : null);
 
   if (state === 'loading') {
     return <main className={styles.page}><p className={styles.muted}>Loading the product…</p></main>;
@@ -79,12 +109,19 @@ export default function ProductPage({ addToCart }) {
 
   const sku = product._id || product.id;
   const displayName = product.name || product.title || 'Item';
-  const image = toPublicUrl(product.image);
-  const has3d = Boolean(product.model3d);
+  const photos = [product.image, ...(product.images || [])].filter(Boolean).map(toPublicUrl);
+  const image = photos[0];
+  const canTryOn = !offFigureReason({ ...product, name: displayName, garmentType: garmentTypeOf(product) });
+  const allSoldOut = chart.length > 0 && chart.every(soldOut);
 
   const flash = (text) => {
     setNotice(text);
     setTimeout(() => setNotice(''), 2500);
+  };
+
+  const pickSize = (s) => {
+    setPicked(s);
+    setError('');
   };
 
   const handleWardrobe = () => {
@@ -94,8 +131,8 @@ export default function ProductPage({ addToCart }) {
 
   const handleCart = () => {
     if (typeof addToCart !== 'function') return nav('/cart');
-    // выбранный размер, иначе рекомендованный по обмерам
-    const size = cartSizeFor(product, chosenSize);
+    // у вещи с сеткой без размера в корзину не кладём — потом не понять, какой отправлять
+    if (chart.length && !size) return setError('Please choose a size.');
     const ok = addToCart({
       id: sku, _id: sku, name: displayName, price: product.price || 0,
       image, category: product.category, quantity: 1, size,
@@ -103,13 +140,56 @@ export default function ProductPage({ addToCart }) {
     if (ok !== false) flash(size ? `Added to cart · size ${size}` : 'Added to cart');
   };
 
+  const composition = (product.composition || []).map((c) => `${c.percent}% ${c.fibre}`).join(' · ');
+
   return (
     <main className={styles.page}>
       <Link className={styles.back} to="/">← Back to the shop</Link>
 
       <div className={styles.layout}>
-        <div className={styles.media}>
-          <img className={styles.image} src={image} alt={displayName} />
+        <div>
+          <div className={styles.tabs} role="tablist" aria-label="Product view">
+            <button
+              role="tab"
+              aria-selected={view === 'photos'}
+              className={`${styles.tab} ${view === 'photos' ? styles.tabOn : ''}`}
+              onClick={() => setView('photos')}
+            >
+              Photos
+            </button>
+            <button
+              role="tab"
+              aria-selected={view === 'avatar'}
+              className={`${styles.tab} ${view === 'avatar' ? styles.tabOn : ''}`}
+              onClick={() => setView('avatar')}
+            >
+              On my avatar
+            </button>
+          </div>
+
+          <div className={styles.media}>
+            {view === 'photos' ? (
+              <img className={styles.image} src={photos[photo] || image} alt={displayName} />
+            ) : (
+              <ProductTryOn product={product} size={size} profile={profile} toPublicUrl={toPublicUrl} />
+            )}
+          </div>
+
+          {view === 'photos' && photos.length > 1 && (
+            <div className={styles.thumbs}>
+              {photos.map((src, i) => (
+                <button
+                  key={src}
+                  className={`${styles.thumb} ${i === photo ? styles.thumbOn : ''}`}
+                  aria-label={`Photo ${i + 1} of ${photos.length}`}
+                  aria-pressed={i === photo}
+                  onClick={() => setPhoto(i)}
+                >
+                  <img src={src} alt="" />
+                </button>
+              ))}
+            </div>
+          )}
         </div>
 
         <section className={styles.info}>
@@ -118,7 +198,48 @@ export default function ProductPage({ addToCart }) {
             {Number(product.price || 0).toLocaleString('en-US')} <span className={styles.priceUnit}>₸</span>
           </div>
 
-          <SizeAdvisor product={product} mode="full" onSizeChange={setChosenSize} />
+          <SizePicker rows={chart} value={size} recommended={recommended} onChange={pickSize} />
+          {recommendedOut && !picked && (
+            <p className={styles.hint}>Your size {recommended} is out of stock.</p>
+          )}
+          {allSoldOut && <p className={styles.hint}>This item is out of stock in every size.</p>}
+
+          <SizeAdvisor product={product} mode="full" selectedSize={size} />
+
+          <div className={styles.actions}>
+            <button className={styles.btnDark} onClick={handleCart} disabled={allSoldOut}>
+              {size ? `Add to cart · ${size}` : 'Add to cart'}
+            </button>
+            <button className={styles.btn} onClick={() => setView('avatar')} disabled={!canTryOn}>
+              Try on my avatar
+            </button>
+            <button className={styles.btn} onClick={handleWardrobe}>Wardrobe</button>
+          </div>
+          {!canTryOn && (
+            <p className={styles.hint}>
+              No 3D model yet — you can check your size, but cannot try this item on.
+            </p>
+          )}
+          {error && <p role="alert" className={styles.error}>{error}</p>}
+          {notice && <p role="status" className={styles.notice}>{notice}</p>}
+
+          {product.description && (
+            <div className={styles.section}>
+              <h2 className={styles.sectionTitle}>Description</h2>
+              <p className={styles.text}>{product.description}</p>
+            </div>
+          )}
+
+          {(composition || product.care || product.countryOfOrigin) && (
+            <div className={styles.section}>
+              <h2 className={styles.sectionTitle}>Composition & care</h2>
+              <dl className={styles.facts}>
+                {composition && (<><dt>Composition</dt><dd>{composition}</dd></>)}
+                {product.care && (<><dt>Care</dt><dd>{product.care}</dd></>)}
+                {product.countryOfOrigin && (<><dt>Made in</dt><dd>{product.countryOfOrigin}</dd></>)}
+              </dl>
+            </div>
+          )}
 
           {chart.length > 0 && columns.length > 0 && (
             <div className={styles.chartBox}>
@@ -147,24 +268,6 @@ export default function ProductPage({ addToCart }) {
               </div>
             </div>
           )}
-
-          <div className={styles.actions}>
-            <button
-              className={styles.btnDark}
-              onClick={() => nav(`/tryon/avatar?sku=${encodeURIComponent(sku)}`)}
-              disabled={!has3d}
-            >
-              Try on
-            </button>
-            <button className={styles.btn} onClick={handleWardrobe}>Wardrobe</button>
-            <button className={styles.btn} onClick={handleCart}>Add to cart</button>
-          </div>
-          {!has3d && (
-            <p className={styles.hint}>
-              No 3D model yet — you can check your size, but cannot try this item on.
-            </p>
-          )}
-          {notice && <p role="status" className={styles.notice}>{notice}</p>}
         </section>
       </div>
     </main>

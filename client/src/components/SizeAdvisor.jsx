@@ -19,6 +19,8 @@ export default function SizeAdvisor({
   mode = 'compact',
   onSizeChange,
   initialSize = null,
+  // размер выбран снаружи (SizePicker на странице товара): разбор — для него, свой ряд размеров не рисуется
+  selectedSize,
 }) {
   const nav = useNavigate();
   const [profile, setProfile] = useState(null);
@@ -74,7 +76,11 @@ export default function SizeAdvisor({
     );
   }
 
-  const result = findBestSize(profile, sizeChart, chosen);
+  const controlled = selectedSize !== undefined;
+  const pick = controlled ? selectedSize : chosen;
+  // выбран тот же размер, что рекомендован, — текст рекомендации («Your size is S»)
+  const advice = findBestSize(profile, sizeChart, null);
+  const result = pick && pick !== advice.recommended?.size ? findBestSize(profile, sizeChart, pick) : advice;
 
   const pickSize = (size) => {
     const next = size === chosen ? null : size;
@@ -104,9 +110,9 @@ export default function SizeAdvisor({
 
   return (
     <div className={styles.box}>
-      <div className={styles.header}>Size</div>
+      {!controlled && <div className={styles.header}>Size</div>}
 
-      <div className={styles.sizeRow}>
+      {!controlled && <div className={styles.sizeRow}>
         {result.all.map((r) => (
           <button
             key={r.size}
@@ -124,7 +130,7 @@ export default function SizeAdvisor({
             )}
           </button>
         ))}
-      </div>
+      </div>}
 
       <div className={`${styles.verdict} ${result.shouldWarn ? styles.verdictWarn : ''}`}>
         {result.message}

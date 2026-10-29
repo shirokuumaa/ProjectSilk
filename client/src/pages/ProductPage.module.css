@@ -97,3 +97,41 @@
 
 .hint { margin: 8px 0 0; font-size: var(--fs-sm); color: var(--fit-warn); }
 .notice { margin: 8px 0 0; font-size: var(--fs-sm); color: var(--fit-good); }
+
+/* вкладки «Photos / On my avatar» над картинкой */
+.tabs { display: flex; gap: 6px; margin-bottom: 10px; }
+.tab {
+  padding: 7px 14px;
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  color: var(--muted);
+  font-size: var(--fs-sm);
+  cursor: pointer;
+}
+.tabOn { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+
+/* миниатюры галереи */
+.thumbs { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.thumb {
+  width: 64px;
+  height: 80px;
+  padding: 0;
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line);
+  overflow: hidden;
+  background: var(--surface-3);
+  cursor: pointer;
+}
+.thumb img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.thumbOn { border: 2px solid var(--ink); }
+
+/* описание, состав и уход */
+.section { margin-top: 20px; }
+.sectionTitle { font-size: var(--fs-md); font-weight: 600; margin: 0 0 8px; }
+.text { margin: 0; white-space: pre-line; line-height: 1.55; color: var(--ink-2); }
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px 16px; margin: 0; font-size: var(--fs-sm); }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; color: var(--ink-2); }
+
+.error { margin: 8px 0 0; font-size: var(--fs-sm); color: var(--fit-bad); }

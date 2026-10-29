@@ -4,6 +4,10 @@ import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import ProductPage from './ProductPage';
 import { loadBodyProfile } from '../utils/bodyProfileApi';
 
+// сцена примерки: показываем, какая вещь и в каком размере ушла на фигуру
+jest.mock('../components/GlbViewer', () => ({ garments }) => (
+  <p data-testid="worn">{(garments || []).map((g) => `${g.url}|${g.size?.size || '-'}`).join(',')}</p>
+));
 jest.mock('../utils/bodyProfileApi', () => ({
   ...jest.requireActual('../utils/bodyProfileApi'),
   loadBodyProfile: jest.fn(),
@@ -50,8 +54,16 @@ test('shows a loading state, then the product with its size chart', async () => 
   expect(screen.queryByRole('columnheader', { name: 'Hips' })).not.toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Wardrobe' })).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Add to cart' })).toBeInTheDocument();
-  // без 3D-модели примерка недоступна и это объяснено
-  expect(screen.getByRole('button', { name: 'Try on' })).toBeDisabled();
+  // футболка без своей 3D-модели примеряется шаблоном — прямо на странице
+  expect(screen.getByRole('button', { name: 'Try on my avatar' })).toBeEnabled();
+  expect(screen.queryByText(/No 3D model yet/)).not.toBeInTheDocument();
+});
+
+test('a coat with no 3D model and no generic shape cannot be tried on, and the buyer is told why', async () => {
+  respond(200, { ...PRODUCT, garmentType: 'outerwear' });
+  loadBodyProfile.mockResolvedValue(null);
+  renderAt();
+  expect(await screen.findByRole('button', { name: 'Try on my avatar' })).toBeDisabled();
   expect(screen.getByText(/No 3D model yet/)).toBeInTheDocument();
 });
 
@@ -126,7 +138,7 @@ describe('the size goes into the cart', () => {
     const addToCart = jest.fn().mockReturnValue(true);
     renderAt('/product/p1', addToCart);
     await screen.findByText('Your size is S');
-    fireEvent.click(screen.getByRole('button', { name: 'Add to cart' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add to cart · S' }));
     expect(addToCart).toHaveBeenCalledWith(expect.objectContaining({ id: 'p1', size: 'S' }));
     expect(screen.getByText('Added to cart · size S')).toBeInTheDocument();
   });
@@ -137,7 +149,90 @@ describe('the size goes into the cart', () => {
     renderAt('/product/p1', addToCart);
     await screen.findByText('Your size is S');
     fireEvent.click(screen.getByRole('button', { name: /^M/ }));
-    fireEvent.click(screen.getByRole('button', { name: 'Add to cart' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Add to cart · M' }));
     expect(addToCart).toHaveBeenCalledWith(expect.objectContaining({ size: 'M' }));
+  });
+});
+
+describe('the full product card', () => {
+  const BODY = { heightCm: 166, chest: 90, waist: 70, hips: 96 };
+  const FULL = {
+    ...PRODUCT,
+    images: ['/uploads/images/back.jpg', '/uploads/images/detail.jpg'],
+    description: 'Soft cotton tee.\nRegular fit.',
+    composition: [{ fibre: 'Polyester', percent: 92 }, { fibre: 'Elastane', percent: 8 }],
+    care: 'Machine wash at 30 °C',
+    countryOfOrigin: 'Portugal',
+  };
+  beforeEach(() => localStorage.clear());
+
+  test('a gallery of all photos; a thumbnail opens its photo', async () => {
+    respond(200, FULL);
+    loadBodyProfile.mockResolvedValue(null);
+    renderAt();
+    const main = await screen.findByRole('img', { name: 'Basic Tee' });
+    expect(main).toHaveAttribute('src', 'http://localhost:5050/uploads/images/tee.jpg');
+    expect(screen.getAllByRole('button', { name: /^Photo \d of 3$/ })).toHaveLength(3);
+    fireEvent.click(screen.getByRole('button', { name: 'Photo 2 of 3' }));
+    expect(screen.getByRole('img', { name: 'Basic Tee' })).toHaveAttribute('src', 'http://localhost:5050/uploads/images/back.jpg');
+  });
+
+  test('description, composition, care and country of origin', async () => {
+    respond(200, FULL);
+    loadBodyProfile.mockResolvedValue(null);
+    renderAt();
+    expect(await screen.findByRole('heading', { name: 'Description' })).toBeInTheDocument();
+    expect(screen.getByText(/Soft cotton tee\./)).toBeInTheDocument();
+    expect(screen.getByText('92% Polyester · 8% Elastane')).toBeInTheDocument();
+    expect(screen.getByText('Machine wash at 30 °C')).toBeInTheDocument();
+    expect(screen.getByText('Portugal')).toBeInTheDocument();
+  });
+
+  test('the recommended size is picked in advance; a sold-out size is greyed and cannot be picked', async () => {
+    respond(200, { ...PRODUCT, sizeChart: [{ ...PRODUCT.sizeChart[0], stock: 5 }, { ...PRODUCT.sizeChart[1], stock: 0 }] });
+    loadBodyProfile.mockResolvedValue(BODY);
+    renderAt();
+    await screen.findByText('Your size is S');
+    expect(screen.getByRole('button', { name: /^S/ })).toHaveAttribute('aria-pressed', 'true');
+    const m = screen.getByRole('button', { name: /^M/ });
+    expect(m).toBeDisabled();
+    expect(m).toHaveTextContent('out of stock');
+  });
+
+  test('the recommended size is sold out: nothing is picked and "Add to cart" asks for a size', async () => {
+    respond(200, { ...PRODUCT, sizeChart: [{ ...PRODUCT.sizeChart[0], stock: 0 }, PRODUCT.sizeChart[1]] });
+    loadBodyProfile.mockResolvedValue(BODY);
+    const addToCart = jest.fn().mockReturnValue(true);
+    renderAt('/product/p1', addToCart);
+    expect(await screen.findByText('Your size S is out of stock.')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Add to cart' }));
+    expect(screen.getByRole('alert')).toHaveTextContent('Please choose a size.');
+    expect(addToCart).not.toHaveBeenCalled();
+  });
+
+  test('"Try on my avatar" shows the item on the figure right here, in the chosen size', async () => {
+    respond(200, {
+      ...PRODUCT,
+      sizeModels: [
+        { size: 'S', model3d: '/uploads/models/tee_S.glb' },
+        { size: 'M', model3d: '/uploads/models/tee_M.glb' },
+      ],
+    });
+    loadBodyProfile.mockResolvedValue(BODY);
+    renderAt();
+    await screen.findByText('Your size is S');
+    fireEvent.click(screen.getByRole('button', { name: 'Try on my avatar' }));
+    expect(await screen.findByTestId('worn')).toHaveTextContent('http://localhost:5050/uploads/models/tee_S.glb|S');
+    expect(screen.getByText('On your figure in size S')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: /^M/ }));
+    expect(await screen.findByTestId('worn')).toHaveTextContent('tee_M.glb|M');
+  });
+
+  test('without measurements the avatar tab asks for them', async () => {
+    respond(200, PRODUCT);
+    loadBodyProfile.mockResolvedValue(null);
+    renderAt();
+    fireEvent.click(await screen.findByRole('tab', { name: 'On my avatar' }));
+    expect(screen.getByRole('button', { name: 'Add measurements to try it on' })).toBeInTheDocument();
   });
 });
