@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom';
 import styles from './TopBar.module.css';
 import MegaMenu from './MegaMenu';
 import { AUTH_EVENT, getUsername, logout } from '../utils/auth';
+import { categoryMenuEnabled, imageSearchEnabled } from '../utils/features';
 
 export default function TopBar({ search, setSearch, cartItems }) {
   const [showProfile, setShowProfile] = useState(false);
@@ -55,18 +56,21 @@ export default function TopBar({ search, setSearch, cartItems }) {
             ProjectSilk
           </span>
 
-          <div
-            className={styles.menuWrapper}
-            onMouseEnter={handleMouseEnter}
-            onMouseLeave={handleMouseLeave}
-          >
-            <button className={styles.menuBtn}>Categories ▾</button>
-            {showMenu && (
-              <div className={styles.menuContainer}>
-                <MegaMenu />
-              </div>
-            )}
-          </div>
+          {/* меню-заглушка («Bath / Storage») пока спрятано (utils/features.js) */}
+          {categoryMenuEnabled() && (
+            <div
+              className={styles.menuWrapper}
+              onMouseEnter={handleMouseEnter}
+              onMouseLeave={handleMouseLeave}
+            >
+              <button className={styles.menuBtn}>Categories ▾</button>
+              {showMenu && (
+                <div className={styles.menuContainer}>
+                  <MegaMenu />
+                </div>
+              )}
+            </div>
+          )}
         </div>
 
         {/* центр */}
@@ -80,20 +84,25 @@ export default function TopBar({ search, setSearch, cartItems }) {
             />
             <button className={styles.iconBtn} onClick={() => setSearch(search)} aria-label="Search">⌕</button>
             <button className={styles.iconBtn} onClick={handleVoiceSearch} aria-label="Search by voice">◉</button>
-            <button
-              className={styles.iconBtn}
-              onClick={() => fileInputRef.current?.click()}
-              aria-label="Search by image"
-            >
-              ▣
-            </button>
-            <input
-              type="file"
-              accept="image/*"
-              ref={fileInputRef}
-              onChange={handleImageSearch}
-              style={{ display: 'none' }}
-            />
+            {/* «поиск по картинке» ищет по имени файла — спрятан до настоящего (utils/features.js) */}
+            {imageSearchEnabled() && (
+              <>
+                <button
+                  className={styles.iconBtn}
+                  onClick={() => fileInputRef.current?.click()}
+                  aria-label="Search by image"
+                >
+                  ▣
+                </button>
+                <input
+                  type="file"
+                  accept="image/*"
+                  ref={fileInputRef}
+                  onChange={handleImageSearch}
+                  style={{ display: 'none' }}
+                />
+              </>
+            )}
           </div>
 
           <Link to="/seller" className={styles.sellerBtn}>I'm a Seller</Link>

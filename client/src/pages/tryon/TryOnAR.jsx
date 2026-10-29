@@ -13,6 +13,7 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useNavigate } from 'react-router-dom';
 import { FilesetResolver, PoseLandmarker, HandLandmarker } from '@mediapipe/tasks-vision';
 import { getWardrobe } from '../../utils/wardrobeStorage';
+import { arDevToolsEnabled } from '../../utils/features';
 
 const API_BASE = process.env.REACT_APP_API || 'http://localhost:5050';
 const toPublicUrl = (s = '') => (s?.startsWith?.('/uploads') ? `${API_BASE}${s}` : s);
@@ -196,6 +197,8 @@ export default function TryOnAr() {
   // panel
   const [panelHidden, setPanelHidden] = useState(false);
   const [debugOpen, setDebugOpen] = useState(false);
+  // настройки разработчика (адрес картинки, тонкая посадка, цвет, фон, отладка) — только с ?debug
+  const [devTools] = useState(() => arDevToolsEnabled());
 
   // tracking status (state only — updated rarely, never per frame)
   const [poseReady, setPoseReady] = useState(false);
@@ -849,19 +852,21 @@ export default function TryOnAr() {
 
             <div style={ui.row}>
               <div style={ui.label}>Garment</div>
-              <input
-                placeholder="https://...png  or  /uploads/xxx.png"
-                value={garmentUrl}
-                onChange={(e) => setGarmentUrl(e.target.value)}
-                style={ui.input}
-              />
+              {devTools && (
+                <input
+                  placeholder="https://...png  or  /uploads/xxx.png"
+                  value={garmentUrl}
+                  onChange={(e) => setGarmentUrl(e.target.value)}
+                  style={ui.input}
+                />
+              )}
               <label style={{ ...ui.btn, display: 'inline-block', textAlign: 'center' }}>
                 Upload PNG/WebP
                 <input type="file" accept="image/png,image/webp" onChange={onGarmentFile} style={{ display: 'none' }} />
               </label>
               <div style={{ ...ui.hint, marginTop: -4 }}>
-                Use a PNG with transparency. Manual mode: drag, Ctrl+wheel zoom, Alt+wheel rotate,
-                double-click resets.
+                Use a PNG with transparency.
+                {devTools && ' Manual mode: drag, Ctrl+wheel zoom, Alt+wheel rotate, double-click resets.'}
               </div>
             </div>
 
@@ -900,6 +905,7 @@ export default function TryOnAr() {
                   </button>
                 ))}
               </div>
+              {devTools && (<>
               <select value={schemeId} onChange={(e) => setSchemeId(e.target.value)} style={ui.input}>
                 {schemes.map((sc) => <option key={sc.id} value={sc.id}>{sc.label}</option>)}
               </select>
@@ -955,10 +961,12 @@ export default function TryOnAr() {
                 <input type="checkbox" checked={smoothing} onChange={(e) => setSmoothing(e.target.checked)} />
                 {' '}Smooth tracking
               </label>
+              </>)}
             </div>
           </section>
 
-          {/* APPEARANCE */}
+          {/* APPEARANCE, BACKGROUND — настройки разработчика */}
+          {devTools && (<>
           <section style={{ marginBottom: 16 }}>
             <div style={{ ...ui.label, fontSize: 14 }}>Appearance</div>
             <div style={ui.row}>
@@ -999,6 +1007,8 @@ export default function TryOnAr() {
             </div>
           </section>
 
+          </>)}
+
           {/* VIEW */}
           <section style={{ marginBottom: 16 }}>
             <div style={{ ...ui.label, fontSize: 14 }}>View</div>
@@ -1016,6 +1026,7 @@ export default function TryOnAr() {
           </section>
 
           {/* DEBUG */}
+          {devTools && (
           <section style={{ marginBottom: 16 }}>
             <button
               style={{ ...ui.btn, width: '100%', textAlign: 'left', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}
@@ -1040,6 +1051,7 @@ export default function TryOnAr() {
               </div>
             )}
           </section>
+          )}
 
           {/* capture */}
           <section style={{ marginBottom: 8 }}>
@@ -1052,11 +1064,13 @@ export default function TryOnAr() {
                 {recording ? '⏺ Stop' : '⏺ Record'}
               </button>
             </div>
+            {devTools && (
             <div style={{ marginTop: 8, ...ui.hint }}>
               Hotkeys: <b>H</b> hide panel, <b>R</b> record, <b>S</b> shot, <b>G</b> grid,
               <b> M</b> mirror, <b>Alt+D</b> debug, <b>Arrows</b> move, <b>+/−</b> scale,
               <b> [ / ]</b> rotate, <b>0</b> reset.
             </div>
+            )}
           </section>
         </aside>
       )}

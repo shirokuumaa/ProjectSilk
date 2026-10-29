@@ -28,6 +28,7 @@ import SiteFooter from './components/SiteFooter';
 import AccountSync from './components/AccountSync';
 import { AUTH_EVENT, isLoggedIn } from './utils/auth';
 import { addCartLines, removeCartLine } from './utils/cart';
+import { assistantEnabled } from './utils/features';
 
 // служебные страницы — только в режиме разработки (DevOnly), код грузится лениво
 const Metrics = lazy(() => import('./pages/Metrics'));
@@ -132,8 +133,8 @@ function App() {
       {/* гардероб и обмеры вошедшего — с сервера; гостевые вещи — предложить перенести */}
       <AccountSync />
 
-      {/* Глобальный слой ассистента поверх всех страниц */}
-      <AssistantLayer />
+      {/* Глобальный слой ассистента поверх всех страниц — пока спрятан (utils/features.js) */}
+      {assistantEnabled() && <AssistantLayer />}
     </Router>
   );
 }
