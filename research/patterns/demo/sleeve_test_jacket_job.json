@@ -1,0 +1,42 @@
+{
+ "_note": "Sleeve test: the demo jacket XS-M (whose long sleeve hung off the forearm, README \u00ab\u0421\u0435\u0430\u043d\u0441 \u043d\u0430 A5000\u00bb) with a cuff as wide as the sleeve (sleeve.end_width 1.0 instead of 0.75). Otherwise as demo/jacket_job.json.",
+ "product": "sleeve_test_jacket",
+ "garmentType": "outerwear",
+ "stretch": "none",
+ "silhouette": {
+  "template": "jacket",
+  "length": "hip",
+  "design": {
+   "sleeve.end_width": 1.0
+  }
+ },
+ "sizeChart": [
+  {
+   "size": "XS",
+   "chest": 98,
+   "waist": 100,
+   "length": 63,
+   "shoulder": 36,
+   "sleeve": 59,
+   "fit": "loose"
+  },
+  {
+   "size": "S",
+   "chest": 102,
+   "waist": 104,
+   "length": 64,
+   "shoulder": 37,
+   "sleeve": 59.5,
+   "fit": "loose"
+  },
+  {
+   "size": "M",
+   "chest": 106,
+   "waist": 108,
+   "length": 65,
+   "shoulder": 38,
+   "sleeve": 60,
+   "fit": "loose"
+  }
+ ]
+}
