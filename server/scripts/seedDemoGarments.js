@@ -6,6 +6,8 @@
 // из исследования, день 7 (research/patterns/runs/day7/report.md): ширины в разложенном
 // виде уже × 2, рукав Uniqlo — «от центра спинки» минус половина ширины плеч. Брюки, жакет, пальто —
 // открытые средние таблицы, без данных магазинов (research/patterns/demo/<вещь>_job.json).
+// У платья — принт: клетка-гингем, нарисованная кодом (scripts/garments/make_demo_print.py), повтор 4 см;
+// на примерке она ложится на развёртку выкройки драпировки одинаково во всех размерах.
 //
 // Запуск (товары появятся у существующего продавца; повторный запуск обновляет их):
 //   MONGODB_URI=mongodb://localhost:27017/<база> node scripts/seedDemoGarments.js <имя продавца>
@@ -31,6 +33,7 @@ export const DEMO = {
     legs: 'joined',
     stretch: 'stretchy',              // 92 % polyester, 8 % elastane
     material: '92% polyester, 8% elastane',
+    print: { image: '/models/demo-garments/dress_print.png', tileCm: 4 },   // гингем: клетка 2 см
     sizeChart: rows(['size', 'chest', 'waist', 'hips', 'length', 'sleeve'], [
       ['XS', 77, 64, 81, 82.5, 14], ['S', 80, 66, 85, 83, 15], ['M', 83, 68, 89, 83.5, 16],
       ['L', 86, 70, 93, 84, 17], ['XL', 89, 72, 97, 84.5, 18], ['XXL', 92, 74, 101, 85, 19],

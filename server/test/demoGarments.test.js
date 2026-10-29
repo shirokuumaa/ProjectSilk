@@ -42,6 +42,13 @@ describe('демо-товары: платье, юбка, футболка, бр�
     }
   });
 
+  it('у платья — принт-гингем с повтором 4 см, остальные однотонные', async () => {
+    const all = (await api('GET', '/api/products')).json;
+    const byTitle = Object.fromEntries(all.map((p) => [p.title, p]));
+    assert.deepEqual(byTitle['Short Sleeve Mini Dress'].print, { image: '/models/demo-garments/dress_print.png', tileCm: 4 });
+    assert.equal(all.filter((p) => p.print).length, 1);
+  });
+
   it('сетки из дня 7: платье Zara (× 2, stretchy), юбка, футболка Uniqlo (рукав от плечевого шва)', () => {
     const [dress, skirt, tee] = demoProducts('x');
     const S = (p) => p.sizeChart.find((r) => r.size === 'S');
@@ -65,7 +72,7 @@ describe('демо-товары: платье, юбка, футболка, бр�
   // 1,1 МБ: с развёрткой выкройки (UV и раздвоенные вершины швов) пальто XXL — 1,01 МБ (export_demo_drapes.py)
   it('файлы моделей и картинок на месте и не больше 1,1 МБ', () => {
     for (const p of demoProducts('x')) {
-      for (const f of [p.image, ...p.sizeModels.map((m) => m.model3d)]) {
+      for (const f of [p.image, p.print?.image, ...p.sizeModels.map((m) => m.model3d)].filter(Boolean)) {
         const file = path.join(PUBLIC, f);
         assert.ok(fs.existsSync(file), f);
         assert.ok(fs.statSync(file).size <= 1.1e6, `${f}: ${fs.statSync(file).size} байт`);
