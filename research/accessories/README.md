@@ -101,3 +101,46 @@
 - `server/test/accessory.test.js` (6): сохранение, ошибки, смена типа, совпадение списков сервера и клиента;
 - `server/test/bodyProfile.test.js`: длина стопы.
 - Все тесты клиента (383) и сервера (167) проходят. Браузер не проверялся.
+
+## 3. Сеанс на поде: входы готовы (Mac, 29.10.2026)
+
+**Что будет в сеансе** — `research/accessories/pod/run_session.sh`, около 45–60 минут:
+- **A.** TRELLIS.2-4B (512 и 1024 cascade) и Stable Fast 3D на 10 фото. Для каждого прогона — GLB, время, пик видеопамяти и размер файла: `run_trellis2.py`, `run_sf3d.py`.
+- **B.** Три вида каждой модели (Blender Cycles, модель не поворачивается — видно, как её положил генератор) и общий лист: `render_previews.py`, `make_sheet.py`.
+- **C.** Картинка каталога для платья в клетку: размер S, гингем 4 см, Cycles, 600×800, в стиле остальных (чёрный фон, серое тело) — `render_catalogue.py`. На Mac проверены только кадр, клетка и тело: EEVEE, 240 px.
+- Версии закреплены: TRELLIS.2 `75fbf018`, SF3D `ff21fc49`, Blender 5.0.1. Первым делом скрипт проверяет доступ к закрытым весам и останавливается, если доступа нет — до установки, чтобы не платить зря.
+
+**Фото** — `research/photos/accessories/` (в `.gitignore`, только для внутреннего теста). Все с Wikimedia Commons, лицензии и авторы — в `info.md` каждой папки:
+- серьги на ладони;
+- подвеска на дереве;
+- кольцо на персике;
+- часы на белом;
+- ремень на белом;
+- круглая сумка;
+- кеды (пара);
+- туфля сбоку;
+- панама на манекене;
+- очки.
+
+Фото нарочно разные — так снимают и продавцы.
+
+**Машина:**
+- RunPod **A40 48 ГБ** (или L40S 48 ГБ), шаблон RunPod PyTorch 2.4 (CUDA 12.4 devel), **Container Disk 80 ГБ**, без Network Volume, SSH.
+- A5000 (24 ГБ) не подойдёт: TRELLIS.2 требует ≥ 24 ГБ и проверен только на A100/H100.
+- Цена ≈ $0,35–0,60 за сеанс (A40 $0,40–0,61/ч по прошлым сеансам).
+
+**До сеанса — с вас:**
+1. На Hugging Face запросить доступ к трём моделям:
+   - [facebook/dinov3-vitl16-pretrain-lvd1689m](https://huggingface.co/facebook/dinov3-vitl16-pretrain-lvd1689m) — Meta одобряет вручную, может занять время;
+   - [briaai/RMBG-2.0](https://huggingface.co/briaai/RMBG-2.0);
+   - [stabilityai/stable-fast-3d](https://huggingface.co/stabilityai/stable-fast-3d).
+2. Создать токен Hugging Face с правом чтения. В RunPod сохранить его как Secret `hf_token`, а при создании пода добавить переменную `HF_TOKEN` = `{{ RUNPOD_SECRET_hf_token }}`. Токен в чат не присылать.
+3. Создать под. Удалить его после сеанса.
+
+**Порядок:**
+- Mac: `bash research/accessories/pod/pack_inputs.sh` → `research/accessories/runs/accessories_inputs.tar.gz` (4 МБ).
+- Под:
+  - `mkdir -p /workspace/ProjectSilk && tar xzf accessories_inputs.tar.gz -C /workspace/ProjectSilk`
+  - `cd /workspace/ProjectSilk && bash research/accessories/pod/run_session.sh`
+- Обратно на Mac: `research/accessories/runs/session1.tar.gz`. В нём `sheet.jpg`, все GLB, `results.json`, `session.log`, `catalogue/dress.png`.
+- После сеанса на Mac: `dress.png` → `client/public/models/demo-garments/dress.jpg` (600×800, JPEG 85) и `imageMb` в манифесте; затем выбрать модель по листу.
