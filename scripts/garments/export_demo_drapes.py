@@ -14,7 +14,7 @@
 #   research/patterns/.envs/mac/bin/python scripts/garments/export_demo_drapes.py            # S и L (Newton, 18.10)
 #   … export_demo_drapes.py --run allsizes   # все размеры: GLB из simtest_report.py --no-render
 #        по runs/allsizes/newton (renders/), болванки runs/allsizes/bodies
-#   … export_demo_drapes.py --run arms --jobs trousers:arms_trousers,jacket:arms_jacket,coat:arms_coat
+#   … export_demo_drapes.py --run arms --jobs trousers:arms_trousers,jacket:arms_jacket:L,coat:arms_coat:L
 #        + товары конвейера продавца (scripts/garments/patterns_job.py): GLB из runs/<job>/report/renders,
 #        болванки runs/<job>/bodies/product_<размер>, фигура размера — из runs/<job>/result.json
 
@@ -73,19 +73,20 @@ def z_offsets():
 
 
 def job_items(spec):
-    """Товары конвейера продавца: "id:run,…" → {id: {"run", "sizes": [(size, figure, dz)]}}. Фигура размера —
+    """Товары конвейера продавца: "id:run[:размер картинки],…" → {id: {"run", "image", "sizes": [(size, figure, dz)]}}.
+    Размер картинки — S, если не указан (у жакета и пальто — L: в XS–M длинный рукав пока висит мимо руки). Фигура размера —
     из result.json; морфы — тем же подбором, что строил болванку (mpfb_body.MPFB.solve), сдвиг — от неё."""
     mp = MPFB()
     out = {}
     for part in filter(None, spec.split(",")):
-        item, run = part.split(":")
+        item, run, *image = part.split(":")
         run = PATTERNS / "runs" / run
         sizes = []
         for s in json.load(open(run / "result.json"))["sizes"]:
             b = s["body"]
             u, _ = mp.solve(b["heightCm"], b["chest"], b["waist"], b["hips"])
             sizes.append((s["size"], b, z_offset(mp, u, run / "bodies" / f"product_{s['size']}.obj")))
-        out[item] = {"run": run, "sizes": sizes}
+        out[item] = {"run": run, "sizes": sizes, "image": image[0] if image else "S"}
     return out
 
 
@@ -140,9 +141,9 @@ def uint16_indices(glb):
             + struct.pack("<II", len(out), 0x004E4942) + bytes(out))
 
 
-def product_image(case, path, images=None):
+def product_image(case, path, images=None, size="S"):
     """Картинка товара: рендер Newton спереди (наша болванка), кадр по ткани."""
-    img = Image.open((images or IMAGES) / f"{case}_S_front.png").convert("RGB")
+    img = Image.open((images or IMAGES) / f"{case}_{size}_front.png").convert("RGB")
     a = np.asarray(img).astype(int)
     cloth = (a[..., 2] - a[..., 0] > 25)                    # голубая ткань рендера
     ys, xs = np.nonzero(cloth)
@@ -204,7 +205,7 @@ def main():
             models.append({"size": size, "file": f"/models/demo-garments/{item}_{size}.glb", "mb": round(mb, 3),
                            "triangles": int(len(mesh.faces)), "zOffsetM": round(dz, 5), "body": figure})
             print(f"{item}_{size}: {mb:.2f} MB, {len(mesh.faces)} tris, dz {dz * 100:.2f} cm")
-        img_mb = product_image("size", OUT / f"{item}.jpg", images=renders)
+        img_mb = product_image("size", OUT / f"{item}.jpg", images=renders, size=job["image"])
         manifest["items"][item] = {"case": f"{job['run'].name}/size", "image": f"/models/demo-garments/{item}.jpg",
                                    "imageMb": round(img_mb, 3), "models": models}
     (OUT / "manifest.json").write_text(json.dumps(manifest, indent=1, ensure_ascii=False))

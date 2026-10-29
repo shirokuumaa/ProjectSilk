@@ -344,7 +344,7 @@
   "jacket": {
    "case": "arms_jacket/size",
    "image": "/models/demo-garments/jacket.jpg",
-   "imageMb": 0.026,
+   "imageMb": 0.024,
    "models": [
     {
      "size": "XS",
@@ -429,7 +429,7 @@
   "coat": {
    "case": "arms_coat/size",
    "image": "/models/demo-garments/coat.jpg",
-   "imageMb": 0.028,
+   "imageMb": 0.025,
    "models": [
     {
      "size": "XS",
