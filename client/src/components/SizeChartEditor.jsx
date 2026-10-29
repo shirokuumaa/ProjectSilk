@@ -321,6 +321,8 @@ export function serializeSizeChart(rows) {
         const n = Number(r[f]);
         if (r[f] !== '' && r[f] != null && Number.isFinite(n) && n > 0) out[f] = n;
       }
+      // остаток (components/StockField.jsx): пусто — не указан; проверяет сервер
+      if (r.stock !== '' && r.stock != null) out.stock = Number(r.stock);
       return out;
     });
 }

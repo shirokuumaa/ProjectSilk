@@ -14,6 +14,9 @@ import path from 'path';
 import { fileURLToPath } from 'url';
 import { uploadsUrlToPath } from '../config/paths.js';
 import { validateUploads, uploadedFiles, removeFiles } from '../utils/uploadChecks.js';
+import {
+  nextGallery, normalizeStock, parseComposition, parseText,
+} from '../utils/productDetails.js';
 
 const execFilePromise = util.promisify(execFile);
 
@@ -77,8 +80,29 @@ function modelFilePaths(modelUrl) {
 }
 
 function productFilePaths(product) {
-  return [uploadsUrlToPath(product.image), uploadsUrlToPath(product.print?.image), ...modelFilePaths(product.model3d)]
-    .filter(Boolean);
+  return [
+    uploadsUrlToPath(product.image), ...(product.images || []).map(uploadsUrlToPath),
+    uploadsUrlToPath(product.print?.image), ...modelFilePaths(product.model3d),
+  ].filter(Boolean);
+}
+
+const galleryUrls = (req) => (req.files?.gallery || []).map((f) => `/uploads/images/${f.filename}`);
+
+/**
+ * Описание, состав, уход, страна из формы. undefined у поля — не передано.
+ * @returns {{ fields: object, error?: string }}
+ */
+function detailsOf(body) {
+  const fields = {};
+  for (const key of ['description', 'care', 'countryOfOrigin']) {
+    const t = parseText(key, body[key]);
+    if (t.error) return { fields, error: t.error };
+    if (!t.skip) fields[key] = t.value;
+  }
+  const c = parseComposition(body.composition);
+  if (c.error) return { fields, error: c.error };
+  if (!c.skip) fields.composition = c.composition;
+  return { fields };
 }
 
 /** Повтор принта по умолчанию, см: 10 см ткани на плитку — клетка, полоска, мелкий цветок. */
@@ -231,6 +255,13 @@ export const addProduct = async (req, res) => {
     if (!girthMode) return fail(400, 'Measurements must be given as full circumference or flat width.');
     const title = String(req.body.title ?? '').trim();
     if (!title) return fail(400, 'Product title is required.');
+    const details = detailsOf(req.body);
+    if (details.error) return fail(400, details.error);
+    const sizeChart = parseSizeChart(req.body.sizeChart, girthMode) ?? [];
+    const stockError = normalizeStock(sizeChart);
+    if (stockError) return fail(400, stockError);
+    const gallery = nextGallery([], undefined, galleryUrls(req));
+    if (gallery.error) return fail(400, gallery.error);
 
     const priceNum = toNumber(req.body.price);
     if (!Number.isFinite(priceNum) || priceNum < 0) return fail(400, 'Price must be a positive number.');
@@ -260,9 +291,11 @@ export const addProduct = async (req, res) => {
       color: colorOf(req.body.color),
       print: printFile ? { image: `/uploads/images/${printFile.filename}`, tileCm } : undefined,
       stretch: req.body.stretch || 'none',
-      sizeChart: parseSizeChart(req.body.sizeChart, girthMode) ?? [],
+      sizeChart,
       legs: req.body.legs || undefined,
       image: `/uploads/images/${imageFile.filename}`,
+      images: gallery.images,
+      ...details.fields,
       model3d: model3dUrl,
       rating: 0,
       owner: req.user.id,
@@ -332,7 +365,21 @@ export const updateProduct = async (req, res) => {
     if (b.color !== undefined) product.color = colorOf(b.color);
     const girthMode = girthModeOf(b);
     if (!girthMode) return fail(400, 'Measurements must be given as full circumference or flat width.');
-    if (b.sizeChart !== undefined) product.sizeChart = parseSizeChart(b.sizeChart, girthMode);
+    if (b.sizeChart !== undefined) {
+      const rows = parseSizeChart(b.sizeChart, girthMode);
+      const stockError = normalizeStock(rows);
+      if (stockError) return fail(400, stockError);
+      product.sizeChart = rows;
+    }
+    const details = detailsOf(b);
+    if (details.error) return fail(400, details.error);
+    Object.entries(details.fields).forEach(([k, v]) => { product[k] = v; });
+
+    // галерея: galleryKeep — какие сохранённые фото оставить и в каком порядке; новые — в конец
+    const gallery = nextGallery(product.images, b.galleryKeep, galleryUrls(req));
+    if (gallery.error) return fail(400, gallery.error);
+    product.images = gallery.images;
+    replaced.push(...gallery.removed.map(uploadsUrlToPath));
     if (b.legs !== undefined) product.legs = b.legs || undefined;   // пусто — снять подсказку
 
     const imageFile = req.files?.image?.[0];

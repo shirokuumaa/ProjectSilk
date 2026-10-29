@@ -184,7 +184,10 @@ export async function api(method, urlPath, { token, body, files, fields, headers
   if (files || fields) {
     payload = new FormData();
     for (const [k, v] of Object.entries(fields || {})) payload.append(k, v);
-    for (const [k, [name, buf]] of Object.entries(files || {})) payload.append(k, new Blob([buf]), name);
+    // одно поле — [имя, буфер]; несколько файлов в поле — [[имя, буфер], …]
+    for (const [k, v] of Object.entries(files || {})) {
+      for (const [name, buf] of (Array.isArray(v[0]) ? v : [v])) payload.append(k, new Blob([buf]), name);
+    }
   } else if (body !== undefined) {
     payload = JSON.stringify(body);
     h['Content-Type'] = 'application/json';

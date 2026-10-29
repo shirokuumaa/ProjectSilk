@@ -29,6 +29,10 @@ const SizeEntrySchema = new mongoose.Schema({
   // старое поле «Stretch, %» по строкам; подбор размера его больше не читает —
   // тянучесть ткани теперь у товара целиком (ProductSchema.stretch)
   stretch: { type: Number, default: 0, min: 0, max: 50 },
+
+  // остаток на складе продавца; нет поля — продавец не указал (считаем, что есть).
+  // Уменьшаться будет при оформлении заказа — заказов пока нет, только храним
+  stock: { type: Number, min: 0, validate: { validator: Number.isInteger, message: 'Stock must be a whole number.' } },
 }, { _id: false });
 
 export const GARMENT_TYPES = ['top', 'bottom', 'dress', 'outerwear', 'shoes', 'accessory'];
@@ -38,8 +42,8 @@ const ProductSchema = new mongoose.Schema({
   name:     { type: String },
   price:    { type: Number, required: true },
   category: { type: String, default: 'Clothes' },
-  image:    { type: String, required: true },   // /uploads/images/...
-  images:   [{ type: String }],                 // на будущее
+  image:    { type: String, required: true },   // /uploads/images/... — главное фото
+  images:   [{ type: String }],                 // галерея: ещё до MAX_GALLERY фото, по порядку
   model3d:  { type: String },                   // /uploads/models/...
   rating:   { type: Number, default: 0 },
 
@@ -152,6 +156,18 @@ const ProductSchema = new mongoose.Schema({
 
   // материал — справочно для покупателя
   material: { type: String },
+
+  // карточка для покупателя: описание, состав ткани в %, уход, страна производства
+  description:     { type: String, maxlength: 4000 },
+  composition: {
+    type: [new mongoose.Schema({
+      fibre:   { type: String, required: true, maxlength: 40 },
+      percent: { type: Number, required: true, min: 0.1, max: 100 },
+    }, { _id: false })],
+    default: undefined,
+  },
+  care:            { type: String, maxlength: 1000 },
+  countryOfOrigin: { type: String, maxlength: 60 },
 }, { timestamps: true });
 
 /** Есть ли у товара данные для подбора размера */

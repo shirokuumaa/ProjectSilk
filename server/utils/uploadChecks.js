@@ -52,7 +52,8 @@ export async function validateUploads(req) {
   const print = req.files?.print?.[0];
   const model = req.files?.model3d?.[0];
 
-  for (const [file, what] of [[image, 'Image'], [print, 'Print image']]) {
+  const gallery = (req.files?.gallery || []).map((f) => [f, 'Gallery photo']);
+  for (const [file, what] of [[image, 'Image'], [print, 'Print image'], ...gallery]) {
     if (!file) continue;
     if (file.size > MAX_IMAGE_BYTES) {
       return { status: 413, message: `${what} is too large (maximum 10 MB).` };

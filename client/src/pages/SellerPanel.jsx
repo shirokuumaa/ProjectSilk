@@ -13,6 +13,11 @@ import AccessoryField, { accessoryFromProduct, serializeAccessory } from "../com
 import ColorField from "../components/ColorField";
 import PrintField, { printProblem } from "../components/PrintField";
 import PatternStatus from "../components/PatternStatus";
+import GalleryField, { appendGallery, galleryFromProduct } from "../components/GalleryField";
+import ProductDetailsField, {
+  EMPTY_DETAILS, appendDetails, detailsFromProduct, detailsProblem,
+} from "../components/ProductDetailsField";
+import StockField from "../components/StockField";
 import { imageColor } from "../utils/garmentColor";
 import { silhouetteFits } from "../utils/silhouettes";
 import { authFetch, becomeSeller, fetchMe, isLoggedIn } from "../utils/auth";
@@ -167,6 +172,8 @@ function SellerDashboard() {
   const [print, setPrint] = useState(null);            // принт ткани: плитка с фото и повтор, см (null — однотонная)
   const [stretch, setStretch] = useState("none");
   const [girthMode, setGirthMode] = useState("circumference");
+  const [details, setDetails] = useState(EMPTY_DETAILS);           // описание, состав, уход, страна
+  const [gallery, setGallery] = useState({ saved: [], files: [] }); // ещё фото товара
 
   const [processedUrl, setProcessedUrl] = useState(null);   // превью (blob URL)
   const [processedBlob, setProcessedBlob] = useState(null); // файл для отправки (Blob/File)
@@ -391,6 +398,7 @@ function SellerDashboard() {
       ...(processedBlob ? [] : ["Please add a product image."]),
       ...(garmentType ? [] : ["Please choose the garment type."]),
       ...(printProblem(print) ? [printProblem(print)] : []),
+      ...(detailsProblem(details) ? [detailsProblem(details)] : []),
     ];
     if (missing.length) {
       setError(missing);
@@ -415,6 +423,8 @@ function SellerDashboard() {
         fd.append("print", print.blob, "print.jpg");
         fd.append("printTileCm", String(print.tileCm));
       }
+      appendDetails(fd, details);
+      appendGallery(fd, gallery);
       // имя файла задаёт расширение на сервере; у исходного File оно своё (jpg/webp)
       fd.append("image", processedBlob, processedBlob.name || "product.png");
 
@@ -438,6 +448,8 @@ function SellerDashboard() {
       setSilhouette(null);
       setColor(null);
       setPrint(null);
+      setDetails(EMPTY_DETAILS);
+      setGallery({ saved: [], files: [] });
 
       if (processedUrl && String(processedUrl).startsWith("blob:")) {
         URL.revokeObjectURL(processedUrl);
@@ -508,6 +520,7 @@ function SellerDashboard() {
           {processedUrl && (
             <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
               <img src={processedUrl} alt="Product preview" style={ui.preview} />
+              <GalleryField value={gallery} onChange={setGallery} />
               <ColorField value={color} onChange={setColor} />
               <PrintField photo={processedUrl} value={print} onChange={setPrint} />
               <label style={ui.label}>
@@ -549,8 +562,10 @@ function SellerDashboard() {
                 girthMode={girthMode}
                 onGirthModeChange={setGirthMode}
               />
+              <StockField rows={sizeChart} onChange={setSizeChart} />
               <SilhouettePicker garmentType={garmentType} value={silhouette} onChange={setSilhouette} />
               <AccessoryField garmentType={garmentType} value={accessory} onChange={setAccessory} />
+              <ProductDetailsField value={details} onChange={setDetails} />
 
               <div style={{ marginTop: 4 }}>
                 <button
@@ -722,6 +737,7 @@ const toEditorRows = (chart = []) =>
     length: r.length ?? "", sleeve: r.sleeve ?? "",
     fit: r.fit || "regular",
     stretch: r.stretch ?? 0,
+    stock: r.stock ?? "",
   }));
 
 export function EditProductForm({ product, onCancel, onSaved }) {
@@ -744,6 +760,8 @@ export function EditProductForm({ product, onCancel, onSaved }) {
   // сервер хранит полные обхваты — с ними форма и открывается
   const [girthMode, setGirthMode] = useState("circumference");
   const [sizeChart, setSizeChart] = useState(() => toEditorRows(product.sizeChart));
+  const [details, setDetails] = useState(() => detailsFromProduct(product));
+  const [gallery, setGallery] = useState(() => galleryFromProduct(product));
   const [image, setImage] = useState(null);
   const photo = useMemo(() => (image ? URL.createObjectURL(image) : toPublicUrl(product.image)), [image, product.image]);
   const [saving, setSaving] = useState(false);
@@ -765,6 +783,7 @@ export function EditProductForm({ product, onCancel, onSaved }) {
       ...(price !== "" && Number.isFinite(priceNum) && priceNum >= 0 ? [] : ["Price must be a positive number."]),
       ...(garmentType ? [] : ["Please choose the garment type."]),
       ...(printProblem(print) ? [printProblem(print)] : []),
+      ...(detailsProblem(details) ? [detailsProblem(details)] : []),
     ];
     if (problems.length) return setError(problems);
     setSaving(true);
@@ -787,6 +806,8 @@ export function EditProductForm({ product, onCancel, onSaved }) {
       } else if (product.print) {
         fd.append("printTileCm", "");   // принт сняли — вещь однотонная
       }
+      appendDetails(fd, details);
+      appendGallery(fd, gallery, { editing: true });
       if (image) fd.append("image", image, image.name);
       const r = await authFetch(`${API}/api/products/${product._id}`, { method: "PATCH", body: fd });
       if (!r.ok) throw new Error(await errorMessage(r, "Could not save the changes"));
@@ -831,10 +852,13 @@ export function EditProductForm({ product, onCancel, onSaved }) {
           onGirthModeChange={setGirthMode}
         />
         <p style={ui.meta}>Saved measurements are shown as full circumferences.</p>
+        <StockField rows={sizeChart} onChange={setSizeChart} />
         <SilhouettePicker garmentType={garmentType} value={silhouette} onChange={setSilhouette} />
         <AccessoryField garmentType={garmentType} value={accessory} onChange={setAccessory} />
+        <ProductDetailsField value={details} onChange={setDetails} />
         <ColorField value={color} onChange={setColor} />
         <PrintField photo={photo} value={print} onChange={setPrint} />
+        <GalleryField value={gallery} onChange={setGallery} toPublicUrl={toPublicUrl} />
 
         <label style={ui.label}>
           New image (optional; JPEG, PNG or WebP, up to {MAX_IMAGE_MB} MB)
