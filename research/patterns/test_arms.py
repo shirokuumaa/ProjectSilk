@@ -1,8 +1,8 @@
 """Tests of the straight-arm avatar (scripts/avatar/build_avatar.straighten_arms, 60f05a29) as the simulation sees it.
 
 Usage (from research/patterns/): .envs/mac/bin/python -m unittest test_arms
-The sleeve test needs a jacket box on the new bodies (local, not in git: scripts/garments/patterns_job.py
---job demo/jacket_job.json --out runs/arms_jacket) and is skipped without it.
+The sleeve tests need a jacket box on the new bodies (local, not in git: scripts/garments/patterns_job.py
+--job demo/jacket_job.json --out runs/arms_jacket) and its Newton drape (pod/run_demo_all.sh); skipped without them.
 """
 import json
 import sys
@@ -62,6 +62,19 @@ class Sleeve(unittest.TestCase):
         for side in res.values():
             self.assertGreater(side["arm_inside_%"], 85, res)    # bent elbows: 35-52 %
             self.assertLess(side["axes_angle_deg"], 10, res)      # bent elbows: 29-35 deg
+
+
+
+@unittest.skipUnless((JACKET / "newton" / "results" / "size_L" / "size_L_sim.obj").exists(), "no draped jacket L")
+class DrapedSleeve(unittest.TestCase):
+    def test_the_jacket_l_sleeve_follows_the_arm_after_the_drape(self):
+        from sleeve_drape_check import check
+        res = check(JACKET / "newton" / "results" / "size_L" / "size_L_sim.obj", JACKET / "boxes" / "size_L", "size_L",
+                    JACKET / "bodies_mpfb" / "product_L.obj", JACKET / "bodies_mpfb" / "ggg_body_segmentation.json")
+        for side in ("left", "right"):
+            self.assertGreater(res[side]["cover_%"], 90, res)      # bent elbows: 25 %
+            self.assertLess(res[side]["hem_gap_cm"], 3, res)       # bent elbows: ~9 cm of empty sleeve
+        self.assertLess(res["top_drop_body_cm"], 12, res)          # from GarmentCode's layout above the shoulders
 
 
 if __name__ == "__main__":

@@ -1,5 +1,5 @@
 {
- "source": "Newton 1.7 (SolverStyle3D) on our MPFB base avatar, every size on its own size body; skirts friction 0.5, others 0.2; research/patterns/runs/allsizes",
+ "source": "Newton 1.7 (SolverStyle3D) on our MPFB base avatar, every size on its own size body; skirts and trousers friction 0.5, others 0.2; research/patterns/runs/arms, runs/arms_trousers, runs/arms_jacket, runs/arms_coat",
  "items": {
   "dress": {
    "case": "03_dress",
@@ -9,9 +9,9 @@
     {
      "size": "XS",
      "file": "/models/demo-garments/dress_XS.glb",
-     "mb": 0.385,
-     "triangles": 15874,
-     "zOffsetM": 0.04224,
+     "mb": 0.31,
+     "triangles": 16988,
+     "zOffsetM": 0.04231,
      "body": {
       "heightCm": 166.0,
       "chest": 82,
@@ -22,9 +22,9 @@
     {
      "size": "S",
      "file": "/models/demo-garments/dress_S.glb",
-     "mb": 0.413,
-     "triangles": 17045,
-     "zOffsetM": 0.04428,
+     "mb": 0.325,
+     "triangles": 17808,
+     "zOffsetM": 0.04446,
      "body": {
       "heightCm": 166.0,
       "chest": 86,
@@ -35,9 +35,9 @@
     {
      "size": "M",
      "file": "/models/demo-garments/dress_M.glb",
-     "mb": 0.43,
-     "triangles": 17745,
-     "zOffsetM": 0.04612,
+     "mb": 0.326,
+     "triangles": 17858,
+     "zOffsetM": 0.04604,
      "body": {
       "heightCm": 166.0,
       "chest": 90,
@@ -48,9 +48,9 @@
     {
      "size": "L",
      "file": "/models/demo-garments/dress_L.glb",
-     "mb": 0.477,
-     "triangles": 19691,
-     "zOffsetM": 0.04939,
+     "mb": 0.35,
+     "triangles": 19216,
+     "zOffsetM": 0.04924,
      "body": {
       "heightCm": 166.0,
       "chest": 96,
@@ -61,9 +61,9 @@
     {
      "size": "XL",
      "file": "/models/demo-garments/dress_XL.glb",
-     "mb": 0.485,
-     "triangles": 20027,
-     "zOffsetM": 0.0502,
+     "mb": 0.371,
+     "triangles": 20379,
+     "zOffsetM": 0.0494,
      "body": {
       "heightCm": 166.0,
       "chest": 102,
@@ -74,9 +74,9 @@
     {
      "size": "XXL",
      "file": "/models/demo-garments/dress_XXL.glb",
-     "mb": 0.51,
-     "triangles": 21057,
-     "zOffsetM": 0.04991,
+     "mb": 0.388,
+     "triangles": 21291,
+     "zOffsetM": 0.0482,
      "body": {
       "heightCm": 166.0,
       "chest": 108,
@@ -94,9 +94,9 @@
     {
      "size": "XS",
      "file": "/models/demo-garments/skirt_XS.glb",
-     "mb": 0.624,
-     "triangles": 25819,
-     "zOffsetM": 0.04224,
+     "mb": 0.468,
+     "triangles": 25741,
+     "zOffsetM": 0.04231,
      "body": {
       "heightCm": 166.0,
       "chest": 82,
@@ -107,9 +107,9 @@
     {
      "size": "S",
      "file": "/models/demo-garments/skirt_S.glb",
-     "mb": 0.651,
-     "triangles": 26925,
-     "zOffsetM": 0.04428,
+     "mb": 0.487,
+     "triangles": 26778,
+     "zOffsetM": 0.04446,
      "body": {
       "heightCm": 166.0,
       "chest": 86,
@@ -120,9 +120,9 @@
     {
      "size": "M",
      "file": "/models/demo-garments/skirt_M.glb",
-     "mb": 0.68,
-     "triangles": 28141,
-     "zOffsetM": 0.04612,
+     "mb": 0.505,
+     "triangles": 27767,
+     "zOffsetM": 0.04604,
      "body": {
       "heightCm": 166.0,
       "chest": 90,
@@ -133,9 +133,9 @@
     {
      "size": "L",
      "file": "/models/demo-garments/skirt_L.glb",
-     "mb": 0.708,
-     "triangles": 29313,
-     "zOffsetM": 0.04939,
+     "mb": 0.529,
+     "triangles": 29107,
+     "zOffsetM": 0.04924,
      "body": {
       "heightCm": 166.0,
       "chest": 96,
@@ -146,9 +146,9 @@
     {
      "size": "XL",
      "file": "/models/demo-garments/skirt_XL.glb",
-     "mb": 0.73,
-     "triangles": 30207,
-     "zOffsetM": 0.0502,
+     "mb": 0.548,
+     "triangles": 30143,
+     "zOffsetM": 0.0494,
      "body": {
       "heightCm": 166.0,
       "chest": 102,
@@ -166,9 +166,9 @@
     {
      "size": "XXS",
      "file": "/models/demo-garments/tee_XXS.glb",
-     "mb": 0.277,
-     "triangles": 11392,
-     "zOffsetM": 0.04046,
+     "mb": 0.209,
+     "triangles": 11424,
+     "zOffsetM": 0.04077,
      "body": {
       "heightCm": 166.0,
       "chest": 78,
@@ -179,8 +179,8 @@
     {
      "size": "XS",
      "file": "/models/demo-garments/tee_XS.glb",
-     "mb": 0.3,
-     "triangles": 12330,
+     "mb": 0.227,
+     "triangles": 12424,
      "zOffsetM": 0.04319,
      "body": {
       "heightCm": 166.0,
@@ -192,9 +192,9 @@
     {
      "size": "S",
      "file": "/models/demo-garments/tee_S.glb",
-     "mb": 0.328,
-     "triangles": 13508,
-     "zOffsetM": 0.0453,
+     "mb": 0.246,
+     "triangles": 13434,
+     "zOffsetM": 0.04522,
      "body": {
       "heightCm": 166.0,
       "chest": 86,
@@ -205,8 +205,8 @@
     {
      "size": "M",
      "file": "/models/demo-garments/tee_M.glb",
-     "mb": 0.358,
-     "triangles": 14766,
+     "mb": 0.269,
+     "triangles": 14714,
      "zOffsetM": 0.04717,
      "body": {
       "heightCm": 166.0,
@@ -218,9 +218,9 @@
     {
      "size": "L",
      "file": "/models/demo-garments/tee_L.glb",
-     "mb": 0.395,
-     "triangles": 16288,
-     "zOffsetM": 0.05023,
+     "mb": 0.298,
+     "triangles": 16294,
+     "zOffsetM": 0.0501,
      "body": {
       "heightCm": 166.0,
       "chest": 96,
@@ -231,9 +231,9 @@
     {
      "size": "XL",
      "file": "/models/demo-garments/tee_XL.glb",
-     "mb": 0.434,
-     "triangles": 17906,
-     "zOffsetM": 0.05081,
+     "mb": 0.323,
+     "triangles": 17714,
+     "zOffsetM": 0.04973,
      "body": {
       "heightCm": 166.0,
       "chest": 102,
@@ -244,14 +244,269 @@
     {
      "size": "XXL",
      "file": "/models/demo-garments/tee_XXL.glb",
-     "mb": 0.474,
-     "triangles": 19554,
-     "zOffsetM": 0.05036,
+     "mb": 0.349,
+     "triangles": 19124,
+     "zOffsetM": 0.04859,
      "body": {
       "heightCm": 166.0,
       "chest": 108,
       "waist": 90,
       "hips": 116
+     }
+    }
+   ]
+  },
+  "trousers": {
+   "case": "arms_trousers/size",
+   "image": "/models/demo-garments/trousers.jpg",
+   "imageMb": 0.025,
+   "models": [
+    {
+     "size": "XS",
+     "file": "/models/demo-garments/trousers_XS.glb",
+     "mb": 0.435,
+     "triangles": 23953,
+     "zOffsetM": 0.04231,
+     "body": {
+      "heightCm": 166.0,
+      "chest": 82.0,
+      "waist": 62.0,
+      "hips": 90.0
+     }
+    },
+    {
+     "size": "S",
+     "file": "/models/demo-garments/trousers_S.glb",
+     "mb": 0.464,
+     "triangles": 25557,
+     "zOffsetM": 0.04443,
+     "body": {
+      "heightCm": 166.0,
+      "chest": 86.0,
+      "waist": 66.0,
+      "hips": 94.0
+     }
+    },
+    {
+     "size": "M",
+     "file": "/models/demo-garments/trousers_M.glb",
+     "mb": 0.484,
+     "triangles": 26671,
+     "zOffsetM": 0.04601,
+     "body": {
+      "heightCm": 166.0,
+      "chest": 90.0,
+      "waist": 70.0,
+      "hips": 98.0
+     }
+    },
+    {
+     "size": "L",
+     "file": "/models/demo-garments/trousers_L.glb",
+     "mb": 0.518,
+     "triangles": 28585,
+     "zOffsetM": 0.04922,
+     "body": {
+      "heightCm": 166.0,
+      "chest": 96.0,
+      "waist": 76.0,
+      "hips": 104.0
+     }
+    },
+    {
+     "size": "XL",
+     "file": "/models/demo-garments/trousers_XL.glb",
+     "mb": 0.553,
+     "triangles": 30489,
+     "zOffsetM": 0.04942,
+     "body": {
+      "heightCm": 166.0,
+      "chest": 102.0,
+      "waist": 82.0,
+      "hips": 110.0
+     }
+    },
+    {
+     "size": "XXL",
+     "file": "/models/demo-garments/trousers_XXL.glb",
+     "mb": 0.578,
+     "triangles": 31903,
+     "zOffsetM": 0.0482,
+     "body": {
+      "heightCm": 166.0,
+      "chest": 108.0,
+      "waist": 88.0,
+      "hips": 116.0
+     }
+    }
+   ]
+  },
+  "jacket": {
+   "case": "arms_jacket/size",
+   "image": "/models/demo-garments/jacket.jpg",
+   "imageMb": 0.026,
+   "models": [
+    {
+     "size": "XS",
+     "file": "/models/demo-garments/jacket_XS.glb",
+     "mb": 0.437,
+     "triangles": 23998,
+     "zOffsetM": 0.04231,
+     "body": {
+      "heightCm": 166.0,
+      "chest": 82.0,
+      "waist": 62.0,
+      "hips": 90.0
+     }
+    },
+    {
+     "size": "S",
+     "file": "/models/demo-garments/jacket_S.glb",
+     "mb": 0.458,
+     "triangles": 25200,
+     "zOffsetM": 0.04443,
+     "body": {
+      "heightCm": 166.0,
+      "chest": 86.0,
+      "waist": 66.0,
+      "hips": 94.0
+     }
+    },
+    {
+     "size": "M",
+     "file": "/models/demo-garments/jacket_M.glb",
+     "mb": 0.481,
+     "triangles": 26466,
+     "zOffsetM": 0.04601,
+     "body": {
+      "heightCm": 166.0,
+      "chest": 90.0,
+      "waist": 70.0,
+      "hips": 98.0
+     }
+    },
+    {
+     "size": "L",
+     "file": "/models/demo-garments/jacket_L.glb",
+     "mb": 0.516,
+     "triangles": 28396,
+     "zOffsetM": 0.04922,
+     "body": {
+      "heightCm": 166.0,
+      "chest": 96.0,
+      "waist": 76.0,
+      "hips": 104.0
+     }
+    },
+    {
+     "size": "XL",
+     "file": "/models/demo-garments/jacket_XL.glb",
+     "mb": 0.553,
+     "triangles": 30408,
+     "zOffsetM": 0.04942,
+     "body": {
+      "heightCm": 166.0,
+      "chest": 102.0,
+      "waist": 82.0,
+      "hips": 110.0
+     }
+    },
+    {
+     "size": "XXL",
+     "file": "/models/demo-garments/jacket_XXL.glb",
+     "mb": 0.576,
+     "triangles": 31692,
+     "zOffsetM": 0.0482,
+     "body": {
+      "heightCm": 166.0,
+      "chest": 108.0,
+      "waist": 88.0,
+      "hips": 116.0
+     }
+    }
+   ]
+  },
+  "coat": {
+   "case": "arms_coat/size",
+   "image": "/models/demo-garments/coat.jpg",
+   "imageMb": 0.028,
+   "models": [
+    {
+     "size": "XS",
+     "file": "/models/demo-garments/coat_XS.glb",
+     "mb": 0.572,
+     "triangles": 31530,
+     "zOffsetM": 0.04231,
+     "body": {
+      "heightCm": 166.0,
+      "chest": 82.0,
+      "waist": 62.0,
+      "hips": 90.0
+     }
+    },
+    {
+     "size": "S",
+     "file": "/models/demo-garments/coat_S.glb",
+     "mb": 0.604,
+     "triangles": 33286,
+     "zOffsetM": 0.04443,
+     "body": {
+      "heightCm": 166.0,
+      "chest": 86.0,
+      "waist": 66.0,
+      "hips": 94.0
+     }
+    },
+    {
+     "size": "M",
+     "file": "/models/demo-garments/coat_M.glb",
+     "mb": 0.64,
+     "triangles": 35286,
+     "zOffsetM": 0.04601,
+     "body": {
+      "heightCm": 166.0,
+      "chest": 90.0,
+      "waist": 70.0,
+      "hips": 98.0
+     }
+    },
+    {
+     "size": "L",
+     "file": "/models/demo-garments/coat_L.glb",
+     "mb": 0.703,
+     "triangles": 38792,
+     "zOffsetM": 0.04922,
+     "body": {
+      "heightCm": 166.0,
+      "chest": 96.0,
+      "waist": 76.0,
+      "hips": 104.0
+     }
+    },
+    {
+     "size": "XL",
+     "file": "/models/demo-garments/coat_XL.glb",
+     "mb": 0.743,
+     "triangles": 40974,
+     "zOffsetM": 0.04942,
+     "body": {
+      "heightCm": 166.0,
+      "chest": 102.0,
+      "waist": 82.0,
+      "hips": 110.0
+     }
+    },
+    {
+     "size": "XXL",
+     "file": "/models/demo-garments/coat_XXL.glb",
+     "mb": 0.781,
+     "triangles": 43086,
+     "zOffsetM": 0.0482,
+     "body": {
+      "heightCm": 166.0,
+      "chest": 108.0,
+      "waist": 88.0,
+      "hips": 116.0
      }
     }
    ]

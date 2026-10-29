@@ -1,10 +1,11 @@
 // server/scripts/seedDemoGarments.js
 //
-// Три демо-товара с настоящей тканью: платье, юбка, футболка. 3D-модели всех размеров сетки —
-// драпировки Newton на нашей болванке (scripts/garments/export_demo_drapes.py,
-// client/public/models/demo-garments/manifest.json). Размерные сетки — замеры изделий
+// Шесть демо-товаров с настоящей тканью: платье, юбка, футболка, брюки, жакет, пальто. 3D-модели всех
+// размеров сетки — драпировки Newton на нашей болванке с прямыми руками (scripts/garments/export_demo_drapes.py,
+// client/public/models/demo-garments/manifest.json). Сетки платья, юбки, футболки — замеры изделий
 // из исследования, день 7 (research/patterns/runs/day7/report.md): ширины в разложенном
-// виде уже × 2, рукав Uniqlo — «от центра спинки» минус половина ширины плеч.
+// виде уже × 2, рукав Uniqlo — «от центра спинки» минус половина ширины плеч. Брюки, жакет, пальто —
+// открытые средние таблицы, без данных магазинов (research/patterns/demo/<вещь>_job.json).
 //
 // Запуск (товары появятся у существующего продавца; повторный запуск обновляет их):
 //   MONGODB_URI=mongodb://localhost:27017/<база> node scripts/seedDemoGarments.js <имя продавца>
@@ -56,6 +57,40 @@ export const DEMO = {
       ['XXS', 76, 58, 15.5], ['XS', 81, 59.5, 16], ['S', 86, 61.5, 16.5], ['M', 92, 63.5, 16.8],
       ['L', 98, 66, 17.5], ['XL', 104, 68, 18.5], ['XXL', 110, 69.5, 19],
     ]).map((r) => ({ ...r, fit: 'regular' })),
+  },
+  trousers: {
+    title: 'Straight Trousers',
+    price: 15900,
+    garmentType: 'bottom',
+    legs: 'split',
+    stretch: 'none',
+    material: 'Viscose blend',
+    sizeChart: rows(['size', 'waist', 'hips', 'length'], [
+      ['XS', 64, 92, 100], ['S', 68, 96, 100.5], ['M', 72, 100, 101],
+      ['L', 78, 106, 101.5], ['XL', 84, 112, 102], ['XXL', 90, 118, 102.5],
+    ]).map((r) => ({ ...r, fit: 'tight' })),
+  },
+  jacket: {
+    title: 'Lapel Jacket',
+    price: 29900,
+    garmentType: 'outerwear',
+    stretch: 'none',
+    material: 'Wool blend',
+    sizeChart: rows(['size', 'shoulder', 'chest', 'waist', 'length', 'sleeve'], [
+      ['XS', 36, 98, 100, 63, 59], ['S', 37, 102, 104, 64, 59.5], ['M', 38, 106, 108, 65, 60],
+      ['L', 39.5, 112, 114, 66, 60.5], ['XL', 41, 118, 120, 67, 61], ['XXL', 42.5, 124, 126, 68, 61.5],
+    ]).map((r) => ({ ...r, fit: 'loose' })),
+  },
+  coat: {
+    title: 'Knee-Length Coat',
+    price: 44900,
+    garmentType: 'outerwear',
+    stretch: 'none',
+    material: 'Wool blend',
+    sizeChart: rows(['size', 'shoulder', 'chest', 'waist', 'length', 'sleeve'], [
+      ['XS', 37, 98, 100, 98, 60], ['S', 38, 102, 104, 99, 60.5], ['M', 39, 106, 108, 100, 61],
+      ['L', 40.5, 112, 114, 101, 61.5], ['XL', 42, 118, 120, 102, 62], ['XXL', 43.5, 124, 126, 103, 62.5],
+    ]).map((r) => ({ ...r, fit: 'loose' })),
   },
 };
 

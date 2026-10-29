@@ -14,9 +14,13 @@
 #   research/patterns/.envs/mac/bin/python scripts/garments/export_demo_drapes.py            # S и L (Newton, 18.10)
 #   … export_demo_drapes.py --run allsizes   # все размеры: GLB из simtest_report.py --no-render
 #        по runs/allsizes/newton (renders/), болванки runs/allsizes/bodies
+#   … export_demo_drapes.py --run arms --jobs trousers:arms_trousers,jacket:arms_jacket,coat:arms_coat
+#        + товары конвейера продавца (scripts/garments/patterns_job.py): GLB из runs/<job>/report/renders,
+#        болванки runs/<job>/bodies/product_<размер>, фигура размера — из runs/<job>/result.json
 
 import argparse
 import json
+import struct
 import sys
 from pathlib import Path
 
@@ -50,19 +54,38 @@ ITEMS = {
 SIZES = {"03_dress": ("S", "L"), "04_skirt": ("S", "L"), "09_tee": ("S", "L")}
 
 
+def z_offset(mp, u, obj):
+    """Сдвиг по z (м) от фигуры симуляции obj к той же фигуре на сайте (морфы u)."""
+    app = mp.body.coords(u)
+    sim = np.array([[float(x) for x in l.split()[1:4]] for l in open(obj) if l.startswith("v ")])
+    d = app - sim
+    assert d.std(0).max() < 2e-4, f"{obj.name}: сдвиг не постоянный ({d.std(0)})"
+    assert abs(d[:, 0].mean()) < 1e-4 and abs(d[:, 1].mean()) < 5e-4, f"{obj.name}: сдвиг не только по z"
+    return float(d[:, 2].mean())
+
+
 def z_offsets():
     """Сдвиг по z (м) от системы симуляции к системе сайта для каждой фигуры."""
     mp = MPFB()
     rows = {r["name"]: r for r in json.load(open(BODIES / "bodies.json"))}
+    return {name: z_offset(mp, np.array([row["controls"][c] for c in config.CONTROL_NAMES]), BODIES / f"{name}.obj")
+            for name, row in rows.items()}
+
+
+def job_items(spec):
+    """Товары конвейера продавца: "id:run,…" → {id: {"run", "sizes": [(size, figure, dz)]}}. Фигура размера —
+    из result.json; морфы — тем же подбором, что строил болванку (mpfb_body.MPFB.solve), сдвиг — от неё."""
+    mp = MPFB()
     out = {}
-    for name, row in rows.items():
-        u = np.array([row["controls"][c] for c in config.CONTROL_NAMES])
-        app = mp.body.coords(u)
-        sim = np.array([[float(x) for x in l.split()[1:4]] for l in open(BODIES / f"{name}.obj") if l.startswith("v ")])
-        d = app - sim
-        assert d.std(0).max() < 2e-4, f"{name}: сдвиг не постоянный ({d.std(0)})"
-        assert abs(d[:, 0].mean()) < 1e-4 and abs(d[:, 1].mean()) < 5e-4, f"{name}: сдвиг не только по z"
-        out[name] = float(d[:, 2].mean())
+    for part in filter(None, spec.split(",")):
+        item, run = part.split(":")
+        run = PATTERNS / "runs" / run
+        sizes = []
+        for s in json.load(open(run / "result.json"))["sizes"]:
+            b = s["body"]
+            u, _ = mp.solve(b["heightCm"], b["chest"], b["waist"], b["hips"])
+            sizes.append((s["size"], b, z_offset(mp, u, run / "bodies" / f"product_{s['size']}.obj")))
+        out[item] = {"run": run, "sizes": sizes}
     return out
 
 
@@ -78,13 +101,48 @@ def export_glb(mesh, color, path):
         metallicFactor=0.0, roughnessFactor=0.9, doubleSided=True,
     ))
     _ = mesh.vertex_normals  # нормали уходят в GLB
-    path.write_bytes(trimesh.exchange.gltf.export_glb(trimesh.Scene(mesh), include_normals=True))
+    path.write_bytes(uint16_indices(trimesh.exchange.gltf.export_glb(trimesh.Scene(mesh), include_normals=True)))
     return path.stat().st_size / 1e6
 
 
-def product_image(case, path):
+def uint16_indices(glb):
+    """Индексы треугольников 16-битные вместо 32-битных, без потерь (вершин < 65 535): trimesh всегда пишет
+    uint32, и пальто XXL (41 тыс. треугольников) вышло 1,04 МБ при пределе 1 МБ."""
+    magic, version, _ = struct.unpack_from("<III", glb, 0)
+    jlen, _ = struct.unpack_from("<II", glb, 12)
+    doc = json.loads(glb[20:20 + jlen])
+    blen, _ = struct.unpack_from("<II", glb, 20 + jlen)
+    binary = glb[28 + jlen:28 + jlen + blen]
+    index_views = {}
+    for mesh in doc["meshes"]:
+        for prim in mesh["primitives"]:
+            acc = doc["accessors"][prim["indices"]]
+            if acc["componentType"] == 5125:
+                index_views[acc["bufferView"]] = acc
+    out = bytearray()
+    for i, view in enumerate(doc["bufferViews"]):
+        data = binary[view.get("byteOffset", 0):view.get("byteOffset", 0) + view["byteLength"]]
+        if i in index_views:
+            idx = np.frombuffer(data, np.uint32)
+            if idx.max() >= 65535:
+                return glb                                   # не помещается — как было
+            data = idx.astype(np.uint16).tobytes()
+            index_views[i]["componentType"] = 5123
+        out += b"\0" * (-len(out) % 4)
+        view["byteOffset"], view["byteLength"] = len(out), len(data)
+        out += data
+    out += b"\0" * (-len(out) % 4)
+    doc["buffers"][0]["byteLength"] = len(out)
+    js = json.dumps(doc, separators=(",", ":")).encode()
+    js += b" " * (-len(js) % 4)
+    total = 12 + 8 + len(js) + 8 + len(out)
+    return (struct.pack("<III", magic, version, total) + struct.pack("<II", len(js), 0x4E4F534A) + js
+            + struct.pack("<II", len(out), 0x004E4942) + bytes(out))
+
+
+def product_image(case, path, images=None):
     """Картинка товара: рендер Newton спереди (наша болванка), кадр по ткани."""
-    img = Image.open(IMAGES / f"{case}_S_front.png").convert("RGB")
+    img = Image.open((images or IMAGES) / f"{case}_S_front.png").convert("RGB")
     a = np.asarray(img).astype(int)
     cloth = (a[..., 2] - a[..., 0] > 25)                    # голубая ткань рендера
     ys, xs = np.nonzero(cloth)
@@ -103,6 +161,7 @@ def main():
     global RUNS, BODIES, SIZES
     ap = argparse.ArgumentParser()
     ap.add_argument("--run", help="research/patterns/runs/<run>: every size, GLBs from <run>/report/renders")
+    ap.add_argument("--jobs", default="", help="seller-pipeline items id:run,… (runs/<run>/report/renders)")
     a = ap.parse_args()
     if a.run:
         run = PATTERNS / "runs" / a.run
@@ -112,7 +171,8 @@ def main():
     OUT.mkdir(parents=True, exist_ok=True)
     dz = z_offsets()
     source = (f"Newton 1.7 (SolverStyle3D) on our MPFB base avatar, every size on its own size body; "
-              f"skirts friction 0.5, others 0.2; research/patterns/runs/{a.run}") if a.run else \
+              f"skirts and trousers friction 0.5, others 0.2; research/patterns/runs/{a.run}"
+              + "".join(f", runs/{p.split(':')[1]}" for p in filter(None, a.jobs.split(",")))) if a.run else \
              ("Newton 1.7 (SolverStyle3D), friction 0.2, on our MPFB base avatar; "
               "research/patterns/runs/newtontest_gpu")
     manifest = {"source": source, "items": {}}
@@ -132,6 +192,20 @@ def main():
             print(f"{item}_{size}: {mb:.2f} MB, {len(mesh.faces)} tris, body {body}, dz {dz[body] * 100:.2f} cm")
         img_mb = product_image(cfg["case"], OUT / f"{item}.jpg")
         manifest["items"][item] = {"case": cfg["case"], "image": f"/models/demo-garments/{item}.jpg",
+                                   "imageMb": round(img_mb, 3), "models": models}
+    for item, job in job_items(a.jobs).items():
+        renders, models = job["run"] / "report" / "renders", []
+        for size, figure, dz in job["sizes"]:
+            mesh = load_mesh(renders / f"size_{size}.glb")
+            mesh.apply_scale(0.01)
+            mesh.apply_translation([0.0, 0.0, dz])
+            mb = export_glb(mesh, CLOTH, OUT / f"{item}_{size}.glb")
+            assert mb <= MAX_MB, f"{item}_{size}: {mb:.2f} МБ > {MAX_MB}"
+            models.append({"size": size, "file": f"/models/demo-garments/{item}_{size}.glb", "mb": round(mb, 3),
+                           "triangles": int(len(mesh.faces)), "zOffsetM": round(dz, 5), "body": figure})
+            print(f"{item}_{size}: {mb:.2f} MB, {len(mesh.faces)} tris, dz {dz * 100:.2f} cm")
+        img_mb = product_image("size", OUT / f"{item}.jpg", images=renders)
+        manifest["items"][item] = {"case": f"{job['run'].name}/size", "image": f"/models/demo-garments/{item}.jpg",
                                    "imageMb": round(img_mb, 3), "models": models}
     (OUT / "manifest.json").write_text(json.dumps(manifest, indent=1, ensure_ascii=False))
     print("manifest:", OUT / "manifest.json")
