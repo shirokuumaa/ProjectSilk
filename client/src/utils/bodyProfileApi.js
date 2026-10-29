@@ -36,6 +36,7 @@ export function toBodyProfile(m, user) {
     inseam: num(m.inseam),
     weightKg: num(m.weightKg),
     armLength: num(m.armLength),
+    footLength: num(m.footLength),
     skinTone: m.skinTone,
     hairStyle: m.hair,
   };

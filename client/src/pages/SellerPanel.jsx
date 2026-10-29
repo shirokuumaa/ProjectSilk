@@ -9,6 +9,7 @@ import SizeChartEditor, { serializeSizeChart } from "../components/SizeChartEdit
 import SellerHeader from "../components/SellerHeader";
 import FormErrors from "../components/FormErrors";
 import SilhouettePicker from "../components/SilhouettePicker";
+import AccessoryField, { accessoryFromProduct, serializeAccessory } from "../components/AccessoryField";
 import ColorField from "../components/ColorField";
 import PrintField, { printProblem } from "../components/PrintField";
 import PatternStatus from "../components/PatternStatus";
@@ -160,6 +161,7 @@ function SellerDashboard() {
 
   const [sizeChart, setSizeChart] = useState([]);
   const [garmentType, setGarmentType] = useState(""); // тип выбирает продавец, умолчания нет
+  const [accessory, setAccessory] = useState(null);   // вид и размеры аксессуара или обуви
   const [silhouette, setSilhouette] = useState(null);  // фасон — по нему сервер строит выкройки
   const [color, setColor] = useState(null);            // основной цвет с фото, продавец может поправить
   const [print, setPrint] = useState(null);            // принт ткани: плитка с фото и повтор, см (null — однотонная)
@@ -407,6 +409,7 @@ function SellerDashboard() {
       fd.append("girthMode", girthMode); // flat — сервер умножит обхваты на 2
       fd.append("sizeChart", JSON.stringify(serializeSizeChart(sizeChart)));
       fd.append("silhouette", silhouette ? JSON.stringify(silhouette) : "");
+      fd.append("accessory", serializeAccessory(garmentType, accessory));
       fd.append("color", color || "");
       if (print?.blob) {
         fd.append("print", print.blob, "print.jpg");
@@ -547,6 +550,7 @@ function SellerDashboard() {
                 onGirthModeChange={setGirthMode}
               />
               <SilhouettePicker garmentType={garmentType} value={silhouette} onChange={setSilhouette} />
+              <AccessoryField garmentType={garmentType} value={accessory} onChange={setAccessory} />
 
               <div style={{ marginTop: 4 }}>
                 <button
@@ -725,6 +729,7 @@ export function EditProductForm({ product, onCancel, onSaved }) {
   const [price, setPrice] = useState(String(product.price ?? ""));
   const [category, setCategory] = useState(product.category || "Clothes");
   const [garmentType, setGarmentType] = useState(product.garmentType || ""); // у старых товаров типа нет
+  const [accessory, setAccessory] = useState(() => accessoryFromProduct(product));
   const [silhouette, setSilhouette] = useState(product.silhouette || null);
   const [color, setColor] = useState(product.color || null);
   // сохранённый принт: плитка остаётся, пока продавец не сдвинет квадрат или не сменит фото
@@ -774,6 +779,7 @@ export function EditProductForm({ product, onCancel, onSaved }) {
       fd.append("girthMode", girthMode);
       fd.append("sizeChart", JSON.stringify(serializeSizeChart(sizeChart)));
       fd.append("silhouette", silhouette ? JSON.stringify(silhouette) : "");
+      fd.append("accessory", serializeAccessory(garmentType, accessory));
       fd.append("color", color || "");
       if (print) {
         if (print.blob) fd.append("print", print.blob, "print.jpg");
@@ -826,6 +832,7 @@ export function EditProductForm({ product, onCancel, onSaved }) {
         />
         <p style={ui.meta}>Saved measurements are shown as full circumferences.</p>
         <SilhouettePicker garmentType={garmentType} value={silhouette} onChange={setSilhouette} />
+        <AccessoryField garmentType={garmentType} value={accessory} onChange={setAccessory} />
         <ColorField value={color} onChange={setColor} />
         <PrintField photo={photo} value={print} onChange={setPrint} />
 

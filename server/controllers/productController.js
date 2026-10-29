@@ -3,6 +3,7 @@ import mongoose from 'mongoose';
 import Product, { GARMENT_TYPES } from '../models/Product.js';
 import WardrobeItem from '../models/WardrobeItem.js';
 import { parseSilhouette, silhouetteFits } from '../utils/silhouettes.js';
+import { parseAccessory } from '../utils/accessory.js';
 import {
   enqueue, markQueued, needsPatterns, patternInputs, removePatterns,
 } from '../services/patternJobs.js';
@@ -224,6 +225,8 @@ export const addProduct = async (req, res) => {
     if (!GARMENT_TYPES.includes(garmentType)) return fail(400, 'Please choose the garment type.');
     const sil = parseSilhouette(req.body.silhouette, garmentType);
     if (sil.error) return fail(400, sil.error);
+    const acc = parseAccessory(req.body.accessory, garmentType);
+    if (acc.error) return fail(400, acc.error);
     const girthMode = girthModeOf(req.body);
     if (!girthMode) return fail(400, 'Measurements must be given as full circumference or flat width.');
     const title = String(req.body.title ?? '').trim();
@@ -253,6 +256,7 @@ export const addProduct = async (req, res) => {
       category: String(category || 'Clothes'),
       garmentType,
       silhouette: sil.silhouette || undefined,
+      accessory: acc.accessory || undefined,
       color: colorOf(req.body.color),
       print: printFile ? { image: `/uploads/images/${printFile.filename}`, tileCm } : undefined,
       stretch: req.body.stretch || 'none',
@@ -317,6 +321,12 @@ export const updateProduct = async (req, res) => {
       product.silhouette = sil.silhouette || undefined;
     } else if (product.silhouette && !silhouetteFits(product.garmentType, product.silhouette)) {
       product.silhouette = undefined;   // тип сменили — силуэт другого типа больше не подходит
+    }
+    if (b.accessory !== undefined || b.garmentType !== undefined) {
+      // карточку прислали — разобрать; сменили тип — карточка другого типа больше не подходит
+      const acc = parseAccessory(b.accessory !== undefined ? b.accessory : product.accessory?.toObject?.(), product.garmentType);
+      if (acc.error) return fail(400, acc.error);
+      product.accessory = acc.accessory || undefined;
     }
     if (b.stretch !== undefined) product.stretch = b.stretch || 'none';
     if (b.color !== undefined) product.color = colorOf(b.color);

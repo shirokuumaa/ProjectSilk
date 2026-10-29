@@ -1,4 +1,5 @@
 import mongoose from 'mongoose';
+import { ACCESSORY_KINDS, ALL_SIZE_SYSTEMS } from '../utils/accessory.js';
 
 /**
  * Размерная сетка товара.
@@ -92,6 +93,24 @@ const ProductSchema = new mongoose.Schema({
     type: new mongoose.Schema({
       image:  { type: String, required: true },
       tileCm: { type: Number, required: true, min: 1, max: 200 },
+    }, { _id: false }),
+    default: undefined,
+  },
+
+  // карточка аксессуара или обуви: вид и размеры (см), по которым примерка крепит твёрдую модель
+  // к точке тела и масштабирует её (client/src/utils/accessoryPlacement.js); разбор — utils/accessory.js
+  accessory: {
+    type: new mongoose.Schema({
+      kind:       { type: String, enum: Object.keys(ACCESSORY_KINDS), required: true },
+      lengthCm:   { type: Number, min: 0, max: 300 },
+      widthCm:    { type: Number, min: 0, max: 300 },
+      heightCm:   { type: Number, min: 0, max: 300 },
+      depthCm:    { type: Number, min: 0, max: 300 },
+      dropCm:     { type: Number, min: 0, max: 300 },
+      size:       { type: String },                     // размер обуви, кольца или обхват головы (шапка)
+      sizeSystem: { type: String, enum: ALL_SIZE_SYSTEMS },
+      side:       { type: String, enum: ['l', 'r'] },   // рука или плечо; по умолчанию левая
+      level:      { type: String, enum: ['waist', 'hips'] },
     }, { _id: false }),
     default: undefined,
   },

@@ -3,7 +3,7 @@ import { describe, it, before, after } from 'node:test';
 import assert from 'node:assert/strict';
 import { startTestServer, api, newUser, withTestDb } from './helpers.js';
 
-const m = { heightCm: 166, chest: 92, waist: 74, hips: 99, armLength: 58 };
+const m = { heightCm: 166, chest: 92, waist: 74, hips: 99, armLength: 58, footLength: 24.5 };
 
 describe('body profile', () => {
   let srv, carol, dave;
@@ -29,6 +29,7 @@ describe('body profile', () => {
     const me = await api('GET', '/api/body-profile/me', { token: carol.token });
     assert.equal(me.json.skinTone, 'skin-7');
     assert.equal(me.json.armLength, 58);
+    assert.equal(me.json.footLength, 24.5);
   });
 
   it('тон вне шкалы → 400, старое значение не тронуто', async () => {

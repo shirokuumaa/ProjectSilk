@@ -134,7 +134,8 @@ function disposeTree(root) {
  * Одна вещь на теле: грузит GLB, ставит по росту и прижимает к фигуре.
  */
 function Garment({
-  url, profile, garmentType, fit, layer, size = null, legs = null, simFigure = null, color = null, print = null, onStatus,
+  url, profile, garmentType, fit, layer, size = null, legs = null, simFigure = null, color = null, print = null,
+  accessory = null, onStatus,
 }) {
   // тело и его форма — те же, что у AvatarBody в этой сцене
   const avatar = useAvatarBody(profile);
@@ -179,6 +180,7 @@ function Garment({
     // 1. откатываем прошлое прижатие — иначе деформации накапливаются
     restoreGeometry(root);
     group.position.set(0, 0, 0);
+    group.quaternion.identity();          // аксессуары поворачиваются к точке тела
     group.scale.set(1, 1, 1);
     group.updateWorldMatrix(true, true);
 
@@ -190,9 +192,10 @@ function Garment({
       garmentType, fit, layer, size, legs,
       from: simFigure ? figureShape(simFigure, avatar) : null,
       transferOnly: simFitMode() === 'transfer',
+      accessory, footLengthCm: profile?.footLength,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [root, garmentType, fit, layer, shape, size, legs, simFigure]);
+  }, [root, garmentType, fit, layer, shape, size, legs, simFigure, accessory, profile?.footLength]);
 
   return <group ref={groupRef}>{root && shape && <primitive object={root} />}</group>;
 }
@@ -281,6 +284,7 @@ export default function TryOnAvatar() {
         sizeModels: p.sizeModels || null,   // ткань, просимулированная по размерам
         color: p.color || null,             // основной цвет с фото товара
         print: p.print ? { ...p.print, image: toPublicUrl(p.print.image) } : null,   // принт ткани
+        accessory: p.accessory || null,     // вид и размеры аксессуара или обуви — точка на теле и масштаб
       };
       // без своей 3D-модели — шаблон того же типа в размере покупателя
       const template = templateFor(item);
@@ -439,6 +443,7 @@ export default function TryOnAvatar() {
                     simFigure={src.simFigure}
                     color={item.color}
                     print={item.print}
+                    accessory={item.accessory}
                     onStatus={(url, st) => setGlbStatus((s) => ({ ...s, [url]: st }))}
                   />
                 ))}

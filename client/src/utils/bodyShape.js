@@ -143,7 +143,7 @@ const STEP = 0.01;                      // шаг уровней, м
 export const PART = { TORSO: 0, ARM: 1, LEG: 2 };
 
 /** Выпуклая оболочка (монотонная цепь), против часовой стрелки; pts — плоский [x0, z0, x1, z1, …]. */
-function hull(pts) {
+export function hull(pts) {
   const n = pts.length / 2;
   if (n < 3) return [];
   const idx = Array.from({ length: n }, (_, i) => i).sort((a, b) => pts[2 * a] - pts[2 * b] || pts[2 * a + 1] - pts[2 * b + 1]);

@@ -29,6 +29,7 @@ const bodyProfileSchema = new mongoose.Schema({
   shoulderWidth: { type: Number, min: 25, max: 70 },  // ширина плеч
   armLength:     { type: Number, min: 40, max: 90 },  // от плеча до запястья
   inseam:        { type: Number, min: 50, max: 110 }, // длина ноги по внутр. шву
+  footLength:    { type: Number, min: 15, max: 35 },  // от пятки до кончика большого пальца — по ней обувь
 
   // --- внешний вид аватара (на посадку не влияет) ---
   bodyType: { type: String, enum: ['F', 'M', 'N'], default: 'N' },

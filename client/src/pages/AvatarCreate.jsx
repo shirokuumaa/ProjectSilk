@@ -111,6 +111,7 @@ export default function AvatarCreate() {
     shoulders: '',
     inseam: '',
     armLength: '',
+    footLength: '',
     shoe: '',
     bodyType: 'regular',
     skinTone: DEFAULT_SKIN_TONE,
@@ -133,6 +134,7 @@ export default function AvatarCreate() {
         shoulders: saved.shoulderWidth ?? prev.shoulders,
         inseam: saved.inseam ?? prev.inseam,
         armLength: saved.armLength ?? prev.armLength,
+        footLength: saved.footLength ?? prev.footLength,
         skinTone: resolveSkinTone(saved.skinTone ?? prev.skinTone),
         hair: saved.hairStyle ?? prev.hair,
       }));
@@ -873,6 +875,21 @@ export default function AvatarCreate() {
                 style={input}
               />
               <small className={styles.hint}>From the crotch straight down to the floor.</small>
+            </label>
+            <label>
+              Foot length (cm)
+              <input
+                type="number"
+                value={m.footLength}
+                onChange={(e) =>
+                  setM({
+                    ...m,
+                    footLength: e.target.value,
+                  })
+                }
+                style={input}
+              />
+              <small className={styles.hint}>Stand on paper, heel to the wall: from the wall to the tip of the longest toe.</small>
             </label>
             <label>
               Shoe size
