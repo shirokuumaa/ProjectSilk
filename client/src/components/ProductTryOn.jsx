@@ -16,6 +16,7 @@ const GlbViewer = lazy(() => import('./GlbViewer'));
 
 export default function ProductTryOn({ product, size, compareSize = null, profile, toPublicUrl }) {
   const nav = useNavigate();
+  const [back, setBack] = useState(false);   // вид сзади — обе фигуры разом
 
   if (!isProfileComplete(profile)) {
     return (
@@ -29,15 +30,20 @@ export default function ProductTryOn({ product, size, compareSize = null, profil
 
   const comparing = Boolean(compareSize && compareSize !== size);
   return (
-    <div className={comparing ? styles.pair : styles.wrap}>
-      <Figure product={product} size={size} profile={profile} toPublicUrl={toPublicUrl} compact={comparing} />
-      {comparing && <Figure product={product} size={compareSize} profile={profile} toPublicUrl={toPublicUrl} compact />}
+    <div className={styles.frame}>
+      <div className={comparing ? styles.pair : styles.wrap}>
+        <Figure product={product} size={size} profile={profile} toPublicUrl={toPublicUrl} compact={comparing} back={back} />
+        {comparing && <Figure product={product} size={compareSize} profile={profile} toPublicUrl={toPublicUrl} compact back={back} />}
+      </div>
+      <button type="button" className={styles.view} aria-pressed={back} onClick={() => setBack((v) => !v)}>
+        {back ? 'Front view' : 'Back view'}
+      </button>
     </div>
   );
 }
 
 /** Одна фигура с вещью размера size; compact — подпись короче (две фигуры рядом). */
-function Figure({ product, size, profile, toPublicUrl, compact }) {
+function Figure({ product, size, profile, toPublicUrl, compact, back }) {
   const [broken, setBroken] = useState(false);
   useEffect(() => setBroken(false), [product, size]);
 
@@ -62,6 +68,7 @@ function Figure({ product, size, profile, toPublicUrl, compact }) {
             onGarmentError={() => setBroken(true)}
             height="100%"
             fill={0.9}
+            back={back}
           />
         </Suspense>
       ) : (
