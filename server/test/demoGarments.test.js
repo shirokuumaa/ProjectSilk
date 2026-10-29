@@ -62,12 +62,13 @@ describe('демо-товары: платье, юбка, футболка, бр�
     assert.equal(byTitle['Straight Trousers'].legs, 'split');
   });
 
-  it('файлы моделей и картинок на месте и не больше 1 МБ', () => {
+  // 1,1 МБ: с развёрткой выкройки (UV и раздвоенные вершины швов) пальто XXL — 1,01 МБ (export_demo_drapes.py)
+  it('файлы моделей и картинок на месте и не больше 1,1 МБ', () => {
     for (const p of demoProducts('x')) {
       for (const f of [p.image, ...p.sizeModels.map((m) => m.model3d)]) {
         const file = path.join(PUBLIC, f);
         assert.ok(fs.existsSync(file), f);
-        assert.ok(fs.statSync(file).size <= 1e6, `${f}: ${fs.statSync(file).size} байт`);
+        assert.ok(fs.statSync(file).size <= 1.1e6, `${f}: ${fs.statSync(file).size} байт`);
       }
     }
   });

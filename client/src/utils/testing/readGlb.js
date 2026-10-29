@@ -107,7 +107,7 @@ function nodeMatrix(node) {
   ];
 }
 
-/** Все меши сцены в мировых координатах: [{ positions, index }] (как отдаёт GLTFLoader после updateMatrixWorld). */
+/** Все меши сцены в мировых координатах: [{ positions, index, uv, extras }] (как отдаёт GLTFLoader после updateMatrixWorld). */
 export function readMeshes(buffer) {
   const { doc, accessor } = readGlb(buffer);
   const out = [];
@@ -121,7 +121,12 @@ export function readMeshes(buffer) {
         for (let i = 0; i < p.length; i += 3) {
           for (let r = 0; r < 3; r++) world[i + r] = m[r] * p[i] + m[4 + r] * p[i + 1] + m[8 + r] * p[i + 2] + m[12 + r];
         }
-        out.push({ positions: world, index: prim.indices != null ? accessor(prim.indices) : null });
+        out.push({
+          positions: world,
+          index: prim.indices != null ? accessor(prim.indices) : null,
+          uv: prim.attributes.TEXCOORD_0 != null ? accessor(prim.attributes.TEXCOORD_0) : null,
+          extras: doc.meshes[node.mesh].extras || {},
+        });
       });
     }
     (node.children || []).forEach((c) => walk(c, m));

@@ -184,10 +184,37 @@ export function transferToFigure(root, from, to) {
       pos.setXYZ(i, v.x, v.y, v.z);
     }
     pos.needsUpdate = true;
-    child.geometry.computeVertexNormals();
+    computeSeamlessNormals(child.geometry);
     child.geometry.computeBoundingBox();
     child.geometry.computeBoundingSphere();
   });
+}
+
+/**
+ * Нормали без видимых швов развёртки. У драпировки с выкройкой (scripts/garments/export_demo_drapes.py)
+ * вершина на краю панели раздвоена — у каждой панели свои UV, — и computeVertexNormals считает нормаль
+ * каждой копии только по её панели: шов виден как складка света. Копии стоят в одной точке (перенос и
+ * страховка — функции только положения), поэтому их нормали усредняются по совпадающим координатам.
+ */
+export function computeSeamlessNormals(geometry) {
+  geometry.computeVertexNormals();
+  if (!geometry.attributes.uv) return;          // без развёртки вершины не раздвоены
+  const pos = geometry.attributes.position;
+  const nrm = geometry.attributes.normal;
+  const groups = new Map();
+  for (let i = 0; i < pos.count; i++) {
+    const key = `${pos.getX(i)},${pos.getY(i)},${pos.getZ(i)}`;
+    const g = groups.get(key);
+    if (g) g.push(i); else groups.set(key, [i]);
+  }
+  groups.forEach((ids) => {
+    if (ids.length < 2) return;
+    let x = 0; let y = 0; let z = 0;
+    ids.forEach((i) => { x += nrm.getX(i); y += nrm.getY(i); z += nrm.getZ(i); });
+    const len = Math.hypot(x, y, z) || 1;
+    ids.forEach((i) => nrm.setXYZ(i, x / len, y / len, z / len));
+  });
+  nrm.needsUpdate = true;
 }
 
 /** Зазор, на который страховка выносит ткань из тела, м (3–5 мм). */
@@ -286,7 +313,7 @@ function forEachWorldVertex(root, fn) {
     }
     if (changed) {
       pos.needsUpdate = true;
-      child.geometry.computeVertexNormals();
+      computeSeamlessNormals(child.geometry);
       child.geometry.computeBoundingBox();
       child.geometry.computeBoundingSphere();
     }
