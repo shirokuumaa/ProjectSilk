@@ -236,3 +236,24 @@ describe('the full product card', () => {
     expect(screen.getByRole('button', { name: 'Add measurements to try it on' })).toBeInTheDocument();
   });
 });
+
+test('"Compare with" puts a second size next to the chosen one on the same figure', async () => {
+  respond(200, {
+    ...PRODUCT,
+    sizeModels: [
+      { size: 'S', model3d: '/uploads/models/tee_S.glb' },
+      { size: 'M', model3d: '/uploads/models/tee_M.glb' },
+    ],
+  });
+  loadBodyProfile.mockResolvedValue({ heightCm: 166, chest: 90, waist: 70, hips: 96 });
+  renderAt();
+  await screen.findByText('Your size is S');
+  fireEvent.click(screen.getByRole('button', { name: 'Try on my avatar' }));
+  await screen.findByTestId('worn');
+  fireEvent.change(screen.getByLabelText('Compare with'), { target: { value: 'M' } });
+  const worn = await screen.findAllByTestId('worn');
+  expect(worn.map((w) => w.textContent)).toEqual([
+    'http://localhost:5050/uploads/models/tee_S.glb|S',
+    'http://localhost:5050/uploads/models/tee_M.glb|M',
+  ]);
+});

@@ -135,3 +135,7 @@
 .facts dd { margin: 0; color: var(--ink-2); }
 
 .error { margin: 8px 0 0; font-size: var(--fs-sm); color: var(--fit-bad); }
+
+/* «Compare with» под примеркой на аватаре */
+.compare { display: flex; align-items: center; gap: var(--sp-2); margin-top: var(--sp-3); font-size: var(--fs-sm); color: var(--muted); }
+.compare select { height: 34px; padding: 0 var(--sp-3); border-radius: var(--r-pill); border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); }

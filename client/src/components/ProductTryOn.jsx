@@ -1,8 +1,9 @@
 // client/src/components/ProductTryOn.jsx
 //
 // Примерка прямо на странице товара: фигура покупателя по обмерам и эта вещь
-// в выбранном размере. Без перехода в гардероб. three.js грузится лениво — только
-// когда покупатель открыл вкладку «On my avatar».
+// в выбранном размере. Без перехода в гардероб. compareSize — второй размер рядом
+// (S и M на одной и той же фигуре): наглядный ответ на «S или M?». three.js грузится
+// лениво — только когда покупатель открыл вкладку «On my avatar».
 
 import React, { Suspense, lazy, useEffect, useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
@@ -13,20 +14,8 @@ import styles from './ProductTryOn.module.css';
 
 const GlbViewer = lazy(() => import('./GlbViewer'));
 
-export default function ProductTryOn({ product, size, profile, toPublicUrl }) {
+export default function ProductTryOn({ product, size, compareSize = null, profile, toPublicUrl }) {
   const nav = useNavigate();
-  const [broken, setBroken] = useState(false);
-  useEffect(() => setBroken(false), [product, size]);
-
-  const chart = useMemo(() => sizeChartOf(product), [product]);
-  const row = chart.find((r) => r.size === size) || null;
-  const { garment, note } = productGarment(product, row, { broken, toPublicUrl });
-
-  const stressMap = useMemo(() => {
-    if (!row || !isProfileComplete(profile)) return null;
-    const fit = findBestSize(profile, chart, row.size);
-    return fit.chosen ? getStressMap(fit.chosen) : null;
-  }, [profile, chart, row]);
 
   if (!isProfileComplete(profile)) {
     return (
@@ -37,6 +26,30 @@ export default function ProductTryOn({ product, size, profile, toPublicUrl }) {
       </div>
     );
   }
+
+  const comparing = Boolean(compareSize && compareSize !== size);
+  return (
+    <div className={comparing ? styles.pair : styles.wrap}>
+      <Figure product={product} size={size} profile={profile} toPublicUrl={toPublicUrl} compact={comparing} />
+      {comparing && <Figure product={product} size={compareSize} profile={profile} toPublicUrl={toPublicUrl} compact />}
+    </div>
+  );
+}
+
+/** Одна фигура с вещью размера size; compact — подпись короче (две фигуры рядом). */
+function Figure({ product, size, profile, toPublicUrl, compact }) {
+  const [broken, setBroken] = useState(false);
+  useEffect(() => setBroken(false), [product, size]);
+
+  const chart = useMemo(() => sizeChartOf(product), [product]);
+  const row = chart.find((r) => r.size === size) || null;
+  const { garment, note } = productGarment(product, row, { broken, toPublicUrl });
+
+  const fit = useMemo(
+    () => (row ? findBestSize(profile, chart, row.size).chosen : null),
+    [profile, chart, row],
+  );
+  const stressMap = useMemo(() => (fit ? getStressMap(fit) : null), [fit]);
 
   return (
     <div className={styles.wrap}>
@@ -55,8 +68,17 @@ export default function ProductTryOn({ product, size, profile, toPublicUrl }) {
         <div className={styles.empty}>{note}</div>
       )}
       <div className={styles.caption}>
-        {garment && (row ? `On your figure in size ${row.size}` : 'On your figure')}
-        {garment && garment.template && ' · shown as a generic shape — the real item may look different'}
+        {compact && row ? (
+          <span className={styles.sizeTag}>
+            <b>{row.size}</b>
+            {fit && <span className={`ui-chip ${fit.wearable ? 'ui-chip--good' : 'ui-chip--warn'}`}>{fit.wearable ? 'fits' : 'may not fit'}</span>}
+          </span>
+        ) : (
+          <>
+            {garment && (row ? `On your figure in size ${row.size}` : 'On your figure')}
+            {garment && garment.template && ' · shown as a generic shape — the real item may look different'}
+          </>
+        )}
       </div>
       {garment && note && <div className={styles.note}>{note}</div>}
     </div>

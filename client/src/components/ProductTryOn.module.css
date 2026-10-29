@@ -44,3 +44,8 @@
   color: var(--fit-warn);
   font-size: var(--fs-xs);
 }
+
+/* два размера рядом на одной фигуре */
+.pair { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 2px; width: 100%; height: 100%; background: var(--line); }
+.pair > .wrap { min-width: 0; overflow: hidden; }   /* сцена не распирает колонку — обе фигуры видны */
+.sizeTag { display: inline-flex; align-items: center; gap: var(--sp-2); color: var(--ink); font-size: var(--fs-md); }

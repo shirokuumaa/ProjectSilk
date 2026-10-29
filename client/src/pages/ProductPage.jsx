@@ -47,6 +47,7 @@ export default function ProductPage({ addToCart }) {
   const [picked, setPicked] = useState(null);   // размер, выбранный покупателем
   const [view, setView] = useState('photos');   // photos | avatar
   const [photo, setPhoto] = useState(0);
+  const [compare, setCompare] = useState('');   // второй размер рядом на аватаре
 
   useEffect(() => {
     let alive = true;
@@ -54,6 +55,7 @@ export default function ProductPage({ addToCart }) {
     setPicked(null);
     setPhoto(0);
     setView('photos');
+    setCompare('');
     (async () => {
       try {
         const r = await fetch(`${API_BASE}/api/products/${encodeURIComponent(id)}`);
@@ -173,9 +175,20 @@ export default function ProductPage({ addToCart }) {
             {view === 'photos' ? (
               <img className={styles.image} src={photos[photo] || image} alt={displayName} />
             ) : (
-              <ProductTryOn product={product} size={size} profile={profile} toPublicUrl={toPublicUrl} />
+              <ProductTryOn product={product} size={size} compareSize={compare || null} profile={profile} toPublicUrl={toPublicUrl} />
             )}
           </div>
+
+          {/* «S или M?» — второй размер рядом на той же фигуре */}
+          {view === 'avatar' && canTryOn && isProfileComplete(profile) && chart.length > 1 && (
+            <label className={styles.compare}>
+              Compare with
+              <select value={compare} onChange={(e) => setCompare(e.target.value)}>
+                <option value="">— one size —</option>
+                {chart.filter((r) => r.size !== size).map((r) => <option key={r.size} value={r.size}>Size {r.size}</option>)}
+              </select>
+            </label>
+          )}
 
           {view === 'photos' && photos.length > 1 && (
             <div className={styles.thumbs}>
