@@ -4,7 +4,6 @@
 // понятный экран для гостя и покупателя. Все запросы — через authFetch.
 // Весь текст интерфейса — на английском, цвета — из styles/tokens.css.
 import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
-import { useNavigate } from "react-router-dom";
 import SizeChartEditor, { serializeSizeChart } from "../components/SizeChartEditor";
 import SellerHeader from "../components/SellerHeader";
 import FormErrors from "../components/FormErrors";
@@ -19,6 +18,7 @@ import ProductDetailsField, {
 } from "../components/ProductDetailsField";
 import StockField from "../components/StockField";
 import SellerOrders from "../components/SellerOrders";
+import SellerLanding from "../components/SellerLanding";
 import { CURRENCIES, currencySymbol, formatPrice } from "../utils/money";
 import { imageColor } from "../utils/garmentColor";
 import { silhouetteFits } from "../utils/silhouettes";
@@ -49,7 +49,6 @@ async function errorMessage(r, fallback) {
 /* ───────────────────────── доступ ───────────────────────── */
 
 export default function SellerPanel() {
-  const nav = useNavigate();
   const [access, setAccess] = useState("loading"); // loading | guest | buyer | seller
   const [me, setMe] = useState(null);
 
@@ -77,16 +76,8 @@ export default function SellerPanel() {
     return (
       <>
       <SellerHeader />
-      <div style={ui.page}>
-        <div style={ui.gate}>
-          <h2 style={ui.h2}>Seller dashboard</h2>
-          <p style={ui.muted}>Sign in with a seller account to open the seller dashboard.</p>
-          <div style={ui.row}>
-            <button style={ui.btnDark} onClick={() => nav("/login")}>Sign in</button>
-            <button style={ui.btn} onClick={() => nav("/register?as=seller")}>Create seller account</button>
-          </div>
-        </div>
-      </div>
+      {/* гостю — зачем продавать здесь и как начать (вход и регистрация продавца) */}
+      <SellerLanding />
       </>
     );
   }

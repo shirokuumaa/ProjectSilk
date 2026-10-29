@@ -97,7 +97,8 @@ export default function AvatarCreate() {
     })();
   }, []);
 
-  const [step, setStep] = useState(1);
+  // сначала обмеры (шаг 2): четыре числа — и тело готово; фото — по желанию, чтобы оценить обмеры
+  const [step, setStep] = useState(2);
   const [shots, setShots] = useState({});
   const [activeKey, setActiveKey] = useState('front');
   const [turnFrames, setTurnFrames] = useState([]);
@@ -407,38 +408,34 @@ export default function AvatarCreate() {
     <div
       style={{ padding: 24, display: 'grid', gap: 16 }}
     >
-      <h2>🧍 Create Your Body Profile</h2>
+      <h2>Your avatar</h2>
 
-      {/* STEPPER */}
-      <div style={{ display: 'flex', gap: 8 }}>
+      {/* вкладки: обмеры — первыми; фото — запасной путь, если обмеров нет под рукой */}
+      <div style={{ display: 'flex', gap: 8 }} role="tablist" aria-label="How to build your avatar">
         {[
-          'Photos (optional)',
-          'Your Measurements',
-        ].map((t, i) => (
-          <div
+          [2, 'Your measurements'],
+          [1, 'Estimate from photos (optional)'],
+        ].map(([n, t]) => (
+          <button
             key={t}
-            style={{
-              padding: '6px 10px',
-              border: '1px solid #e5e7eb',
-              borderRadius: 999,
-              background:
-                step === i + 1 ? '#111827' : '#fff',
-              color:
-                step === i + 1 ? '#fff' : '#111827',
-            }}
+            type="button"
+            role="tab"
+            aria-selected={step === n}
+            onClick={() => setStep(n)}
+            className={`ui-btn ui-btn--sm ${step === n ? 'ui-btn--primary' : ''}`}
           >
-            {i + 1}. {t}
-          </div>
+            {t}
+          </button>
         ))}
       </div>
 
       {/* STEP 1 — PHOTOS (OPTIONAL) */}
       {step === 1 && (
         <section style={card}>
-          <h3>Step 1 · Photos (Optional)</h3>
+          <h3>Estimate from photos (optional)</h3>
           <p style={note}>
-            ℹ️ Photos are only needed to estimate your measurements automatically.
-            You can skip them and enter your measurements by hand in Step 2.
+            Photos are only needed to estimate your measurements automatically.
+            You can skip them and enter your measurements by hand.
           </p>
 
           <div
@@ -747,7 +744,7 @@ export default function AvatarCreate() {
             </button>
             <div style={{ flex: 1 }} />
             <button onClick={() => setStep(2)}>
-              Next: Measurements ▶️
+              Back to measurements
             </button>
           </div>
         </section>
@@ -756,9 +753,10 @@ export default function AvatarCreate() {
       {/* STEP 2 — MEASUREMENTS (REQUIRED) */}
       {step === 2 && (
         <section style={card}>
-          <h3>Step 2 · Your Measurements</h3>
+          <h3>Your measurements</h3>
           <p style={note}>
-            ✅ Enter your measurements and press "Save measurements" — your body is ready.
+            Height, bust, waist and hips are enough. Enter them and press “Save measurements” — your avatar is ready.
+            Your measurements are private: sellers never see them.
           </p>
           <div
             style={{
@@ -984,7 +982,7 @@ export default function AvatarCreate() {
                 : 'Auto-estimate from photos'}
             </button>
             <span style={note}>
-              (If you uploaded photos in Step 1)
+              (uses the photos from “Estimate from photos”)
             </span>
           </div>
 
@@ -993,7 +991,7 @@ export default function AvatarCreate() {
 
           <div style={{ marginTop: 16 }}>
             <button onClick={() => setStep(1)}>
-              ◀️ Back to photos
+              Don’t know your measurements? Estimate them from photos
             </button>
           </div>
         </section>
