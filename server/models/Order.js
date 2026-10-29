@@ -10,6 +10,15 @@ import mongoose from 'mongoose';
  */
 export const ORDER_STATUSES = ['placed', 'confirmed', 'shipped', 'delivered', 'cancelled'];
 
+/**
+ * Возврат доставленного заказа (целиком — для пилота): покупатель просит с причиной,
+ * продавец принимает или отказывает, затем отмечает, что вещи получены — остаток возвращается.
+ * Причина «size» и зона посадки — главные данные для точности советов размера.
+ */
+export const RETURN_REASONS = ['size', 'look', 'quality', 'changed_mind', 'other'];
+export const RETURN_STATUSES = ['requested', 'accepted', 'refused', 'received'];
+export const RETURN_ZONES = ['bust', 'waist', 'hips', 'length', 'shoulders', 'sleeves'];
+
 const OrderItemSchema = new mongoose.Schema({
   product:  { type: mongoose.Schema.Types.ObjectId, ref: 'Product', required: true },
   title:    { type: String, required: true },
@@ -51,6 +60,19 @@ const orderSchema = new mongoose.Schema({
   payment: {
     method: { type: String, default: 'none' },
     status: { type: String, default: 'not_started' },
+  },
+  return: {
+    type: new mongoose.Schema({
+      status: { type: String, enum: RETURN_STATUSES, required: true },
+      reason: { type: String, enum: RETURN_REASONS, required: true },
+      tooSmall: [{ type: String, enum: RETURN_ZONES }],   // причина size: где тесно
+      tooBig: [{ type: String, enum: RETURN_ZONES }],     // где велико
+      note: { type: String, maxlength: 500 },
+      sellerNote: { type: String, maxlength: 500 },
+      requestedAt: Date,
+      decidedAt: Date,
+    }, { _id: false }),
+    default: undefined,
   },
 }, { timestamps: true, versionKey: false });
 

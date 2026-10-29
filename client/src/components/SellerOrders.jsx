@@ -5,7 +5,10 @@
 // Оплаты пока нет — продавец сам договаривается с покупателем.
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { ORDER_STATUS_LABELS, SELLER_ACTIONS, sellingOrders, setOrderStatus } from '../utils/ordersApi';
+import {
+  ORDER_STATUS_LABELS, RETURN_REASON_LABELS, RETURN_STATUS_LABELS, RETURN_ZONE_LABELS, SELLER_ACTIONS,
+  SELLER_RETURN_ACTIONS, sellingOrders, setOrderStatus, setReturnStatus,
+} from '../utils/ordersApi';
 import { formatPrice } from '../utils/money';
 import { countryName } from '../utils/countries';
 import styles from './SellerOrders.module.css';
@@ -38,7 +41,22 @@ export default function SellerOrders() {
     }
   };
 
-  const open = (orders || []).filter((o) => !['delivered', 'cancelled'].includes(o.status)).length;
+  const moveReturn = async (order, status) => {
+    setBusy(order._id);
+    setError('');
+    try {
+      const next = await setReturnStatus(order._id, status);
+      setOrders((list) => list.map((o) => (o._id === next._id ? next : o)));
+    } catch (e) {
+      setError(e.message);
+    } finally {
+      setBusy(null);
+    }
+  };
+  const zoneList = (zs) => (zs || []).map((z) => RETURN_ZONE_LABELS[z] || z).join(', ');
+
+  const open = (orders || []).filter((o) => !['delivered', 'cancelled'].includes(o.status)
+    || ['requested', 'accepted'].includes(o.return?.status)).length;
 
   return (
     <section className={styles.box}>
@@ -72,6 +90,24 @@ export default function SellerOrders() {
               </span>
               {o.note && <span className={styles.muted}>Note: {o.note}</span>}
             </div>
+            {o.return && (
+              <div className={styles.buyer}>
+                <b>{RETURN_STATUS_LABELS[o.return.status]}</b>
+                <span>Reason: {RETURN_REASON_LABELS[o.return.reason]}
+                  {o.return.tooSmall?.length ? ` · tight at ${zoneList(o.return.tooSmall)}` : ''}
+                  {o.return.tooBig?.length ? ` · loose at ${zoneList(o.return.tooBig)}` : ''}
+                </span>
+                {o.return.note && <span className={styles.muted}>Buyer: {o.return.note}</span>}
+                <span className={styles.actions}>
+                  {(SELLER_RETURN_ACTIONS[o.return.status] || []).map(([status, label]) => (
+                    <button key={status} className={status === 'refused' ? styles.btn : styles.btnDark}
+                      onClick={() => moveReturn(o, status)} disabled={busy === o._id}>
+                      {label}
+                    </button>
+                  ))}
+                </span>
+              </div>
+            )}
             <div className={styles.foot}>
               <b>Total {formatPrice(o.total, o.currency)}</b>
               <span className={styles.actions}>

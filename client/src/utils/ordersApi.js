@@ -60,3 +60,28 @@ export const sellingOrders = () => call('/api/orders/selling');
 export const getOrder = (id) => call(`/api/orders/${encodeURIComponent(id)}`);
 export const cancelOrder = (id) => call(`/api/orders/${encodeURIComponent(id)}/cancel`, { method: 'POST' });
 export const setOrderStatus = (id, status) => call(`/api/orders/${encodeURIComponent(id)}/status`, { method: 'PATCH', body: { status } });
+
+// ── возвраты доставленного заказа (server/routes/orderRoutes.js) ──
+export const RETURN_REASON_LABELS = {
+  size: 'Wrong size',
+  look: 'Looks different from the pictures',
+  quality: 'Quality issue',
+  changed_mind: 'Changed my mind',
+  other: 'Other',
+};
+export const RETURN_STATUS_LABELS = {
+  requested: 'Return requested — waiting for the seller',
+  accepted: 'Return accepted — send the items back to the seller',
+  refused: 'Return refused by the seller',
+  received: 'Return received — the seller will refund you',
+};
+export const RETURN_ZONE_LABELS = {
+  bust: 'Bust', waist: 'Waist', hips: 'Hips', length: 'Length', shoulders: 'Shoulders', sleeves: 'Sleeves',
+};
+export const SELLER_RETURN_ACTIONS = {
+  requested: [['accepted', 'Accept return'], ['refused', 'Refuse']],
+  accepted: [['received', 'Mark items as received']],
+};
+
+export const requestReturn = (id, body) => call(`/api/orders/${encodeURIComponent(id)}/return`, { method: 'POST', body });
+export const setReturnStatus = (id, status, note) => call(`/api/orders/${encodeURIComponent(id)}/return`, { method: 'PATCH', body: { status, note } });

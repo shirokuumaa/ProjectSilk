@@ -35,3 +35,22 @@ test('someone else\'s or a missing order: "Order not found"', async () => {
   renderAt('/orders/zzz');
   expect(await screen.findByRole('heading', { name: 'Order not found' })).toBeInTheDocument();
 });
+
+test('a delivered order: the buyer asks for a return with the reason and where it was tight', async () => {
+  const delivered = { ...ORDER, status: 'delivered', history: [...ORDER.history, { status: 'delivered', at: '2026-10-30T10:00:00Z' }] };
+  authFetch.mockImplementation(async (url, o = {}) => {
+    if (url.includes('/api/reviews/mine')) return ok([]);
+    if (o.method === 'POST') return ok({ ...delivered, return: { status: 'requested', reason: 'size', tooSmall: ['waist'] } });
+    return ok(delivered);
+  });
+  renderAt('/orders/o1');
+  fireEvent.click(await screen.findByRole('button', { name: 'Request a return' }));
+  fireEvent.click(screen.getByRole('button', { name: 'Send return request' }));
+  expect(screen.getByRole('alert')).toHaveTextContent('Please choose why you are returning the order.');
+  fireEvent.click(screen.getByRole('radio', { name: 'Wrong size' }));
+  fireEvent.click(screen.getAllByRole('button', { name: 'Waist' })[0]);
+  fireEvent.click(screen.getByRole('button', { name: 'Send return request' }));
+  expect(await screen.findByText('Return requested — waiting for the seller')).toBeInTheDocument();
+  const body = JSON.parse(authFetch.mock.calls.find(([u, o]) => u.endsWith('/return') && o.method === 'POST')[1].body);
+  expect(body).toEqual(expect.objectContaining({ reason: 'size', tooSmall: ['waist'], tooBig: [] }));
+});

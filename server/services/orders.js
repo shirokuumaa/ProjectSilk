@@ -155,6 +155,9 @@ export async function placeOrders(user, lines, checkout) {
   }
 }
 
+/** Сколько дней после доставки можно попросить возврат (правило магазина — решает владелец). */
+export const RETURN_DAYS = 14;
+
 /** Куда можно перейти из статуса: продавец ведёт заказ вперёд или отменяет до отправки. */
 export const SELLER_MOVES = {
   placed: ['confirmed', 'cancelled'],

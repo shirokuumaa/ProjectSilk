@@ -2,7 +2,8 @@
 // пока продавец не подтвердил — «Cancel order» (остаток вернётся на склад продавца).
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
-import { cancelOrder, getOrder, ORDER_STATUS_LABELS, ORDER_STEPS } from "../utils/ordersApi";
+import { cancelOrder, getOrder, ORDER_STATUS_LABELS, ORDER_STEPS, RETURN_REASON_LABELS, RETURN_STATUS_LABELS } from "../utils/ordersApi";
+import ReturnRequestForm from "../components/ReturnRequestForm";
 import { FIT_LABELS, myReviews } from "../utils/reviewsApi";
 import FitReviewForm from "../components/FitReviewForm";
 import { formatPrice } from "../utils/money";
@@ -21,6 +22,7 @@ export default function OrderPage() {
   const [busy, setBusy] = useState(false);
   const [reviews, setReviews] = useState([]);    // мои отзывы — какие вещи уже оценены
   const [reviewing, setReviewing] = useState(null);
+  const [returning, setReturning] = useState(false);
 
   useEffect(() => {
     let alive = true;
@@ -121,6 +123,18 @@ export default function OrderPage() {
             <dt>Payment</dt><dd>Coming soon — arranged with the seller</dd>
           </dl>
           <div className={`${styles.sumRow} ${styles.sumTotal}`}><span>Total</span><span>{formatPrice(order.total, order.currency)}</span></div>
+          {order.status === "delivered" && order.return && (
+            <div className={styles.note} role="status">
+              <b>{RETURN_STATUS_LABELS[order.return.status]}</b>
+              <br />Reason: {RETURN_REASON_LABELS[order.return.reason]}
+              {order.return.sellerNote && <><br />Seller: {order.return.sellerNote}</>}
+            </div>
+          )}
+          {order.status === "delivered" && !order.return && (returning ? (
+            <ReturnRequestForm orderId={order._id} onDone={(o) => { setOrder(o); setReturning(false); }} onCancel={() => setReturning(false)} />
+          ) : (
+            <button className={`ui-btn ${styles.full}`} onClick={() => setReturning(true)}>Request a return</button>
+          ))}
           {order.status === "placed" && (
             <button className={`ui-btn ${styles.full}`} onClick={cancel} disabled={busy}>
               {busy ? "Cancelling…" : "Cancel order"}

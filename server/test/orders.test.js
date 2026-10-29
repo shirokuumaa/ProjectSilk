@@ -131,3 +131,41 @@ describe('product currency', () => {
     assert.equal(changed.json.currency, 'USD');
   });
 });
+
+describe('returns', () => {
+  let srv, seller, buyer, product;
+  before(async () => {
+    srv = await startTestServer();
+    seller = await newUser('returnseller', { accountType: 'seller', storeName: 'Return Shop' });
+    buyer = await newUser('returnbuyer');
+    product = (await api('POST', '/api/products', {
+      token: seller.token, files: { image: ['p.png', PNG] },
+      fields: { title: 'Coat', price: '30000', garmentType: 'outerwear', sizeChart: JSON.stringify([{ size: 'M', chest: 100, stock: 3 }]) },
+    })).json;
+  });
+  after(() => srv?.stop());
+
+  const stock = async () => (await api('GET', `/api/products/${product._id}`)).json.sizeChart[0].stock;
+
+  it('only a delivered order; the reason and size zones are kept; the seller accepts, then receives — stock comes back', async () => {
+    const order = (await api('POST', '/api/orders', {
+      token: buyer.token, body: { items: [{ productId: product._id, size: 'M', quantity: 1 }], contact: CONTACT, address: ADDRESS },
+    })).json.orders[0];
+    const ask = (body) => api('POST', `/api/orders/${order._id}/return`, { token: buyer.token, body });
+    assert.equal((await ask({ reason: 'size' })).status, 409);   // ещё не доставлен
+    for (const status of ['confirmed', 'shipped', 'delivered']) {
+      await api('PATCH', `/api/orders/${order._id}/status`, { token: seller.token, body: { status } });
+    }
+    assert.equal(await stock(), 2);
+    assert.equal((await ask({ reason: 'nope' })).json.message, 'Please choose why you are returning the order.');
+    const asked = (await ask({ reason: 'size', tooSmall: ['waist', 'hips', 'nose'], note: 'Tight at the waist' })).json;
+    assert.deepEqual([asked.return.status, asked.return.tooSmall], ['requested', ['waist', 'hips']]);
+    assert.equal((await ask({ reason: 'size' })).status, 409);   // повторно нельзя
+
+    const move = (status) => api('PATCH', `/api/orders/${order._id}/return`, { token: seller.token, body: { status } });
+    assert.equal((await move('received')).status, 409);   // сначала принять
+    assert.equal((await move('accepted')).json.return.status, 'accepted');
+    assert.equal((await move('received')).json.return.status, 'received');
+    assert.equal(await stock(), 3);
+  });
+});
