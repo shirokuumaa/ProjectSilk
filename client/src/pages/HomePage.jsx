@@ -10,11 +10,13 @@ import { Link, useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 
 import ProductCardTall from '../components/ProductCardTall';
+import CatalogFilters from '../components/CatalogFilters';
 import { SHOP_SECTIONS } from '../components/TopBar';
 import { ArrowRightIcon } from '../components/Icons';
 import { BRAND } from '../brand';
 import { loadBodyProfile, isProfileComplete } from '../utils/bodyProfileApi';
 import { garmentTypeOf } from '../utils/garmentTemplates';
+import { activeFilterCount, filterCatalog, filtersFromParams, sizesOf } from '../utils/catalogFilter';
 import styles from './HomePage.module.css';
 
 const API_BASE = process.env.REACT_APP_API || 'http://localhost:5050';
@@ -26,17 +28,10 @@ const SORTS = [
   ['price-desc', 'Price: high to low'],
 ];
 
-/** Текст для поиска: название, описание, магазин, тип, состав. */
-const haystack = (p) => [
-  p.title, p.name, p.description, p.category, p.store, garmentTypeOf(p),
-  ...(p.composition || []).map((c) => c.fibre),
-].filter(Boolean).join(' ').toLowerCase();
-
 export default function HomePage({ addToCart }) {
   const [params, setParams] = useSearchParams();
-  const q = (params.get('q') || '').trim();
-  const type = params.get('type') || '';
-  const sort = params.get('sort') || 'new';
+  const filters = filtersFromParams(params);
+  const { q, type, sort } = filters;
 
   const [allProducts, setAllProducts] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -63,28 +58,24 @@ export default function HomePage({ addToCart }) {
     return () => { alive = false; };
   }, []);
 
-  const filtered = useMemo(() => {
-    const words = q.toLowerCase().split(/\s+/).filter(Boolean);
-    const list = allProducts.filter((p) => {
-      if (type && garmentTypeOf(p) !== type) return false;
-      if (!words.length) return true;
-      const hay = haystack(p);
-      return words.every((w) => hay.includes(w));
-    });
-    if (sort === 'price-asc') return [...list].sort((a, b) => (a.price || 0) - (b.price || 0));
-    if (sort === 'price-desc') return [...list].sort((a, b) => (b.price || 0) - (a.price || 0));
-    return list;
-  }, [allProducts, q, type, sort]);
+  const query = params.toString();
+  const filtered = useMemo(
+    () => filterCatalog(allProducts, filtersFromParams(new URLSearchParams(query)), profile),
+    [allProducts, query, profile],
+  );
+  const sizes = useMemo(() => sizesOf(allProducts), [allProducts]);
 
-  const setParam = (key, value) => {
+  const setParams2 = (patch) => {
     const next = new URLSearchParams(params);
-    if (value) next.set(key, value); else next.delete(key);
+    Object.entries(patch).forEach(([k, v]) => (v ? next.set(k, v) : next.delete(k)));
     setParams(next);
   };
+  const setParam = (key, value) => setParams2({ [key]: value });
+  const clearFilters = () => setParams2({ min: '', max: '', size: '', fits: '', stock: '' });
 
   const hasBody = isProfileComplete(profile);
   const sectionLabel = SHOP_SECTIONS.find(([t]) => t === type)?.[1];
-  const heading = q ? `Results for “${q}”` : sectionLabel || 'New in';
+  const heading = q ? `Results for “${q}”` : filters.fitsMe && !sectionLabel ? 'Fits me' : sectionLabel || 'New in';
   // на первом экране — платье (если есть): вещь целиком лучше объясняет примерку
   const heroProduct = allProducts.find((p) => garmentTypeOf(p) === 'dress') || allProducts[0];
   const heroImage = heroProduct ? toPublicUrl(heroProduct.image) : null;
@@ -119,13 +110,24 @@ export default function HomePage({ addToCart }) {
           ))}
         </div>
 
+        <CatalogFilters
+          filters={filters}
+          sizes={sizes}
+          hasBody={profile === undefined ? null : isProfileComplete(profile)}   // null — обмеры ещё грузятся
+          onChange={setParams2}
+          onClear={clearFilters}
+        />
+
         {loading && <p className={styles.state}>Loading products…</p>}
 
         {!loading && filtered.length === 0 && (
           <div className={styles.empty}>
             <p className={styles.emptyTitle}>
-              {q ? <>Nothing found for <strong>{q}</strong></> : 'Nothing in this section yet'}
+              {q ? <>Nothing found for <strong>{q}</strong></>
+                : activeFilterCount(filters) ? 'No items match these filters'
+                  : 'Nothing in this section yet'}
             </p>
+            {filters.fitsMe && <p className={styles.state}>“Fits me” shows items with a size that fits your figure and is in stock.</p>}
             <button className="ui-btn" onClick={() => setParams(new URLSearchParams())}>Show everything</button>
           </div>
         )}
