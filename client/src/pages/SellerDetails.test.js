@@ -113,3 +113,31 @@ describe('editing a product', () => {
     expect(JSON.parse(fd.get('sizeChart')).map((r) => r.stock)).toEqual([2, undefined]);
   });
 });
+
+describe('fabric stretch from the composition', () => {
+  const fill = (fibres) => {
+    fireEvent.click(screen.getByRole('button', { name: '+ Add fibre' }));
+    fibres.forEach(([fibre, percent], i) => {
+      if (i > 0) fireEvent.click(screen.getByRole('button', { name: '+ Add fibre' }));
+      fireEvent.change(screen.getByLabelText(`Fibre ${i + 1}`), { target: { value: fibre } });
+      fireEvent.change(screen.getByLabelText(`Share of fibre ${i + 1}, %`), { target: { value: String(percent) } });
+    });
+  };
+
+  test('3 % elastane suggests "Slight stretch"; one click sets it and it is sent', async () => {
+    await openNewProduct();
+    fill([['Cotton', 97], ['Elastane', 3]]);
+    expect(screen.getByRole('status')).toHaveTextContent('3 % elastane usually means “Slight stretch”.');
+    fireEvent.click(screen.getByRole('button', { name: 'Use Slight stretch' }));
+    expect(screen.queryByRole('button', { name: 'Use Slight stretch' })).not.toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Save product' }));
+    await waitFor(() => expect(sent('POST')).toBeTruthy());
+    expect(sent('POST').get('stretch')).toBe('slight');
+  });
+
+  test('no elastane — no suggestion, the stretch stays as the seller set it', async () => {
+    await openNewProduct();
+    fill([['Cotton', 100]]);
+    expect(screen.queryByRole('button', { name: /^Use / })).not.toBeInTheDocument();
+  });
+});

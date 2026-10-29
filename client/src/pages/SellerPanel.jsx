@@ -565,7 +565,7 @@ function SellerDashboard() {
               <StockField rows={sizeChart} onChange={setSizeChart} />
               <SilhouettePicker garmentType={garmentType} value={silhouette} onChange={setSilhouette} />
               <AccessoryField garmentType={garmentType} value={accessory} onChange={setAccessory} />
-              <ProductDetailsField value={details} onChange={setDetails} />
+              <ProductDetailsField value={details} onChange={setDetails} stretch={stretch} onStretchChange={setStretch} />
 
               <div style={{ marginTop: 4 }}>
                 <button
@@ -855,7 +855,7 @@ export function EditProductForm({ product, onCancel, onSaved }) {
         <StockField rows={sizeChart} onChange={setSizeChart} />
         <SilhouettePicker garmentType={garmentType} value={silhouette} onChange={setSilhouette} />
         <AccessoryField garmentType={garmentType} value={accessory} onChange={setAccessory} />
-        <ProductDetailsField value={details} onChange={setDetails} />
+        <ProductDetailsField value={details} onChange={setDetails} stretch={stretch} onStretchChange={setStretch} />
         <ColorField value={color} onChange={setColor} />
         <PrintField photo={photo} value={print} onChange={setPrint} />
         <GalleryField value={gallery} onChange={setGallery} toPublicUrl={toPublicUrl} />

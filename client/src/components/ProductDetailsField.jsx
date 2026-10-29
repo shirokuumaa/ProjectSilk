@@ -41,6 +41,25 @@ export function detailsProblem(details) {
   return null;
 }
 
+/** Эластичные волокна: эластан, он же спандекс и лайкра. */
+const ELASTIC = /elast|spandex|lycra/i;
+export const STRETCH_LABELS = { none: 'No stretch', slight: 'Slight stretch', stretchy: 'Stretchy' };
+
+/**
+ * Подсказка тянучести по составу: доля эластичных волокон 3–7 % — «Slight stretch»,
+ * от 8 % — «Stretchy». Меньше 3 % или нет эластана — подсказки нет (null): тянуться
+ * может и трикотаж без эластана, по составу этого не видно.
+ * @returns {{ stretch: string, percent: number } | null}
+ */
+export function stretchFromComposition(rows) {
+  const percent = Math.round(filledRows(rows)
+    .filter((r) => ELASTIC.test(String(r.fibre || '')))
+    .reduce((s, r) => s + (Number(r.percent) || 0), 0) * 10) / 10;
+  if (percent >= 8) return { stretch: 'stretchy', percent };
+  if (percent >= 3) return { stretch: 'slight', percent };
+  return null;
+}
+
 /** Поля в FormData — все сразу: пустое поле на сервере очищает значение. */
 export function appendDetails(fd, details) {
   fd.append('description', details.description || '');
@@ -51,11 +70,14 @@ export function appendDetails(fd, details) {
   fd.append('composition', rows.length ? JSON.stringify(rows) : '');
 }
 
-export default function ProductDetailsField({ value, onChange }) {
+export default function ProductDetailsField({ value, onChange, stretch, onStretchChange }) {
   const set = (patch) => onChange({ ...value, ...patch });
   const rows = value.composition || [];
   const setRow = (i, patch) => set({ composition: rows.map((r, j) => (j === i ? { ...r, ...patch } : r)) });
   const total = compositionTotal(rows);
+  // эластан в составе — предложить продавцу тянучесть ткани (поле «Fabric stretch» в сетке размеров)
+  const hint = stretchFromComposition(rows);
+  const suggest = hint && onStretchChange && hint.stretch !== stretch ? hint : null;
 
   return (
     <fieldset style={styles.box}>
@@ -119,6 +141,17 @@ export default function ProductDetailsField({ value, onChange }) {
               </span>
             )}
           </div>
+          {suggest && (
+            <div role="status" style={styles.hint}>
+              <span>
+                {suggest.percent} % elastane usually means “{STRETCH_LABELS[suggest.stretch]}”.
+                {' '}Fabric stretch is now “{STRETCH_LABELS[stretch] || STRETCH_LABELS.none}”.
+              </span>
+              <button type="button" style={styles.btn} onClick={() => onStretchChange(suggest.stretch)}>
+                Use {STRETCH_LABELS[suggest.stretch]}
+              </button>
+            </div>
+          )}
         </div>
       </div>
 
@@ -161,4 +194,8 @@ const styles = {
   remove: { border: 'none', background: 'none', color: 'var(--fit-bad)', fontSize: 18, cursor: 'pointer', marginTop: 6 },
   btn: { padding: '6px 12px', borderRadius: 8, border: '1px solid var(--line-strong)', background: 'var(--surface)', cursor: 'pointer', fontSize: 13, color: 'var(--ink)' },
   note: { fontSize: 13 },
+  hint: {
+    display: 'flex', alignItems: 'center', gap: 10, flexWrap: 'wrap', padding: '8px 10px',
+    borderRadius: 8, background: 'var(--accent-soft)', color: 'var(--ink)', fontSize: 13,
+  },
 };
