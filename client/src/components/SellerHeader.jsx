@@ -5,6 +5,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { logout } from '../utils/auth';
+import { BRAND } from '../brand';
 import styles from './SellerHeader.module.css';
 
 export default function SellerHeader({ username = null, storeName = null }) {
@@ -18,7 +19,7 @@ export default function SellerHeader({ username = null, storeName = null }) {
       <div className={styles.row}>
         <Link to="/" className={styles.logo}>
           <i className={styles.logoDot} />
-          ProjectSilk
+          {BRAND.name}
           <span className={styles.section}>Seller</span>
         </Link>
 

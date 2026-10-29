@@ -117,3 +117,22 @@ describe('product details helpers', () => {
     assert.equal(nextGallery([], undefined, Array(9).fill('/n')).error, 'Up to 8 extra photos.');
   });
 });
+
+describe('store name on products', () => {
+  let srv, seller;
+  before(async () => {
+    srv = await startTestServer();
+    seller = await newUser('storeseller', { accountType: 'seller', storeName: 'Linen & Co' });
+  });
+  after(() => srv?.stop());
+
+  it('the catalogue and the product page say which store sells the item', async () => {
+    const made = (await api('POST', '/api/products', {
+      token: seller.token, files: { image: ['m.png', PNG] },
+      fields: { title: 'Shirt', price: '9900', garmentType: 'top' },
+    })).json;
+    const list = (await api('GET', '/api/products')).json;
+    assert.equal(list.find((p) => p._id === made._id).store, 'Linen & Co');
+    assert.equal((await api('GET', `/api/products/${made._id}`)).json.store, 'Linen & Co');
+  });
+});

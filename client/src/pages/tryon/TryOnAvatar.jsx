@@ -639,11 +639,11 @@ function Shell({ nav, actions, children }) {
     <div className={styles.page}>
       <div className={styles.shell}>
         <header className={styles.header}>
-          <div className={styles.logo}>
+          {/* над страницей — шапка магазина; здесь название страницы, не логотип */}
+          <h1 className={styles.logo}>
             <i className={styles.logoDot} />
-            ProjectSilk
-            <span className={styles.pageTag}>Try-on</span>
-          </div>
+            Try-on
+          </h1>
           <div className={styles.headerRight}>
             {actions}
             <button className={styles.btn} onClick={() => nav('/wardrobe')}>

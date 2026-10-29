@@ -1,109 +1,80 @@
 // client/src/components/ProductCardTall.jsx
 //
-// Карточка товара по макету projectsilk_v11.html.
-//
-// Отличия от прошлой версии — все три из макета:
-//   1. Строка-подсказка про 3D: «Перетащите на аватар» или «Нет 3D-модели».
-//      В макете она есть, и это не украшение: покупатель сразу видит,
-//      можно ли примерить вещь, не нажимая ничего.
-//   2. Цена: число крупно, валюта — маленькой строкой под ним.
-//      Так ряд с кнопками не разъезжается и цена не переносится.
-//   3. Кнопка корзины — отдельной строкой во всю ширину и с подписью
-//      «Add to cart»: значок 🛒 в части браузеров не рисуется, и кнопка
-//      выглядела пустой; три подписи в один ряд в 228 пикселей не помещаются.
-//
-// Звёзды — только когда у товара есть оценка: «★★★★★ 0.0» у товара без
-// отзывов выглядит как плохая оценка.
+// Карточка товара в каталоге: фото 3:4 (при наведении — второе фото галереи), магазин,
+// название, цена, «Your size S» по обмерам покупателя. При наведении — «Try on» и
+// «Add to cart»: у вещи с несколькими размерами корзина сначала спрашивает размер
+// (рекомендованный отмечен, распроданный — серым), с одним размером кладёт сразу.
+// Звёзды — только когда у товара есть оценка: «★★★★★ 0.0» выглядит как плохая оценка.
 
-import React, { useEffect, useMemo, useRef, useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import styles from './ProductCardTall.module.css';
-import SizeAdvisor from './SizeAdvisor';
+import { HangerIcon, HeartIcon } from './Icons';
 import { addToWardrobe as addWardrobeHelper } from '../utils/wardrobeStorage';
-import { sizeChartOf } from '../utils/fitCalculator';
-import { cartSizeFor } from '../utils/cart';
+import { findBestSize, sizeChartOf } from '../utils/fitCalculator';
+import { getCachedBodyProfile, isProfileComplete } from '../utils/bodyProfileApi';
+import { formatPrice } from '../utils/money';
 
 const API_BASE = process.env.REACT_APP_API || 'http://localhost:5050';
 const toPublicUrl = (s = '') => (String(s).startsWith('/uploads') ? `${API_BASE}${s}` : s);
 const NO_IMAGE = 'https://dummyimage.com/600x800/FCFBFA/9A9AA2&text=%20';
 
-export default function ProductCardTall({ product, addToCart, onAvatar }) {
+export default function ProductCardTall({ product, addToCart, onAvatar, profile }) {
   const {
-    id, _id, title, name, price, rating = 0,
-    image, images = [], gallery = [],
-    category, badge, discount, model3d,
+    id, _id, title, name, price, rating = 0, image, images = [], category, badge, discount,
   } = product || {};
-
   const sku = id || _id;
   const nav = useNavigate();
-  const has3d = Boolean(model3d);
+  const displayName = name || title || 'Item';
 
-  // ── галерея ──
-  const slides = useMemo(() => {
-    const raw = images?.length ? images : gallery?.length ? gallery : image ? [image] : [];
-    const arr = (raw || []).filter(Boolean).map(toPublicUrl);
-    return arr.length ? arr : [NO_IMAGE];
-  }, [image, images, gallery]);
+  const main = toPublicUrl(image) || NO_IMAGE;
+  const second = images?.[0] ? toPublicUrl(images[0]) : null;
 
-  const [index, setIndex] = useState(0);
-  const timerRef = useRef(null);
-
-  const startSlide = () => {
-    if (slides.length <= 1 || timerRef.current) return;
-    timerRef.current = setInterval(() => setIndex((p) => (p + 1) % slides.length), 1200);
-  };
-  const stopSlide = () => {
-    clearInterval(timerRef.current);
-    timerRef.current = null;
-    setIndex(0);
-  };
-
-  useEffect(() => () => clearInterval(timerRef.current), []);
-
-  useEffect(() => {
-    slides.slice(0, 3).forEach((src) => { const img = new Image(); img.src = src; });
-  }, [slides]);
+  // ── размер покупателя: обмеры со страницы (один запрос на каталог) или из кэша браузера ──
+  const body = profile !== undefined ? profile : getCachedBodyProfile();
+  const chart = useMemo(() => sizeChartOf(product), [product]);
+  const fit = useMemo(
+    () => (isProfileComplete(body) && chart.length ? findBestSize(body, chart).recommended : null),
+    [body, chart],
+  );
+  const rows = product?.sizeChart || [];
+  const soldOut = rows.length > 0 && rows.every((r) => r.stock === 0);
 
   // ── избранное ──
   const [fav, setFav] = useState(() => {
     try {
-      return JSON.parse(localStorage.getItem('favorites') || '[]')
-        .some((x) => (x.id || x._id) === sku);
+      return JSON.parse(localStorage.getItem('favorites') || '[]').some((x) => (x.id || x._id) === sku);
     } catch { return false; }
   });
-
   const toggleFav = (e) => {
     e.stopPropagation();
     let arr = [];
     try { arr = JSON.parse(localStorage.getItem('favorites') || '[]'); } catch {}
-    if (fav) {
-      arr = arr.filter((x) => (x.id || x._id) !== sku);
-    } else {
-      arr.push({ id: sku, _id: sku, name: name || title || 'Item', price: price || 0, image: slides[0], category });
-    }
+    arr = fav
+      ? arr.filter((x) => (x.id || x._id) !== sku)
+      : [...arr, { id: sku, _id: sku, name: displayName, price: price || 0, image: main, category }];
     localStorage.setItem('favorites', JSON.stringify(arr));
     setFav(!fav);
   };
 
-  // ── корзина ──
-  const [added, setAdded] = useState(false);
+  // ── корзина: размер выбирают здесь же ──
+  const [picking, setPicking] = useState(false);
+  const [added, setAdded] = useState(null);   // размер, который только что добавили
+  const add = (size) => {
+    setPicking(false);
+    if (typeof addToCart !== 'function') return nav('/cart');
+    const ok = addToCart({
+      id: sku, _id: sku, name: displayName, price: price || 0, image: main, category,
+      currency: product?.currency, quantity: 1, size: size || null,
+    });
+    if (ok === false) return;
+    setAdded(size || '');
+    setTimeout(() => setAdded(null), 1400);
+  };
   const handleAdd = (e) => {
     e.stopPropagation();
-    if (typeof addToCart === 'function') {
-      // размер — рекомендованный по обмерам покупателя (без обмеров — без размера)
-      const ok = addToCart({
-        id: sku, _id: sku,
-        name: name || title || 'Item',
-        price: price || 0,
-        image: slides[0], category, quantity: 1,
-        size: cartSizeFor(product),
-      });
-      if (ok === false) return;
-      setAdded(true);
-      setTimeout(() => setAdded(false), 900);
-    } else {
-      nav('/cart');
-    }
+    if (rows.length > 1) return setPicking((v) => !v);
+    add(rows[0]?.size || null);
   };
 
   const handleAvatar = (e) => {
@@ -111,106 +82,87 @@ export default function ProductCardTall({ product, addToCart, onAvatar }) {
     if (typeof onAvatar === 'function') onAvatar(product);
     else nav(`/tryon/avatar?sku=${encodeURIComponent(sku || '')}`);
   };
-
   const handleWardrobe = (e) => {
     e.stopPropagation();
-    addWardrobeHelper(product);
+    addWardrobeHelper({ ...product, id: sku, image: main });
   };
 
-  const badgeText = badge ? String(badge) : discount ? `−${Number(discount)}%` : null;
+  const badgeText = soldOut ? 'Sold out' : badge ? String(badge) : discount ? `−${Number(discount)}%` : null;
   const ratingValue = Number(rating) || 0;
-  // число отзывов, если сервер его отдаёт; иначе — есть ли вообще оценка
   const reviewCount = product?.reviewCount ?? product?.numReviews;
   const hasRating = ratingValue > 0 && (reviewCount == null || Number(reviewCount) > 0);
-  const displayName = name || title || 'Item';
+  const open = () => sku && nav(`/product/${encodeURIComponent(sku)}`);
 
   return (
     <article
-      className={styles.card}
-      draggable
-      onDragStart={(e) => {
-        // Панель фигуры на главной принимает вещь и сразу считает размер,
-        // поэтому кладём в перетаскивание всё нужное — без запроса к серверу.
-        e.dataTransfer.effectAllowed = 'copy';
-        e.dataTransfer.setData('application/json', JSON.stringify({
-          id: sku,
-          _id: sku,
-          name: displayName,
-          price: price || 0,
-          image: slides[0],
-          category,
-          model3d: model3d || '',
-          garmentType: product?.garmentType || null, // без типа — не «верх»
-          sizeChart: sizeChartOf(product), // с тянучестью ткани — панель считает размер сама
-        }));
-      }}
-      onMouseEnter={startSlide}
-      onMouseLeave={stopSlide}
+      className={`${styles.card} ${picking ? styles.picking : ''}`}
       role="button"
       tabIndex={0}
-      onClick={() => sku && nav(`/product/${encodeURIComponent(sku)}`)}
-      onKeyDown={(e) => e.key === 'Enter' && sku && nav(`/product/${encodeURIComponent(sku)}`)}
+      onClick={open}
+      onKeyDown={(e) => e.key === 'Enter' && e.target === e.currentTarget && open()}
+      onMouseLeave={() => setPicking(false)}
       aria-label={displayName}
     >
       <div className={styles.media}>
-        {badgeText && <span className={styles.badge}>{badgeText}</span>}
+        <img className={styles.image} src={main} alt={displayName} loading="lazy"
+          onError={(e) => { e.currentTarget.src = NO_IMAGE; }} />
+        {second && <img className={`${styles.image} ${styles.imageAlt}`} src={second} alt="" loading="lazy" />}
 
-        <img
-          key={slides[index]}
-          className={`${styles.image} ${styles.fadeIn}`}
-          src={slides[index]}
-          alt={displayName}
-          onError={(e) => { e.currentTarget.src = NO_IMAGE; }}
-        />
+        {badgeText && <span className={`${styles.badge} ${soldOut ? styles.badgeOut : ''}`}>{badgeText}</span>}
 
-        <button
-          className={`${styles.heart} ${fav ? styles.heartOn : ''}`}
-          onClick={toggleFav}
-          aria-label={fav ? 'Remove from favourites' : 'Add to favourites'}
-        >
-          ♥
-        </button>
+        <div className={styles.corner}>
+          <button className={`${styles.round} ${fav ? styles.roundOn : ''}`} onClick={toggleFav}
+            aria-label={fav ? 'Remove from favourites' : 'Add to favourites'}>
+            <HeartIcon size={18} filled={fav} />
+          </button>
+          <button className={styles.round} onClick={handleWardrobe} aria-label="Save to wardrobe" title="Save to the fitting room">
+            <HangerIcon size={18} />
+          </button>
+        </div>
+
+        <div className={styles.overlay} onClick={(e) => e.stopPropagation()}>
+          {picking ? (
+            <div className={styles.sizes} role="group" aria-label="Choose a size">
+              {rows.map((r) => (
+                <button
+                  key={r.size}
+                  className={`${styles.size} ${fit?.size === r.size ? styles.sizeRec : ''}`}
+                  disabled={r.stock === 0}
+                  onClick={() => add(r.size)}
+                  aria-label={`Add size ${r.size} to cart${r.stock === 0 ? ' (out of stock)' : ''}`}
+                >
+                  {r.size}
+                </button>
+              ))}
+            </div>
+          ) : (
+            <>
+              <button className={styles.overlayBtn} onClick={handleAvatar} title="Try on my avatar">Try on</button>
+              <button className={`${styles.overlayBtn} ${styles.overlayDark}`} onClick={handleAdd} disabled={soldOut}>
+                {added !== null ? `Added${added ? ` · ${added}` : ''} ✓` : 'Add to cart'}
+              </button>
+            </>
+          )}
+        </div>
       </div>
 
       <div className={styles.body}>
+        {product?.store && <div className={styles.store}>{product.store}</div>}
         <div className={styles.name} title={displayName}>{displayName}</div>
-
         {hasRating && (
           <div className={styles.rating} aria-label={`Rated ${ratingValue.toFixed(1)} out of 5`}>
             {'★★★★★'} <i className={styles.ratingNum}>{ratingValue.toFixed(1)}</i>
           </div>
         )}
-
-        <div className={`${styles.dragHint} ${has3d ? '' : styles.dragHintNo}`}>
-          {has3d ? 'Drag onto your avatar' : 'No 3D model yet'}
-        </div>
-
-        <div onClick={(e) => e.stopPropagation()}>
-          <SizeAdvisor product={product} mode="compact" />
-        </div>
-
         <div className={styles.priceRow}>
-          <span className={styles.price}>{formatNumber(price)}</span>
-          <span className={styles.priceUnit}>₸</span>
+          <span className={styles.price}>{formatPrice(price, product?.currency)}</span>
+          {fit && (
+            <span className={`ui-chip ${fit.wearable ? 'ui-chip--good' : 'ui-chip--warn'}`}>
+              {fit.wearable ? `Your size ${fit.size}` : `Closest ${fit.size}`}
+            </span>
+          )}
         </div>
-
-        <div className={styles.actions}>
-          <button className={styles.pillBtn} onClick={handleWardrobe} title="Save to wardrobe">
-            Wardrobe
-          </button>
-          <button className={styles.pillBtn} onClick={handleAvatar} title="Try on my avatar">
-            Try on
-          </button>
-        </div>
-        <button className={styles.cartBtn} onClick={handleAdd}>
-          {added ? 'Added ✓' : 'Add to cart'}
-        </button>
       </div>
     </article>
   );
-}
-
-function formatNumber(v) {
-  const n = Number(v || 0);
-  return Number.isNaN(n) ? '—' : n.toLocaleString('en-US');
 }

@@ -1,5 +1,6 @@
 import React, { useEffect, useRef } from "react";
 import "./AiPanelLeft.css";
+import { BRAND } from "../brand";
 
 /**
  * Левая выезжающая панель ассистента.
@@ -10,7 +11,7 @@ import "./AiPanelLeft.css";
  *  - width?: string (например, "420px" или "360px")
  *  - actions?: ReactNode — кнопки в шапке слева от «✕» (например, голосовой ввод)
  */
-export default function AiPanelLeft({ open, onClose, children, title = "Fizzy — assistant", width, actions }) {
+export default function AiPanelLeft({ open, onClose, children, title = `${BRAND.name} assistant`, width, actions }) {
   const panelRef = useRef(null);
   const headingId = "ai-panel-title";
 

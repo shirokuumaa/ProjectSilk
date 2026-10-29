@@ -2,6 +2,7 @@
 import mongoose from 'mongoose';
 import Product, { GARMENT_TYPES } from '../models/Product.js';
 import WardrobeItem from '../models/WardrobeItem.js';
+import User from '../models/User.js';
 import { parseSilhouette, silhouetteFits } from '../utils/silhouettes.js';
 import { parseAccessory } from '../utils/accessory.js';
 import {
@@ -172,6 +173,14 @@ async function normalizeModel(rawFile) {
 /** lean() не подставляет значения по умолчанию: у старых товаров нет stretch → 'none'. */
 const withDefaults = (p) => (p ? { stretch: 'none', ...p } : p);
 
+/** Название магазина продавца — полем store (покупатель видит, чья вещь); owner остаётся id. */
+async function withStores(items) {
+  const ids = [...new Set(items.map((p) => String(p.owner)).filter(Boolean))];
+  const users = ids.length ? await User.find({ _id: { $in: ids } }, { storeName: 1 }).lean() : [];
+  const names = new Map(users.map((u) => [String(u._id), u.storeName]));
+  return items.map((p) => (names.get(String(p.owner)) ? { ...p, store: names.get(String(p.owner)) } : p));
+}
+
 /** Свои тексты для полей; остальные — по названию поля. */
 const FIELD_MESSAGES = {
   stretch: 'Fabric stretch must be none, slight or stretchy.',
@@ -197,7 +206,7 @@ function sendValidationError(res, e) {
 export const getAllProducts = async (_req, res) => {
   try {
     const items = await Product.find().sort({ createdAt: -1 }).lean();
-    res.json(items.map(withDefaults));
+    res.json(await withStores(items.map(withDefaults)));
   } catch (e) {
     console.error('getAllProducts error:', e);
     res.status(500).json({ message: 'Could not load products.' });
@@ -220,7 +229,7 @@ export const getProductById = async (req, res) => {
     if (!mongoose.isValidObjectId(req.params.id)) return res.status(404).json({ message: 'Not found' });
     const item = await Product.findById(req.params.id).lean();
     if (!item) return res.status(404).json({ message: 'Not found' });
-    res.json(withDefaults(item));
+    res.json((await withStores([withDefaults(item)]))[0]);
   } catch (e) {
     console.error('getProductById error:', e);
     res.status(500).json({ message: 'Could not load the product.' });

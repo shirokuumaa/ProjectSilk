@@ -15,6 +15,7 @@ import { addToWardrobe } from '../utils/wardrobeStorage';
 import { loadBodyProfile, isProfileComplete } from '../utils/bodyProfileApi';
 import { findBestSize, sizeChartOf } from '../utils/fitCalculator';
 import { garmentTypeOf, offFigureReason } from '../utils/garmentTemplates';
+import { formatPrice } from '../utils/money';
 import styles from './ProductPage.module.css';
 
 const API_BASE = process.env.REACT_APP_API || 'http://localhost:5050';
@@ -193,10 +194,9 @@ export default function ProductPage({ addToCart }) {
         </div>
 
         <section className={styles.info}>
+          {product.store && <div className="ui-eyebrow">{product.store}</div>}
           <h1 className={styles.title}>{displayName}</h1>
-          <div className={styles.price}>
-            {Number(product.price || 0).toLocaleString('en-US')} <span className={styles.priceUnit}>₸</span>
-          </div>
+          <div className={styles.price}>{formatPrice(product.price || 0, product.currency)}</div>
 
           <SizePicker rows={chart} value={size} recommended={recommended} onChange={pickSize} />
           {recommendedOut && !picked && (

@@ -1,6 +1,6 @@
 // client/src/App.js
 import React, { useState, useEffect, lazy } from 'react';
-import { BrowserRouter as Router, Routes, Route } from 'react-router-dom';
+import { BrowserRouter as Router, Routes, Route, useLocation } from 'react-router-dom';
 
 import HomePage from './pages/HomePage';
 import CartPage from './pages/CartPage';
@@ -25,6 +25,8 @@ import DevOnly, { NotFound } from './components/DevOnly';
 // ⬇️ единый слой ассистента (панель + шарик + голос)
 import AssistantLayer from './components/AssistantLayer';
 import SiteFooter from './components/SiteFooter';
+import TopBar from './components/TopBar';
+import { BRAND } from './brand';
 import AccountSync from './components/AccountSync';
 import { AUTH_EVENT, isLoggedIn } from './utils/auth';
 import { addCartLines, removeCartLine } from './utils/cart';
@@ -35,9 +37,17 @@ const Metrics = lazy(() => import('./pages/Metrics'));
 const TripoSRDebug = lazy(() => import('./pages/TripoSRDebug'));
 const AvatarCreateMode1Test = lazy(() => import('./pages/AvatarCreateMode1Test'));
 
+// шапка магазина — на всех страницах покупателя; у кабинета продавца своя, AR — во весь экран
+const NO_SITE_HEADER = [/^\/seller/, /^\/tryon\/ar/];
+
+function SiteHeader({ cartItems }) {
+  const { pathname } = useLocation();
+  if (NO_SITE_HEADER.some((re) => re.test(pathname))) return null;
+  return <TopBar cartItems={cartItems} />;
+}
+
 function App() {
-  const [search, setSearch] = useState('');
-  const [category, setCategory] = useState('All');
+  useEffect(() => { document.title = BRAND.name; }, []);
 
   const [cartItems, setCartItems] = useState(() => {
     const saved = localStorage.getItem('cartItems');
@@ -75,19 +85,14 @@ function App() {
 
   return (
     <Router>
+      <SiteHeader cartItems={cartItems} />
+
       {/* Основной роутинг приложения */}
       <Routes>
         <Route
           path="/"
           element={
-            <HomePage
-              search={search}
-              setSearch={setSearch}
-              category={category}
-              setCategory={setCategory}
-              cartItems={cartItems}
-              addToCart={handleAddToCart}
-            />
+            <HomePage addToCart={handleAddToCart} />
           }
         />
 
@@ -107,7 +112,7 @@ function App() {
         />
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
-        <Route path="/favorites" element={<FavoritesPage />} />
+        <Route path="/favorites" element={<FavoritesPage addToCart={handleAddToCart} />} />
         <Route path="/wardrobe" element={<WardrobePage addToCart={handleAddToCart} />} />
         <Route path="/tryon/photo" element={<TryOnPhoto />} />
         <Route path="/tryon/ar" element={<TryOnAR />} />

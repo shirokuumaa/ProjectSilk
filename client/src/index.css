@@ -66,3 +66,82 @@
    border: 3px solid var(--bg);
  }
  ::-webkit-scrollbar-thumb:hover { background: var(--line-strong); }
+
+/* ── общие элементы интерфейса (дизайн-система) ─────────────────
+ * Кнопки, поля, карточки, ярлыки — одним видом на всех страницах.
+ * Приставка ui- — чтобы не пересечься с классами CSS-модулей и Tailwind.
+ */
+.ui-container {
+  max-width: var(--page-max);
+  margin: 0 auto;
+  padding: 0 var(--page-pad);
+}
+
+.ui-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: var(--sp-2);
+  height: 44px;
+  padding: 0 var(--sp-5);
+  border-radius: var(--r-pill);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+  font-size: var(--fs-md);
+  font-weight: 500;
+  line-height: 1;
+  white-space: nowrap;
+  transition: background var(--t-fast) var(--ease), border-color var(--t-fast) var(--ease), color var(--t-fast) var(--ease);
+}
+.ui-btn:hover { border-color: var(--ink); }
+.ui-btn:disabled { opacity: .45; cursor: not-allowed; }
+.ui-btn--primary { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+.ui-btn--primary:hover { background: var(--ink-2); }
+.ui-btn--ghost { border-color: transparent; background: transparent; }
+.ui-btn--ghost:hover { border-color: var(--line); background: var(--surface); }
+.ui-btn--sm { height: 34px; padding: 0 var(--sp-4); font-size: var(--fs-sm); }
+.ui-btn--lg { height: 52px; padding: 0 var(--sp-6); font-size: var(--fs-lg); }
+
+.ui-input {
+  display: block;
+  width: 100%;
+  height: 44px;
+  padding: 0 var(--sp-4);
+  border-radius: var(--r-sm);
+  border: 1px solid var(--line-strong);
+  background: var(--surface);
+  color: var(--ink);
+}
+.ui-input:focus { border-color: var(--ink); outline: none; }
+textarea.ui-input { height: auto; padding: var(--sp-3) var(--sp-4); }
+
+.ui-card {
+  background: var(--surface);
+  border: 1px solid var(--line);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-card);
+}
+
+.ui-eyebrow {
+  font-size: var(--fs-xs);
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+
+.ui-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--sp-1);
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  font-size: var(--fs-xs);
+  font-weight: 500;
+  background: var(--surface-2);
+  color: var(--muted);
+}
+.ui-chip--good { background: var(--fit-good-bg); color: var(--fit-good); }
+.ui-chip--warn { background: var(--fit-warn-bg); color: var(--fit-warn); }
+.ui-chip--dark { background: var(--ink); color: var(--surface); }

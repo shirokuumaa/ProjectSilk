@@ -300,11 +300,11 @@ export default function WardrobePage({ addToCart }) {
 
         {/* ── header ── */}
         <header className={styles.ahdr}>
-          <div className={styles.alogo}>
+          {/* над страницей — шапка магазина; здесь название страницы, не логотип */}
+          <h1 className={styles.alogo}>
             <i />
-            ProjectSilk
-            <span className={styles.pgt}>Wardrobe</span>
-          </div>
+            Fitting room
+          </h1>
 
           <div className={styles.hdrRight}>
             <button className={styles.gbtn} onClick={() => navigate('/')}>← Shop</button>

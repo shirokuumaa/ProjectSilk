@@ -39,6 +39,7 @@
     font-family: var(--font-display);
     font-size: var(--fs-xl);
     color: var(--ink);
+    margin: 0;   /* заголовок страницы (h1) без отступа браузера */
   }
   
   .logoDot {

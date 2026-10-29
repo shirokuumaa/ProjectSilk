@@ -29,7 +29,7 @@ export default function SizePicker({ rows, value, recommended, onChange }) {
               className={[styles.size, r.size === value ? styles.on : '', out ? styles.out : ''].join(' ')}
               onClick={() => onChange(r.size)}
             >
-              {r.size}
+              <span className={out ? styles.strike : undefined}>{r.size}</span>
               {r.size === recommended && <span className={styles.rec} aria-label="recommended">●</span>}
               {out && <span className={styles.sub}>out of stock</span>}
               {low && <span className={styles.sub}>{r.stock} left</span>}

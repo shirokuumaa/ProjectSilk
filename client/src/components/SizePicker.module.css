@@ -29,8 +29,8 @@
   background: var(--surface-2);
   border-style: dashed;
   cursor: not-allowed;
-  text-decoration: line-through;
 }
+.strike { text-decoration: line-through; }
 
 .rec { position: absolute; top: 2px; right: 5px; font-size: 7px; color: var(--fit-good); }
 .sub { font-family: var(--font-ui); font-size: 10px; text-decoration: none; color: var(--muted); }

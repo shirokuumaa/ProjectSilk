@@ -1,59 +1,63 @@
-import React, { useEffect, useState } from 'react';
+// client/src/pages/FavoritesPage.jsx
+//
+// Избранное: вещи, отмеченные сердцем в каталоге (localStorage «favorites»), — теми же
+// карточками, что в каталоге: свежие цена, размер, остаток берутся из каталога.
+// Удалённые продавцом товары сюда не попадают.
 
-export default function FavoritesPage() {
-  const [favorites, setFavorites] = useState([]);
+import React, { useEffect, useMemo, useState } from 'react';
+import { Link } from 'react-router-dom';
+import axios from 'axios';
+import ProductCardTall from '../components/ProductCardTall';
+import styles from './HomePage.module.css';
 
-  // Загружаем избранное из localStorage при открытии страницы
+const API_BASE = process.env.REACT_APP_API || 'http://localhost:5050';
+
+const favoriteIds = () => {
+  try { return JSON.parse(localStorage.getItem('favorites') || '[]').map((x) => String(x.id || x._id)); }
+  catch { return []; }
+};
+
+export default function FavoritesPage({ addToCart }) {
+  const [catalog, setCatalog] = useState(null);
+  const [ids, setIds] = useState(favoriteIds);
+
   useEffect(() => {
-    const stored = localStorage.getItem('favorites');
-    if (stored) {
-      setFavorites(JSON.parse(stored));
-    }
+    let alive = true;
+    axios.get(`${API_BASE}/api/products`)
+      .then((r) => alive && setCatalog(Array.isArray(r.data) ? r.data : []))
+      .catch(() => alive && setCatalog([]));
+    // сердце сняли на карточке — список обновится при следующем фокусе страницы
+    const sync = () => setIds(favoriteIds());
+    window.addEventListener('focus', sync);
+    return () => { alive = false; window.removeEventListener('focus', sync); };
   }, []);
 
-  // Удаление товара из избранного
-  const handleRemove = (id) => {
-    const updated = favorites.filter(item => item.id !== id);
-    setFavorites(updated);
-    localStorage.setItem('favorites', JSON.stringify(updated));
-  };
+  const items = useMemo(
+    () => (catalog || []).filter((p) => ids.includes(String(p._id || p.id))),
+    [catalog, ids],
+  );
 
   return (
-    <div style={{ padding: '20px' }}>
-      <h2>❤️ Your Favorites</h2>
+    <main className={`ui-container ${styles.catalogue}`}>
+      <div className={styles.head}>
+        <div>
+          <h1 className={styles.title}>Wishlist</h1>
+          {catalog && <span className={styles.count}>{items.length} {items.length === 1 ? 'item' : 'items'}</span>}
+        </div>
+      </div>
 
-      {favorites.length === 0 ? (
-        <p>You have no favorite items yet.</p>
-      ) : (
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '20px' }}>
-          {favorites.map(product => (
-            <div key={product.id} style={{
-              border: '1px solid #ccc',
-              borderRadius: '10px',
-              padding: '10px',
-              width: '200px',
-              textAlign: 'center'
-            }}>
-              <img src={product.image} alt={product.name} style={{ width: '100%', borderRadius: '8px' }} />
-              <h3>{product.name}</h3>
-              <p>{product.price} ₸</p>
-              <button
-                onClick={() => handleRemove(product.id)}
-                style={{
-                  marginTop: '10px',
-                  padding: '5px 10px',
-                  backgroundColor: '#ccc',
-                  border: 'none',
-                  borderRadius: '5px',
-                  cursor: 'pointer'
-                }}
-              >
-                ❌ Remove
-              </button>
-            </div>
-          ))}
+      {!catalog && <p className={styles.state}>Loading your wishlist…</p>}
+      {catalog && items.length === 0 && (
+        <div className={styles.empty}>
+          <p className={styles.emptyTitle}>No saved items yet. Tap the heart on any item to keep it here.</p>
+          <Link to="/" className="ui-btn">Browse the shop</Link>
         </div>
       )}
-    </div>
+      {items.length > 0 && (
+        <div className={styles.grid} style={{ marginTop: 'var(--sp-6)' }}>
+          {items.map((p) => <ProductCardTall key={p._id || p.id} product={p} addToCart={addToCart} />)}
+        </div>
+      )}
+    </main>
   );
 }
