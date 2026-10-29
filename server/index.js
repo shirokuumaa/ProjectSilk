@@ -12,6 +12,7 @@ import aiRoutes from './routes/aiRoutes.js';
 import avatarRoutes from './routes/avatarRoutes.js';
 import bodyProfileRoutes from './routes/bodyProfileRoutes.js';
 import authRoutes from './routes/authRoutes.js';
+import orderRoutes from './routes/orderRoutes.js';
 import { resumePatternJobs } from './services/patternJobs.js';
 
 
@@ -59,6 +60,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/products', productRoutes);
 app.use('/api/wardrobe', wardrobeRoutes); // ← добавили гардероб
 app.use('/api/body-profile', bodyProfileRoutes);
+app.use('/api/orders', orderRoutes);   // заказы без оплаты (services/orders.js)
 
 //test front avatar
 app.use('/api/avatar', avatarRoutes);

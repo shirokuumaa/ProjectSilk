@@ -1,0 +1,25 @@
+/* client/src/components/SellerOrders.module.css — заказы в кабинете продавца; цвета из tokens.css */
+
+.box { margin: 24px 0; }
+.title { margin: 0 0 12px; font-size: 16px; color: var(--ink); display: flex; align-items: center; gap: 10px; }
+.open { font-family: var(--font-ui); font-size: var(--fs-xs); font-weight: 600; padding: 3px 9px; border-radius: var(--r-pill); background: var(--accent-soft); color: var(--accent); }
+.muted { color: var(--muted); }
+.error { color: var(--fit-bad); }
+
+.list { display: grid; gap: 10px; max-width: 820px; }
+.order { display: grid; gap: 8px; padding: 14px 16px; border-radius: 12px; border: 1px solid var(--line); background: var(--surface); }
+.head, .foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; }
+.no { font-family: var(--font-mono); font-weight: 500; }
+.items { margin: 0; padding-left: 18px; font-size: var(--fs-md); }
+.buyer { display: grid; gap: 2px; font-size: var(--fs-sm); padding: 8px 10px; border-radius: 8px; background: var(--surface-2); }
+.actions { display: flex; gap: 8px; }
+
+.status { font-size: var(--fs-xs); font-weight: 600; padding: 3px 10px; border-radius: var(--r-pill); background: var(--surface-2); color: var(--muted); }
+.placed { background: var(--fit-warn-bg); color: var(--fit-warn); }
+.confirmed, .shipped { background: var(--accent-soft); color: var(--accent); }
+.delivered { background: var(--fit-good-bg); color: var(--fit-good); }
+
+.btn, .btnDark { padding: 7px 14px; border-radius: 8px; cursor: pointer; font-size: var(--fs-sm); }
+.btn { border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); }
+.btnDark { border: 1px solid var(--ink); background: var(--ink); color: var(--surface); }
+.btn:disabled, .btnDark:disabled { opacity: .5; cursor: not-allowed; }

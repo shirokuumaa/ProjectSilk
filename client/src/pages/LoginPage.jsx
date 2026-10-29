@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useSearchParams } from 'react-router-dom';
 import { login } from '../utils/auth';
 import FormErrors, { errorsOf } from '../components/FormErrors';
 import styles from './Auth.module.css';
@@ -10,6 +10,9 @@ export default function LoginPage() {
   const [errors, setErrors] = useState([]);
   const [busy, setBusy] = useState(false);
   const navigate = useNavigate();
+  // ?next=/checkout — вернуть туда, откуда отправили на вход (только свои страницы)
+  const [params] = useSearchParams();
+  const next = /^\/[^/]/.test(params.get('next') || '') ? params.get('next') : null;
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -24,7 +27,7 @@ export default function LoginPage() {
     try {
       const user = await login(username, password);
       // продавец — в свою панель, покупатель — в магазин
-      navigate(user?.role === 'seller' ? '/seller' : '/');
+      navigate(next || (user?.role === 'seller' ? '/seller' : '/'));
     } catch (err) {
       setErrors(errorsOf(err));
     } finally {

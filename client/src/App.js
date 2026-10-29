@@ -18,6 +18,7 @@ import Product3DViewer from './pages/Product3DViewer';
 import AvatarCreate from './pages/AvatarCreate';
 import OrderPage from "./pages/OrderPage"; 
 import OrdersList from "./pages/OrdersList";
+import CheckoutPage from './pages/CheckoutPage';
 import DevOnly, { NotFound } from './components/DevOnly';
 
 
@@ -29,7 +30,7 @@ import TopBar from './components/TopBar';
 import { BRAND } from './brand';
 import AccountSync from './components/AccountSync';
 import { AUTH_EVENT, isLoggedIn } from './utils/auth';
-import { addCartLines, removeCartLine } from './utils/cart';
+import { addCartLines, removeCartLine, removeCartLines, setCartLineQuantity } from './utils/cart';
 import { assistantEnabled } from './utils/features';
 
 // служебные страницы — только в режиме разработки (DevOnly), код грузится лениво
@@ -82,6 +83,9 @@ function App() {
   const handleRemoveFromCart = (key) => {
     setCartItems((prev) => removeCartLine(prev, key));
   };
+  const handleSetQuantity = (key, quantity) => setCartItems((prev) => setCartLineQuantity(prev, key, quantity));
+  // заказ оформлен — эти строки уходят из корзины
+  const handleOrdered = (keys) => setCartItems((prev) => removeCartLines(prev, keys));
 
   return (
     <Router>
@@ -107,7 +111,7 @@ function App() {
         <Route
           path="/cart"
           element={
-            <CartPage cartItems={cartItems} onRemove={handleRemoveFromCart} />
+            <CartPage cartItems={cartItems} onRemove={handleRemoveFromCart} onSetQuantity={handleSetQuantity} />
           }
         />
         <Route path="/login" element={<LoginPage />} />
@@ -121,8 +125,9 @@ function App() {
         <Route path="/viewer" element={<Product3DViewer />} />
         <Route path="/avatar/create" element={<AvatarCreate />} />
         <Route path="/metrics" element={<DevOnly><Metrics /></DevOnly>} />
+        <Route path="/checkout" element={<CheckoutPage cartItems={cartItems} onOrdered={handleOrdered} />} />
         <Route path="/orders/:id" element={<OrderPage />} />
-        <Route path="/orders" element={<OrdersList sessionId={window.__SESSION_ID__} />} /> 
+        <Route path="/orders" element={<OrdersList />} /> 
         <Route path="/triposr-debug" element={<DevOnly><TripoSRDebug /></DevOnly>} />
         <Route path="/avatar/mode1-test" element={<DevOnly><AvatarCreateMode1Test /></DevOnly>} />
 

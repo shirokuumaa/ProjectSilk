@@ -18,6 +18,8 @@ import ProductDetailsField, {
   EMPTY_DETAILS, appendDetails, detailsFromProduct, detailsProblem,
 } from "../components/ProductDetailsField";
 import StockField from "../components/StockField";
+import SellerOrders from "../components/SellerOrders";
+import { CURRENCIES, currencySymbol, formatPrice } from "../utils/money";
 import { imageColor } from "../utils/garmentColor";
 import { silhouetteFits } from "../utils/silhouettes";
 import { authFetch, becomeSeller, fetchMe, isLoggedIn } from "../utils/auth";
@@ -162,6 +164,7 @@ function BecomeSeller({ username, onDone }) {
 function SellerDashboard() {
   const [title, setTitle] = useState("");
   const [price, setPrice] = useState("");
+  const [currency, setCurrency] = useState("KZT");   // валюта цены; пилот — тенге
   const [category, setCategory] = useState("Clothes");
 
   const [sizeChart, setSizeChart] = useState([]);
@@ -411,6 +414,7 @@ function SellerDashboard() {
       const fd = new FormData();
       fd.append("title", title.trim());
       fd.append("price", String(Number(price)));
+      fd.append("currency", currency);
       fd.append("category", category);
       fd.append("garmentType", garmentType);
       fd.append("stretch", stretch);
@@ -533,7 +537,7 @@ function SellerDashboard() {
                 />
               </label>
               <label style={ui.label}>
-                Price, ₸
+                Price, {currencySymbol(currency)}
                 <input
                   style={ui.input}
                   value={price}
@@ -542,6 +546,7 @@ function SellerDashboard() {
                   min="0"
                 />
               </label>
+              <CurrencyField value={currency} onChange={setCurrency} />
               <label style={ui.label}>
                 Category
                 <select style={ui.input} value={category} onChange={(e) => setCategory(e.target.value)}>
@@ -623,6 +628,8 @@ function SellerDashboard() {
         </div>
       </div>
 
+      {/* заказы — выше товаров: их надо обработать */}
+      <SellerOrders />
       <MyProducts reloadKey={listKey} />
     </div>
   );
@@ -689,7 +696,7 @@ function MyProducts({ reloadKey }) {
           <div style={{ minWidth: 0, flex: 1 }}>
             <div style={{ fontWeight: 600, color: "var(--ink)" }}>{p.title}</div>
             <div style={ui.meta}>
-              {Number(p.price || 0).toLocaleString("en-US")} ₸ · {p.garmentType || "type not set"}
+              {formatPrice(p.price || 0, p.currency)} · {p.garmentType || "type not set"}
               {" · "}{p.sizeChart?.length ? `${p.sizeChart.length} sizes` : "no size chart"}
               {" · "}{p.model3d ? "3D model" : "no 3D model"}
             </div>
@@ -743,6 +750,7 @@ const toEditorRows = (chart = []) =>
 export function EditProductForm({ product, onCancel, onSaved }) {
   const [title, setTitle] = useState(product.title || "");
   const [price, setPrice] = useState(String(product.price ?? ""));
+  const [currency, setCurrency] = useState(product.currency || "KZT");
   const [category, setCategory] = useState(product.category || "Clothes");
   const [garmentType, setGarmentType] = useState(product.garmentType || ""); // у старых товаров типа нет
   const [accessory, setAccessory] = useState(() => accessoryFromProduct(product));
@@ -792,6 +800,7 @@ export function EditProductForm({ product, onCancel, onSaved }) {
       const fd = new FormData();
       fd.append("title", title.trim());
       fd.append("price", String(priceNum));
+      fd.append("currency", currency);
       fd.append("category", category);
       fd.append("garmentType", garmentType);
       fd.append("stretch", stretch);
@@ -829,9 +838,10 @@ export function EditProductForm({ product, onCancel, onSaved }) {
           <input style={ui.input} value={title} onChange={(e) => setTitle(e.target.value)} />
         </label>
         <label style={ui.label}>
-          Price, ₸
+          Price, {currencySymbol(currency)}
           <input style={ui.input} type="number" min="0" value={price} onChange={(e) => setPrice(e.target.value)} />
         </label>
+        <CurrencyField value={currency} onChange={setCurrency} />
         <label style={ui.label}>
           Category
           <select style={ui.input} value={category} onChange={(e) => setCategory(e.target.value)}>
@@ -880,6 +890,18 @@ export function EditProductForm({ product, onCancel, onSaved }) {
         </div>
       </div>
     </div>
+  );
+}
+
+/** Валюта цены: пилот — тенге, остальные заложены под другие рынки (utils/money.js). */
+function CurrencyField({ value, onChange }) {
+  return (
+    <label style={ui.label}>
+      Currency
+      <select style={ui.input} value={value} onChange={(e) => onChange(e.target.value)}>
+        {Object.keys(CURRENCIES).map((c) => <option key={c} value={c}>{c} · {currencySymbol(c)}</option>)}
+      </select>
+    </label>
   );
 }
 

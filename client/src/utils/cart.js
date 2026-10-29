@@ -38,3 +38,23 @@ export function removeCartLine(lines, key) {
     .map((x) => (cartLineKey(x) === key ? { ...x, quantity: (x.quantity || 1) - 1 } : x))
     .filter((x) => x.quantity > 0);
 }
+
+/** Поставить количество строки (1–20); 0 — убрать строку. */
+export function setCartLineQuantity(lines, key, quantity) {
+  const q = Math.max(0, Math.min(20, Math.floor(Number(quantity) || 0)));
+  return lines
+    .map((x) => (cartLineKey(x) === key ? { ...x, quantity: q } : x))
+    .filter((x) => x.quantity > 0);
+}
+
+/** Убрать строки по ключам (оформленные в заказ). */
+export const removeCartLines = (lines, keys) => lines.filter((x) => !keys.includes(cartLineKey(x)));
+
+/** Сумма по валютам: { KZT: 27800 } — в одной корзине могут оказаться разные валюты. */
+export function cartTotals(lines) {
+  return (lines || []).reduce((acc, x) => {
+    const c = x.currency || 'KZT';
+    acc[c] = (acc[c] || 0) + (Number(x.price) || 0) * (x.quantity || 1);
+    return acc;
+  }, {});
+}

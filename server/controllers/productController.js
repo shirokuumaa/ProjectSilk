@@ -1,6 +1,6 @@
 // server/controllers/productController.js
 import mongoose from 'mongoose';
-import Product, { GARMENT_TYPES } from '../models/Product.js';
+import Product, { CURRENCIES, GARMENT_TYPES } from '../models/Product.js';
 import WardrobeItem from '../models/WardrobeItem.js';
 import User from '../models/User.js';
 import { parseSilhouette, silhouetteFits } from '../utils/silhouettes.js';
@@ -274,6 +274,8 @@ export const addProduct = async (req, res) => {
 
     const priceNum = toNumber(req.body.price);
     if (!Number.isFinite(priceNum) || priceNum < 0) return fail(400, 'Price must be a positive number.');
+    const currency = req.body.currency || 'KZT';
+    if (!CURRENCIES.includes(currency)) return fail(400, 'Unknown currency.');
 
     // принт: плитка с фото и её размер на ткани; без плитки вещь однотонная
     const printFile = req.files?.print?.[0];
@@ -293,6 +295,7 @@ export const addProduct = async (req, res) => {
       title,
       name: String(name || title).trim(),
       price: priceNum,
+      currency,
       category: String(category || 'Clothes'),
       garmentType,
       silhouette: sil.silhouette || undefined,
@@ -354,6 +357,10 @@ export const updateProduct = async (req, res) => {
       const priceNum = toNumber(b.price);
       if (!Number.isFinite(priceNum) || priceNum < 0) return fail(400, 'Price must be a positive number.');
       product.price = priceNum;
+    }
+    if (b.currency !== undefined) {
+      if (!CURRENCIES.includes(b.currency)) return fail(400, 'Unknown currency.');
+      product.currency = b.currency;
     }
     if (b.category !== undefined) product.category = String(b.category);
     if (b.garmentType !== undefined) product.garmentType = String(b.garmentType);

@@ -35,12 +35,16 @@ const SizeEntrySchema = new mongoose.Schema({
   stock: { type: Number, min: 0, validate: { validator: Number.isInteger, message: 'Stock must be a whole number.' } },
 }, { _id: false });
 
+export const CURRENCIES = ['KZT', 'RUB', 'UZS', 'USD', 'EUR', 'GBP'];
+
 export const GARMENT_TYPES = ['top', 'bottom', 'dress', 'outerwear', 'shoes', 'accessory'];
 
 const ProductSchema = new mongoose.Schema({
   title:    { type: String, required: true },
   name:     { type: String },
   price:    { type: Number, required: true },
+  // валюта цены: пилот — тенге, место под другие рынки заложено (client/src/utils/money.js)
+  currency: { type: String, enum: CURRENCIES, default: 'KZT' },
   category: { type: String, default: 'Clothes' },
   image:    { type: String, required: true },   // /uploads/images/... — главное фото
   images:   [{ type: String }],                 // галерея: ещё до MAX_GALLERY фото, по порядку

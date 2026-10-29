@@ -1,0 +1,86 @@
+/* client/src/pages/Shop.module.css — корзина, оформление, заказы; цвета только из tokens.css */
+
+.page { padding-top: var(--sp-6); padding-bottom: var(--sp-7); }
+.title { font-size: var(--fs-2xl); margin: 0 0 var(--sp-5); }
+.muted { color: var(--muted); }
+
+.layout { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: var(--sp-6); align-items: start; }
+@media (max-width: 900px) { .layout { grid-template-columns: 1fr; } }
+
+.panel { padding: var(--sp-5); }
+.panelTitle { font-family: var(--font-display); font-size: var(--fs-lg); font-weight: 600; margin: 0 0 var(--sp-4); color: var(--ink); }
+
+/* строки товаров */
+.lines { display: grid; }
+.line {
+  display: grid;
+  grid-template-columns: 84px minmax(0, 1fr) auto;
+  gap: var(--sp-4);
+  align-items: center;
+  padding: var(--sp-4) 0;
+  border-bottom: 1px solid var(--line-2);
+}
+.line:first-child { padding-top: 0; }
+.line:last-child { border-bottom: none; padding-bottom: 0; }
+.thumb { width: 84px; aspect-ratio: 3 / 4; border-radius: var(--r-sm); object-fit: cover; background: var(--surface-3); display: block; }
+.thumbSm { width: 52px; }
+.lineName { font-weight: 500; color: var(--ink); }
+.lineMeta { font-size: var(--fs-sm); color: var(--muted); margin-top: 2px; }
+.linePrice { font-weight: 600; color: var(--ink); text-align: right; white-space: nowrap; }
+
+.qty { display: inline-flex; align-items: center; border: 1px solid var(--line-strong); border-radius: var(--r-pill); margin-top: var(--sp-2); }
+.qty button { width: 30px; height: 30px; border: none; background: none; color: var(--ink); font-size: 16px; }
+.qty span { min-width: 22px; text-align: center; font-size: var(--fs-sm); }
+.remove { border: none; background: none; padding: 0; margin-left: var(--sp-3); color: var(--muted); font-size: var(--fs-sm); text-decoration: underline; }
+.remove:hover { color: var(--fit-bad); }
+
+/* итог */
+.sumRow { display: flex; justify-content: space-between; gap: var(--sp-3); padding: 6px 0; color: var(--ink-2); }
+.sumTotal { border-top: 1px solid var(--line); margin-top: var(--sp-2); padding-top: var(--sp-3); font-weight: 700; font-size: var(--fs-lg); color: var(--ink); }
+.note { font-size: var(--fs-sm); color: var(--muted); margin: var(--sp-3) 0; line-height: 1.5; }
+.full { width: 100%; margin-top: var(--sp-3); }
+
+/* форма оформления */
+.form { display: grid; gap: var(--sp-5); }
+.fields { display: grid; grid-template-columns: 1fr 1fr; gap: var(--sp-3) var(--sp-4); }
+.fieldWide { grid-column: 1 / -1; }
+.label { display: grid; gap: 6px; font-size: var(--fs-sm); color: var(--muted); }
+.payment {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: flex-start;
+  padding: var(--sp-4);
+  border-radius: var(--r-md);
+  border: 1px dashed var(--line-dashed);
+  background: var(--surface-2);
+}
+.payment b { color: var(--ink); }
+.errors { margin: 0; padding: var(--sp-3) var(--sp-4); border-radius: var(--r-sm); background: var(--fit-bad-bg); color: var(--fit-bad); font-size: var(--fs-sm); list-style: none; display: grid; gap: 4px; }
+
+/* заказы */
+.orders { display: grid; gap: var(--sp-4); }
+.orderCard { display: grid; gap: var(--sp-3); padding: var(--sp-5); }
+.orderHead { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-3); flex-wrap: wrap; }
+.orderNo { font-family: var(--font-mono); font-weight: 500; color: var(--ink); }
+.thumbs { display: flex; gap: var(--sp-2); }
+
+.status { text-transform: none; }
+.steps { display: grid; grid-template-columns: repeat(4, 1fr); gap: var(--sp-2); margin: var(--sp-2) 0 var(--sp-4); }
+.step { padding-top: var(--sp-2); border-top: 3px solid var(--line); font-size: var(--fs-sm); color: var(--muted); }
+.stepOn { border-color: var(--ink); color: var(--ink); font-weight: 500; }
+.facts { display: grid; grid-template-columns: max-content 1fr; gap: 6px var(--sp-4); margin: 0; font-size: var(--fs-sm); }
+.facts dt { color: var(--muted); }
+.facts dd { margin: 0; color: var(--ink-2); }
+.actions { display: flex; gap: var(--sp-2); flex-wrap: wrap; }
+
+.empty { display: grid; justify-items: start; gap: var(--sp-3); padding: var(--sp-6) 0; }
+.success {
+  display: flex;
+  gap: var(--sp-3);
+  align-items: center;
+  padding: var(--sp-4) var(--sp-5);
+  border-radius: var(--r-md);
+  background: var(--fit-good-bg);
+  color: var(--ink);
+  margin-bottom: var(--sp-5);
+}
