@@ -49,7 +49,8 @@ const ProductSchema = new mongoose.Schema({
   image:    { type: String, required: true },   // /uploads/images/... — главное фото
   images:   [{ type: String }],                 // галерея: ещё до MAX_GALLERY фото, по порядку
   model3d:  { type: String },                   // /uploads/models/...
-  rating:   { type: Number, default: 0 },
+  rating:   { type: Number, default: 0 },        // средняя оценка отзывов (routes/reviewRoutes.js)
+  reviewCount: { type: Number, default: 0 },
 
   // продавец, который выставил товар; менять и удалять может только он
   owner:    { type: mongoose.Schema.Types.ObjectId, ref: 'User', required: true, index: true },

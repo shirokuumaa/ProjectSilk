@@ -1,0 +1,31 @@
+/* client/src/components/FitReview.module.css — отзывы о посадке; цвета из tokens.css */
+
+.form { display: grid; gap: var(--sp-3); padding: var(--sp-4); border-radius: var(--r-md); background: var(--surface-2); margin-top: var(--sp-2); }
+.row { display: flex; align-items: center; gap: var(--sp-3); flex-wrap: wrap; }
+.label { display: grid; gap: 6px; font-size: var(--fs-sm); color: var(--muted); min-width: 110px; }
+.label i { font-style: normal; color: var(--muted-2); }
+.choices { display: flex; gap: 6px; flex-wrap: wrap; }
+.choice { height: 32px; padding: 0 12px; border-radius: var(--r-pill); border: 1px solid var(--line-strong); background: var(--surface); color: var(--ink); font-size: var(--fs-sm); }
+.small { height: 28px; padding: 0 10px; font-size: var(--fs-xs); }
+.on { background: var(--ink); border-color: var(--ink); color: var(--surface); }
+.zones { display: grid; gap: var(--sp-2); }
+.stars { display: inline-flex; gap: 2px; color: var(--fit-warn); }
+.stars i { font-style: normal; color: var(--line-strong); }
+.star, .starOn { border: none; background: none; font-size: 22px; line-height: 1; padding: 0 2px; color: var(--line-strong); }
+.starOn { color: var(--fit-warn); }
+.errors { margin: 0; padding: var(--sp-2) var(--sp-3); border-radius: var(--r-sm); background: var(--fit-bad-bg); color: var(--fit-bad); font-size: var(--fs-sm); list-style: none; }
+
+.reviews { margin-top: var(--sp-6); }
+.title { font-size: var(--fs-lg); margin: 0 0 var(--sp-3); display: flex; align-items: center; gap: var(--sp-3); }
+.avg { font-family: var(--font-ui); font-size: var(--fs-md); color: var(--fit-warn); }
+.muted { color: var(--muted); font-size: var(--fs-sm); }
+.similar { padding: var(--sp-3) var(--sp-4); border-radius: var(--r-sm); background: var(--accent-soft); color: var(--ink); margin: 0 0 var(--sp-4); }
+.fitBar { display: grid; gap: 6px; margin-bottom: var(--sp-4); max-width: 420px; }
+.fitCol { display: grid; grid-template-columns: 110px 1fr 40px; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); }
+.fitCol i { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
+.fitCol em { display: block; height: 100%; background: var(--ink); }
+.list { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-4); }
+.item { padding-bottom: var(--sp-4); border-bottom: 1px solid var(--line-2); display: grid; gap: var(--sp-2); }
+.itemHead { display: flex; justify-content: space-between; gap: var(--sp-3); }
+.meta { display: flex; gap: 6px; flex-wrap: wrap; }
+.text { margin: 0; line-height: 1.55; color: var(--ink-2); }

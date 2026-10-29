@@ -11,6 +11,7 @@ import { Link, useNavigate, useParams } from 'react-router-dom';
 import SizeAdvisor from '../components/SizeAdvisor';
 import SizePicker from '../components/SizePicker';
 import ProductTryOn from '../components/ProductTryOn';
+import ProductReviews from '../components/ProductReviews';
 import { addToWardrobe } from '../utils/wardrobeStorage';
 import { loadBodyProfile, isProfileComplete } from '../utils/bodyProfileApi';
 import { findBestSize, sizeChartOf } from '../utils/fitCalculator';
@@ -268,6 +269,8 @@ export default function ProductPage({ addToCart }) {
               </div>
             </div>
           )}
+
+          <ProductReviews productId={sku} />
         </section>
       </div>
     </main>

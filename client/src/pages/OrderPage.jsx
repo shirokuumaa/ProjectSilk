@@ -3,6 +3,8 @@
 import React, { useEffect, useState } from "react";
 import { useParams, Link, useSearchParams } from "react-router-dom";
 import { cancelOrder, getOrder, ORDER_STATUS_LABELS, ORDER_STEPS } from "../utils/ordersApi";
+import { FIT_LABELS, myReviews } from "../utils/reviewsApi";
+import FitReviewForm from "../components/FitReviewForm";
 import { formatPrice } from "../utils/money";
 import { countryName } from "../utils/countries";
 import styles from "./Shop.module.css";
@@ -17,12 +19,15 @@ export default function OrderPage() {
   const [order, setOrder] = useState(null);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
+  const [reviews, setReviews] = useState([]);    // мои отзывы — какие вещи уже оценены
+  const [reviewing, setReviewing] = useState(null);
 
   useEffect(() => {
     let alive = true;
     getOrder(id)
       .then((o) => alive && setOrder(o))
       .catch((e) => alive && setError(e.status === 404 ? "Order not found" : e.message));
+    myReviews().then((list) => alive && setReviews(Array.isArray(list) ? list : [])).catch(() => {});
     return () => { alive = false; };
   }, [id]);
 
@@ -42,6 +47,9 @@ export default function OrderPage() {
   if (!order) return <main className={`ui-container ${styles.page}`}><p className={styles.muted}>Loading…</p></main>;
 
   const reached = (s) => order.history.some((h) => h.status === s);
+  const reviewOf = (it) => reviews.find((r) => String(r.order) === String(order._id)
+    && String(r.product) === String(it.product) && (r.size || "") === (it.size || ""));
+  const itemKey = (it) => `${it.product}|${it.size || ""}`;
   const a = order.address;
 
   return (
@@ -79,6 +87,20 @@ export default function OrderPage() {
                 <div>
                   <Link to={`/product/${it.product}`} className={styles.lineName}>{it.title}</Link>
                   <div className={styles.lineMeta}>{it.size ? `Size ${it.size}` : "One size"} · × {it.quantity}</div>
+                  {/* после доставки — «как село»: отзыв делает советы размера точнее для всех */}
+                  {order.status === "delivered" && (reviewOf(it) ? (
+                    <div className={styles.lineMeta}>Reviewed · {"★".repeat(reviewOf(it).rating)} · {FIT_LABELS[reviewOf(it).fit]}</div>
+                  ) : reviewing === itemKey(it) ? (
+                    <FitReviewForm
+                      orderId={order._id}
+                      item={it}
+                      onDone={(r) => { setReviews((list) => [...list, { ...r, order: order._id, product: it.product }]); setReviewing(null); }}
+                    />
+                  ) : (
+                    <button className="ui-btn ui-btn--sm" style={{ marginTop: 8 }} onClick={() => setReviewing(itemKey(it))}>
+                      How does it fit? Review
+                    </button>
+                  ))}
                 </div>
                 <div className={styles.linePrice}>{formatPrice(it.price * it.quantity, order.currency)}</div>
               </li>
