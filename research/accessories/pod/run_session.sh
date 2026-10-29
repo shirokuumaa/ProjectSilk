@@ -2,8 +2,9 @@
 # One RunPod session for avatar step C (README «Сеанс на поде»):
 #   A. TRELLIS.2-4B (512 and 1024 cascade) and Stable Fast 3D on the 10 product photos (research/photos/accessories);
 #   B. previews of every model (Blender Cycles) and one sheet;
-#   C. the catalogue picture of the gingham demo dress (size S, Cycles, 600x800).
-# ~45-60 min on an A40.
+#   C. the catalogue picture of the gingham demo dress (size S, Cycles, 600x800);
+#   D. back and side pictures of all six demo products (size S, Cycles, 600x800) for the product gallery.
+# ~50-65 min on an A40.
 #
 # Machine: RunPod A40 48 GB (or L40S 48 GB), template RunPod PyTorch 2.4 (CUDA 12.4 devel), Container Disk 80 GB,
 # no Network Volume, SSH; environment variable HF_TOKEN (a RunPod secret) whose account was granted access to
@@ -98,6 +99,22 @@ mkdir -p "$OUT/catalogue"
   --body research/patterns/runs/arms/bodies/zara_S.obj --garment client/public/models/demo-garments/dress_S.glb \
   --tile client/public/models/demo-garments/dress_print.png --tile-cm 4 --dz "$DZ" \
   --out "$OUT/catalogue/dress.png" --engine CYCLES --samples 256 2>&1 | grep -E "Cycles on|bbox|Error"
+
+# ── D. виды сзади и сбоку шести демо-товаров (галерея на странице товара) ──
+# тело размера S: платье, юбка, брюки, жакет, пальто — zara_S (86/66/94), футболка — uniqlo_S (86/68/94)
+stamp "back and side pictures of the demo products"
+mkdir -p "$OUT/gallery"
+for item in dress skirt tee trousers jacket coat; do
+  BODY=research/patterns/runs/arms/bodies/zara_S.obj
+  [ "$item" = tee ] && BODY=research/patterns/runs/arms/bodies/uniqlo_S.obj
+  DZ=$(python3 -c "import json; m=json.load(open('client/public/models/demo-garments/manifest.json')); print(next(x['zOffsetM'] for x in m['items']['$item']['models'] if x['size']=='S'))")
+  TILE=(); [ "$item" = dress ] && TILE=(--tile client/public/models/demo-garments/dress_print.png --tile-cm 4)
+  for view in back side; do
+    "$BL" -b --factory-startup --python "$POD/render_catalogue.py" -- \
+      --body "$BODY" --garment "client/public/models/demo-garments/${item}_S.glb" "${TILE[@]}" --dz "$DZ" \
+      --view "$view" --out "$OUT/gallery/${item}_${view}.png" --engine CYCLES --samples 128 2>&1 | grep -E "bbox|Error"
+  done
+done
 
 MIN=$(( ($(date +%s) - START) / 60 ))
 stamp "done in $MIN min (≈ \$$(python3 -c "print(round($MIN / 60 * $PRICE, 2))") at \$$PRICE/h, without the time before this script and until Terminate)"

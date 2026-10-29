@@ -1,4 +1,5 @@
-"""Catalogue picture of a printed demo garment: the size drape with its print tile on our MPFB body, front, 600x800.
+"""Catalogue picture of a demo garment: the size drape (with its print tile, or plain in --color) on our MPFB body,
+from the front, back or side (--view), 600x800.
 
 Same look as the other catalogue pictures (export_demo_drapes.product_image): black background, grey body,
 the frame cut around the garment. The garment GLB is the site model (metres, UVs in metres of the flat
@@ -8,6 +9,8 @@ Run (Blender 4.2+ / 5.x):
   blender -b --factory-startup --python render_catalogue.py -- \
       --body zara_S.obj --garment dress_S.glb --tile dress_print.png --tile-cm 4 --dz 0.04446 --out dress.png \
       [--engine CYCLES --samples 256 | --engine BLENDER_EEVEE --size 300]
+  plain garment from the back:
+      ... --garment tee_S.glb --color 9fc5e8 --view back --out tee_back.png
 """
 import argparse
 import math
@@ -95,8 +98,10 @@ def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--body", required=True)
     ap.add_argument("--garment", required=True)
-    ap.add_argument("--tile", required=True)
-    ap.add_argument("--tile-cm", type=float, required=True)
+    ap.add_argument("--tile", help="print tile; without it the garment is plain --color")
+    ap.add_argument("--tile-cm", type=float, default=10.0)
+    ap.add_argument("--color", default="9fc5e8", help="plain garment colour, hex without #")
+    ap.add_argument("--view", choices=["front", "back", "side"], default="front")
     ap.add_argument("--dz", type=float, required=True, help="zOffsetM of this size in the demo manifest")
     ap.add_argument("--out", required=True)
     ap.add_argument("--engine", default="CYCLES")
@@ -117,7 +122,11 @@ def main():
         o.select_set(True)
         bpy.ops.object.shade_smooth()
     garment = import_glb(a.garment)
-    cloth = print_material(a.tile, a.tile_cm)
+    if a.tile:
+        cloth = print_material(a.tile, a.tile_cm)
+    else:
+        rgb = tuple(int(a.color[i:i + 2], 16) / 255 for i in (0, 2, 4))
+        cloth = principled("plain", tuple(c ** 2.2 for c in rgb), 0.85)   # hex — sRGB, Blender — линейный
     for o in garment:
         o.data.materials.clear()
         o.data.materials.append(cloth)
@@ -125,7 +134,8 @@ def main():
 
     lo, hi = bbox(garment)
     centre = (lo + hi) / 2
-    w, h = hi.x - lo.x, hi.z - lo.z
+    # сбоку ширина кадра — глубина вещи
+    w, h = (hi.y - lo.y if a.view == "side" else hi.x - lo.x), hi.z - lo.z
     width, height = a.size, a.size * 4 // 3
     cam = bpy.data.objects.new("cam", bpy.data.cameras.new("cam"))
     scene.collection.objects.link(cam)
@@ -133,8 +143,14 @@ def main():
     cam.data.type = "ORTHO"
     cam.data.sensor_fit = "VERTICAL"
     cam.data.ortho_scale = max(h * 1.16, w * 1.16 * height / width)
-    cam.location = (centre.x, -4.0, centre.z)
-    cam.rotation_euler = (math.radians(90), 0, 0)
+    # лицо фигуры смотрит в −Y Blender (+Z glTF): спереди камера на −Y, сзади на +Y, сбоку на +X (правый бок)
+    if a.view == "front":
+        cam.location, rot_z = (centre.x, -4.0, centre.z), 0
+    elif a.view == "back":
+        cam.location, rot_z = (centre.x, 4.0, centre.z), 180
+    else:
+        cam.location, rot_z = (4.0, centre.y, centre.z), 90
+    cam.rotation_euler = (math.radians(90), 0, math.radians(rot_z))
 
     world = bpy.data.worlds.new("world")
     scene.world = world

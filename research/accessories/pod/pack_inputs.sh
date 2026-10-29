@@ -2,8 +2,8 @@
 # Mac: everything the pod session needs in one tarball (paths relative to the repo root):
 #   research/accessories/pod/            scripts
 #   research/photos/accessories/         10 product photos with info.md (internal test only, not in git)
-#   client/public/models/demo-garments/  dress_S.glb, dress_print.png, manifest.json
-#   research/patterns/runs/arms/bodies/  zara_S.obj (the figure of dress size S)
+#   client/public/models/demo-garments/  *_S.glb of the six demo products, dress_print.png, manifest.json
+#   research/patterns/runs/arms/bodies/  zara_S.obj, uniqlo_S.obj (the figures of size S)
 # -> research/accessories/runs/accessories_inputs.tar.gz (~6 MB)
 #
 # Run from the repo root: bash research/accessories/pod/pack_inputs.sh
@@ -14,9 +14,10 @@ OUT=research/accessories/runs/accessories_inputs.tar.gz
 COPYFILE_DISABLE=1 tar czf "$OUT" \
   research/accessories/pod \
   research/photos/accessories \
-  client/public/models/demo-garments/dress_S.glb \
+  client/public/models/demo-garments/{dress,skirt,tee,trousers,jacket,coat}_S.glb \
   client/public/models/demo-garments/dress_print.png \
   client/public/models/demo-garments/manifest.json \
-  research/patterns/runs/arms/bodies/zara_S.obj
+  research/patterns/runs/arms/bodies/zara_S.obj \
+  research/patterns/runs/arms/bodies/uniqlo_S.obj
 ls -la "$OUT"
 tar tzf "$OUT" | grep -c . | xargs echo "files:"

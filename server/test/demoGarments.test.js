@@ -63,7 +63,9 @@ describe('демо-товары: платье, юбка, футболка, бр�
     const root = path.resolve(SERVER_DIR, '../research/patterns/demo');
     for (const [title, job] of [['Straight Trousers', 'trousers'], ['Lapel Jacket', 'jacket'], ['Knee-Length Coat', 'coat']]) {
       const chart = JSON.parse(fs.readFileSync(path.join(root, `${job}_job.json`), 'utf8')).sizeChart;
-      assert.deepEqual(byTitle[title].sizeChart, chart.map(({ fit, ...r }) => ({ ...r, fit })), title);
+      // обмеры — из задания конвейера; остаток (stock) — свой у демо-товара
+      const measures = byTitle[title].sizeChart.map(({ stock, ...r }) => r);
+      assert.deepEqual(measures, chart.map(({ fit, ...r }) => ({ ...r, fit })), title);
     }
     assert.equal(byTitle['Lapel Jacket'].garmentType, 'outerwear');
     assert.equal(byTitle['Straight Trousers'].legs, 'split');
@@ -84,5 +86,34 @@ describe('демо-товары: платье, юбка, футболка, бр�
     await newUser('demobuyer');
     await assert.rejects(seedDemoGarments('nobody'), /No user "nobody"/);
     await assert.rejects(seedDemoGarments('demobuyer'), /is not a seller/);
+  });
+});
+
+describe('демо-товары: карточка для покупателя', () => {
+  const ELASTIC = /elast|spandex|lycra/i;
+  it('описание, состав на 100 %, уход и страна у каждого товара', () => {
+    for (const p of demoProducts('x')) {
+      assert.ok(p.description.length > 60, p.title);
+      const total = p.composition.reduce((s, c) => s + c.percent, 0);
+      assert.equal(total, 100, p.title);
+      assert.ok(p.care && p.countryOfOrigin, p.title);
+    }
+  });
+
+  it('у стрейч-платья — эластан; у вещей «No stretch» эластана нет', () => {
+    const products = demoProducts('x');
+    const elastane = (p) => p.composition.filter((c) => ELASTIC.test(c.fibre)).reduce((s, c) => s + c.percent, 0);
+    const dress = products.find((p) => p.title === 'Short Sleeve Mini Dress');
+    assert.ok(elastane(dress) >= 8);
+    products.filter((p) => p.stretch === 'none').forEach((p) => assert.ok(elastane(p) < 3, p.title));
+  });
+
+  it('остаток у каждого размера: есть распроданный (0) и последние штуки (1–3)', () => {
+    for (const p of demoProducts('x')) {
+      const stock = p.sizeChart.map((r) => r.stock);
+      assert.ok(stock.every(Number.isInteger), p.title);
+      assert.ok(stock.includes(0), p.title);
+      assert.ok(stock.some((n) => n >= 1 && n <= 3), p.title);
+    }
   });
 });

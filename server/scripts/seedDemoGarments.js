@@ -8,6 +8,9 @@
 // открытые средние таблицы, без данных магазинов (research/patterns/demo/<вещь>_job.json).
 // У платья — принт: клетка-гингем, нарисованная кодом (scripts/garments/make_demo_print.py), повтор 4 см;
 // на примерке она ложится на развёртку выкройки драпировки одинаково во всех размерах.
+// Карточка для покупателя — описание, состав (вместе 100 %), уход, страна, остаток по размерам (DETAILS):
+// тексты придуманы, брендов нет; у каждой вещи есть размер с остатком 0 (серый) и размеры с 1–3 штуками
+// («N left»). Виды сзади и сбоку — рендер на поде (research/accessories/pod/run_session.sh, часть D).
 //
 // Запуск (товары появятся у существующего продавца; повторный запуск обновляет их):
 //   MONGODB_URI=mongodb://localhost:27017/<база> node scripts/seedDemoGarments.js <имя продавца>
@@ -97,13 +100,68 @@ export const DEMO = {
   },
 };
 
+/** Карточка для покупателя и остаток по размерам (размер → штук). */
+export const DETAILS = {
+  dress: {
+    description: 'A fitted mini dress in stretch gingham jersey with short sleeves, a round neck and a hidden back zip. '
+      + 'The fabric gives, so the close cut stays comfortable all day.',
+    composition: [{ fibre: 'Polyester', percent: 92 }, { fibre: 'Elastane', percent: 8 }],
+    care: 'Machine wash cold on a gentle cycle. Do not tumble dry. Iron on low heat.',
+    countryOfOrigin: 'Turkey',
+    stock: { XS: 2, S: 6, M: 9, L: 4, XL: 0, XXL: 1 },
+  },
+  skirt: {
+    description: 'A flared midi skirt in fluid viscose that moves as you walk. Elastic back waistband, '
+      + 'a side pocket, and a hem that falls just below the knee.',
+    composition: [{ fibre: 'Viscose', percent: 100 }],
+    care: 'Hand wash cold. Dry flat in the shade. Iron inside out on low heat.',
+    countryOfOrigin: 'Uzbekistan',
+    stock: { XS: 3, S: 7, M: 5, L: 2, XL: 0 },
+  },
+  tee: {
+    description: 'A crew neck T-shirt in mid-weight cotton jersey. A regular fit with short sleeves '
+      + 'that keeps its shape wash after wash.',
+    composition: [{ fibre: 'Cotton', percent: 100 }],
+    care: 'Machine wash at 30 °C. Tumble dry low. Iron on medium heat.',
+    countryOfOrigin: 'Uzbekistan',
+    stock: { XXS: 0, XS: 4, S: 12, M: 15, L: 8, XL: 3, XXL: 1 },
+  },
+  trousers: {
+    description: 'High-rise straight trousers with a pressed crease, side pockets and a zip fly. '
+      + 'Full length, to wear with flats or heels.',
+    composition: [{ fibre: 'Viscose', percent: 68 }, { fibre: 'Polyester', percent: 32 }],
+    care: 'Machine wash at 30 °C on a gentle cycle. Hang to dry. Iron on low heat.',
+    countryOfOrigin: 'Poland',
+    stock: { XS: 2, S: 1, M: 6, L: 5, XL: 3, XXL: 0 },
+  },
+  jacket: {
+    description: 'A single-breasted jacket with notched lapels, light shoulder pads and long sleeves. '
+      + 'Fully lined, cut loose to layer over knitwear.',
+    composition: [{ fibre: 'Wool', percent: 60 }, { fibre: 'Polyester', percent: 35 }, { fibre: 'Polyamide', percent: 5 }],
+    care: 'Dry clean only. Steam to refresh.',
+    countryOfOrigin: 'Italy',
+    stock: { XS: 1, S: 4, M: 0, L: 6, XL: 2, XXL: 2 },
+  },
+  coat: {
+    description: 'A knee-length coat in a soft wool blend with notched lapels, welt pockets and a full lining. '
+      + 'A relaxed cut with room for a jacket underneath.',
+    composition: [{ fibre: 'Wool', percent: 70 }, { fibre: 'Polyamide', percent: 20 }, { fibre: 'Cashmere', percent: 10 }],
+    care: 'Dry clean only. Brush gently and store on a wide hanger.',
+    countryOfOrigin: 'Kazakhstan',
+    stock: { XS: 1, S: 3, M: 5, L: 4, XL: 2, XXL: 0 },
+  },
+};
+
 /** Документы товаров для продавца ownerId: сетка, модели размеров, картинка. */
 export function demoProducts(ownerId, manifest = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'))) {
   return Object.entries(DEMO).map(([id, p]) => {
     const item = manifest.items[id];
     const sizeModels = item.models.map((m) => ({ size: m.size, model3d: m.file, body: m.body }));
+    const { stock, ...details } = DETAILS[id];
     return {
       ...p,
+      ...details,
+      sizeChart: p.sizeChart.map((r) => ({ ...r, stock: stock[r.size] })),
       name: p.title,
       category: 'Clothes',
       image: item.image,
