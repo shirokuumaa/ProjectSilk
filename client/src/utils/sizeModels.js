@@ -252,8 +252,9 @@ export function pushOutOfBody(root, shape, gap = SKIN_GAP) {
   const hit = {};
   forEachWorldVertex(root, (p) => {
     let moved = false;
-    // до трёх шагов: у сгиба (подмышка, пах) вынесенная вершина может задеть соседнюю часть тела
-    for (let step = 0; step < 3 && insideBody(shape, p, gap, hit); step++) {
+    // до пяти шагов: у сгиба (подмышка, пах) и между пальцами вынесенная вершина может задеть соседнюю
+    // часть тела (край широкого рукава жакета L на кисти фигуры S выходит только за 4 шага)
+    for (let step = 0; step < 5 && insideBody(shape, p, gap, hit); step++) {
       p[0] = hit.x; p[1] = hit.y; p[2] = hit.z;
       moved = true;
     }
