@@ -3,13 +3,14 @@
 // Кабинет продавца. Доступ решает сервер (роль seller), здесь — только
 // понятный экран для гостя и покупателя. Все запросы — через authFetch.
 // Весь текст интерфейса — на английском, цвета — из styles/tokens.css.
-import React, { Suspense, lazy, useCallback, useEffect, useState } from "react";
+import React, { Suspense, lazy, useCallback, useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import SizeChartEditor, { serializeSizeChart } from "../components/SizeChartEditor";
 import SellerHeader from "../components/SellerHeader";
 import FormErrors from "../components/FormErrors";
 import SilhouettePicker from "../components/SilhouettePicker";
 import ColorField from "../components/ColorField";
+import PrintField, { printProblem } from "../components/PrintField";
 import PatternStatus from "../components/PatternStatus";
 import { imageColor } from "../utils/garmentColor";
 import { silhouetteFits } from "../utils/silhouettes";
@@ -161,6 +162,7 @@ function SellerDashboard() {
   const [garmentType, setGarmentType] = useState(""); // тип выбирает продавец, умолчания нет
   const [silhouette, setSilhouette] = useState(null);  // фасон — по нему сервер строит выкройки
   const [color, setColor] = useState(null);            // основной цвет с фото, продавец может поправить
+  const [print, setPrint] = useState(null);            // принт ткани: плитка с фото и повтор, см (null — однотонная)
   const [stretch, setStretch] = useState("none");
   const [girthMode, setGirthMode] = useState("circumference");
 
@@ -386,6 +388,7 @@ function SellerDashboard() {
       ...(price !== "" && Number.isFinite(priceNum) && priceNum >= 0 ? [] : ["Please enter a price (a positive number)."]),
       ...(processedBlob ? [] : ["Please add a product image."]),
       ...(garmentType ? [] : ["Please choose the garment type."]),
+      ...(printProblem(print) ? [printProblem(print)] : []),
     ];
     if (missing.length) {
       setError(missing);
@@ -405,6 +408,10 @@ function SellerDashboard() {
       fd.append("sizeChart", JSON.stringify(serializeSizeChart(sizeChart)));
       fd.append("silhouette", silhouette ? JSON.stringify(silhouette) : "");
       fd.append("color", color || "");
+      if (print?.blob) {
+        fd.append("print", print.blob, "print.jpg");
+        fd.append("printTileCm", String(print.tileCm));
+      }
       // имя файла задаёт расширение на сервере; у исходного File оно своё (jpg/webp)
       fd.append("image", processedBlob, processedBlob.name || "product.png");
 
@@ -427,6 +434,7 @@ function SellerDashboard() {
       setStretch("none");
       setSilhouette(null);
       setColor(null);
+      setPrint(null);
 
       if (processedUrl && String(processedUrl).startsWith("blob:")) {
         URL.revokeObjectURL(processedUrl);
@@ -498,6 +506,7 @@ function SellerDashboard() {
             <div style={{ display: "grid", gap: 10, marginTop: 16 }}>
               <img src={processedUrl} alt="Product preview" style={ui.preview} />
               <ColorField value={color} onChange={setColor} />
+              <PrintField photo={processedUrl} value={print} onChange={setPrint} />
               <label style={ui.label}>
                 Title
                 <input
@@ -718,6 +727,10 @@ export function EditProductForm({ product, onCancel, onSaved }) {
   const [garmentType, setGarmentType] = useState(product.garmentType || ""); // у старых товаров типа нет
   const [silhouette, setSilhouette] = useState(product.silhouette || null);
   const [color, setColor] = useState(product.color || null);
+  // сохранённый принт: плитка остаётся, пока продавец не сдвинет квадрат или не сменит фото
+  const [print, setPrint] = useState(() => (product.print
+    ? { blob: null, url: toPublicUrl(product.print.image), tileCm: product.print.tileCm }
+    : null));
   const changeType = (type) => {
     setGarmentType(type);
     setSilhouette((s) => (silhouetteFits(type, s) ? s : null));
@@ -727,6 +740,7 @@ export function EditProductForm({ product, onCancel, onSaved }) {
   const [girthMode, setGirthMode] = useState("circumference");
   const [sizeChart, setSizeChart] = useState(() => toEditorRows(product.sizeChart));
   const [image, setImage] = useState(null);
+  const photo = useMemo(() => (image ? URL.createObjectURL(image) : toPublicUrl(product.image)), [image, product.image]);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState("");
 
@@ -745,6 +759,7 @@ export function EditProductForm({ product, onCancel, onSaved }) {
       ...(title.trim() ? [] : ["The title cannot be empty."]),
       ...(price !== "" && Number.isFinite(priceNum) && priceNum >= 0 ? [] : ["Price must be a positive number."]),
       ...(garmentType ? [] : ["Please choose the garment type."]),
+      ...(printProblem(print) ? [printProblem(print)] : []),
     ];
     if (problems.length) return setError(problems);
     setSaving(true);
@@ -760,6 +775,12 @@ export function EditProductForm({ product, onCancel, onSaved }) {
       fd.append("sizeChart", JSON.stringify(serializeSizeChart(sizeChart)));
       fd.append("silhouette", silhouette ? JSON.stringify(silhouette) : "");
       fd.append("color", color || "");
+      if (print) {
+        if (print.blob) fd.append("print", print.blob, "print.jpg");
+        fd.append("printTileCm", String(print.tileCm));
+      } else if (product.print) {
+        fd.append("printTileCm", "");   // принт сняли — вещь однотонная
+      }
       if (image) fd.append("image", image, image.name);
       const r = await authFetch(`${API}/api/products/${product._id}`, { method: "PATCH", body: fd });
       if (!r.ok) throw new Error(await errorMessage(r, "Could not save the changes"));
@@ -806,6 +827,7 @@ export function EditProductForm({ product, onCancel, onSaved }) {
         <p style={ui.meta}>Saved measurements are shown as full circumferences.</p>
         <SilhouettePicker garmentType={garmentType} value={silhouette} onChange={setSilhouette} />
         <ColorField value={color} onChange={setColor} />
+        <PrintField photo={photo} value={print} onChange={setPrint} />
 
         <label style={ui.label}>
           New image (optional; JPEG, PNG or WebP, up to {MAX_IMAGE_MB} MB)

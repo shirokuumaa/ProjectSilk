@@ -43,10 +43,10 @@ const uploadError = (message) => Object.assign(new Error(message), { status: 400
 const fileFilter = (_req, file, cb) => {
   const ext = path.extname(file.originalname || "").toLowerCase();
 
-  if (file.fieldname === "image") {
+  if (file.fieldname === "image" || file.fieldname === "print") {
     return IMAGE_EXTENSIONS.includes(ext)
       ? cb(null, true)
-      : cb(uploadError("Image must be a JPEG, PNG or WebP file."));
+      : cb(uploadError(`${file.fieldname === "print" ? "Print image" : "Image"} must be a JPEG, PNG or WebP file.`));
   }
   if (file.fieldname === "model3d") {
     return MODEL_EXTENSIONS.includes(ext)
@@ -59,14 +59,15 @@ const fileFilter = (_req, file, cb) => {
 const upload = multer({
   storage,
   fileFilter,
-  limits: { fileSize: MAX_MODEL_BYTES, files: 2 },
+  limits: { fileSize: MAX_MODEL_BYTES, files: 3 },
 }).fields([
   { name: "image",   maxCount: 1 },
+  { name: "print",   maxCount: 1 },   // плитка принта ткани
   { name: "model3d", maxCount: 1 },
 ]);
 
 const UPLOAD_MESSAGES = {
-  LIMIT_FILE_COUNT: "Too many files (one image and one 3D model at most).",
+  LIMIT_FILE_COUNT: "Too many files (one image, one print image and one 3D model at most).",
   LIMIT_UNEXPECTED_FILE: "Unexpected file field.",
   LIMIT_PART_COUNT: "Too many form fields.",
   LIMIT_FIELD_VALUE: "A form field is too long.",

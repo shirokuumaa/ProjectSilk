@@ -85,6 +85,17 @@ const ProductSchema = new mongoose.Schema({
     match: [/^#[0-9a-f]{6}$/, 'Colour must look like #a1b2c3.'],
   },
 
+  // принт ткани: бесшовная плитка, вырезанная продавцом из фото товара (client/src/utils/fabricPrint.js),
+  // и сколько сантиметров ткани занимает один её повтор. Примерка кладёт плитку на развёртку выкройки
+  // драпировки (UV в метрах) — одинаково на всех размерах. Нет принта — вещь однотонная, в цвете color.
+  print: {
+    type: new mongoose.Schema({
+      image:  { type: String, required: true },
+      tileCm: { type: Number, required: true, min: 1, max: 200 },
+    }, { _id: false }),
+    default: undefined,
+  },
+
   // выкройки по силуэту и сетке — фоновая задача (services/patternJobs.js)
   patterns: {
     type: new mongoose.Schema({

@@ -44,19 +44,21 @@ export function removeFiles(paths) {
 }
 
 /**
- * Проверить image и model3d после записи на диск.
+ * Проверить image, print (плитка принта) и model3d после записи на диск.
  * @returns {null | { status: number, message: string }} — сообщение видит продавец
  */
 export async function validateUploads(req) {
   const image = req.files?.image?.[0];
+  const print = req.files?.print?.[0];
   const model = req.files?.model3d?.[0];
 
-  if (image) {
-    if (image.size > MAX_IMAGE_BYTES) {
-      return { status: 413, message: 'Image is too large (maximum 10 MB).' };
+  for (const [file, what] of [[image, 'Image'], [print, 'Print image']]) {
+    if (!file) continue;
+    if (file.size > MAX_IMAGE_BYTES) {
+      return { status: 413, message: `${what} is too large (maximum 10 MB).` };
     }
-    if (!IMAGE_KINDS.includes(await detectFileKind(image.path))) {
-      return { status: 400, message: 'Image must be a JPEG, PNG or WebP file.' };
+    if (!IMAGE_KINDS.includes(await detectFileKind(file.path))) {
+      return { status: 400, message: `${what} must be a JPEG, PNG or WebP file.` };
     }
   }
 

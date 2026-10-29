@@ -76,7 +76,19 @@ function modelFilePaths(modelUrl) {
 }
 
 function productFilePaths(product) {
-  return [uploadsUrlToPath(product.image), ...modelFilePaths(product.model3d)].filter(Boolean);
+  return [uploadsUrlToPath(product.image), uploadsUrlToPath(product.print?.image), ...modelFilePaths(product.model3d)]
+    .filter(Boolean);
+}
+
+/** Повтор принта по умолчанию, см: 10 см ткани на плитку — клетка, полоска, мелкий цветок. */
+export const DEFAULT_PRINT_TILE_CM = 10;
+const PRINT_TILE_MESSAGE = 'Print repeat must be between 1 and 200 cm.';
+
+/** Повтор принта из формы: пусто — по умолчанию; не число или вне 1…200 см — null. */
+function printTileCmOf(v) {
+  if (v == null || v === '') return DEFAULT_PRINT_TILE_CM;
+  const n = toNumber(v);
+  return Number.isFinite(n) && n >= 1 && n <= 200 ? n : null;
 }
 
 /**
@@ -190,7 +202,7 @@ export const getProductById = async (req, res) => {
   }
 };
 
-/** POST /api/products  (multipart: image обязательна, model3d — по желанию) */
+/** POST /api/products  (multipart: image обязательна, print (плитка принта) и model3d — по желанию) */
 export const addProduct = async (req, res) => {
   // всё, что записали в этом запросе, — удалить, если товар не сохранится
   const created = uploadedFiles(req).map((f) => f.path);
@@ -220,6 +232,11 @@ export const addProduct = async (req, res) => {
     const priceNum = toNumber(req.body.price);
     if (!Number.isFinite(priceNum) || priceNum < 0) return fail(400, 'Price must be a positive number.');
 
+    // принт: плитка с фото и её размер на ткани; без плитки вещь однотонная
+    const printFile = req.files?.print?.[0];
+    const tileCm = printTileCmOf(req.body.printTileCm);
+    if (printFile && tileCm === null) return fail(400, PRINT_TILE_MESSAGE);
+
     // ── 3D-модель и интеграция с Blender (после проверок — Blender дорогой) ──
     let model3dUrl;
     const modelFile = req.files?.model3d?.[0];
@@ -237,6 +254,7 @@ export const addProduct = async (req, res) => {
       garmentType,
       silhouette: sil.silhouette || undefined,
       color: colorOf(req.body.color),
+      print: printFile ? { image: `/uploads/images/${printFile.filename}`, tileCm } : undefined,
       stretch: req.body.stretch || 'none',
       sizeChart: parseSizeChart(req.body.sizeChart, girthMode) ?? [],
       legs: req.body.legs || undefined,
@@ -313,6 +331,21 @@ export const updateProduct = async (req, res) => {
       product.image = `/uploads/images/${imageFile.filename}`;
     }
 
+    // принт: новая плитка — заменить; printTileCm '' без плитки — снять (вещь однотонная); число — новый повтор
+    const printFile = req.files?.print?.[0];
+    if (printFile || b.printTileCm !== undefined) {
+      if (!printFile && b.printTileCm === '') {
+        replaced.push(uploadsUrlToPath(product.print?.image));
+        product.print = undefined;
+      } else {
+        const tileCm = printTileCmOf(b.printTileCm ?? product.print?.tileCm);
+        if (tileCm === null) return fail(400, PRINT_TILE_MESSAGE);
+        if (!printFile && !product.print) return fail(400, 'Add a print image first.');
+        if (printFile) replaced.push(uploadsUrlToPath(product.print?.image));
+        product.print = { image: printFile ? `/uploads/images/${printFile.filename}` : product.print.image, tileCm };
+      }
+    }
+
     const modelFile = req.files?.model3d?.[0];
     if (modelFile) {
       replaced.push(...modelFilePaths(product.model3d));
@@ -343,7 +376,7 @@ export const updateProduct = async (req, res) => {
   }
 };
 
-/** DELETE /api/products/:id — товар и его файлы (картинка, модель raw и prepared) */
+/** DELETE /api/products/:id — товар и его файлы (картинка, плитка принта, модель raw и prepared) */
 export const deleteProduct = async (req, res) => {
   try {
     const files = productFilePaths(req.product);

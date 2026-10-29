@@ -12,13 +12,13 @@
 //     текстура снимается, цвет — color.
 
 const BIN = 16;              // шаг квантования по каналу
-const BG_DISTANCE = 48;      // ближе к цвету фона — это фон
-const MIN_ALPHA = 128;
+export const BG_DISTANCE = 48;      // ближе к цвету фона — это фон
+export const MIN_ALPHA = 128;
 
 const hex = (r, g, b) => `#${[r, g, b].map((v) => Math.round(v).toString(16).padStart(2, '0')).join('')}`;
 
 /** Цвет рамки фото, если она непрозрачная; иначе null (фон уже убран). */
-function borderColor(data, width, height) {
+export function borderColor(data, width, height) {
   let r = 0, g = 0, b = 0, n = 0, opaque = 0, total = 0;
   const take = (x, y) => {
     const i = (y * width + x) * 4;
