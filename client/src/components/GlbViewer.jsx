@@ -25,6 +25,7 @@ import { drapeGarment, restoreGeometry, snapshotGeometry } from '../utils/garmen
 import GarmentErrorBoundary from './GarmentErrorBoundary';
 import { isDrapedType } from '../utils/garmentPlacement';
 import { tintGarment } from '../utils/garmentColor';
+import { printGarment } from '../utils/fabricPrint';
 import { useAvatarBody } from '../utils/avatarBody';
 import { figureShape, transferToFigure, pushOutOfBody, simFitMode } from '../utils/sizeModels';
 
@@ -166,7 +167,7 @@ function GarmentFitter({ avatarScene, garmentScene }) {
   return <group ref={garmentRef}><primitive object={garmentScene} /></group>;
 }
 
-function GlbGarment({ url, profile, garmentType, layerOffset, fit, drape, size, legs, simFigure, color }) {
+function GlbGarment({ url, profile, garmentType, layerOffset, fit, drape, size, legs, simFigure, color, print }) {
   const { scene } = useGLTF(url);
 
   // Клон с копией геометрии: drape меняет вершины, без клона
@@ -177,8 +178,10 @@ function GlbGarment({ url, profile, garmentType, layerOffset, fit, drape, size, 
       if (child.isMesh && child.geometry) child.geometry = child.geometry.clone();
     });
     tintGarment(c, color);   // цвет товара; материалы клонируются, кэш useGLTF не трогается
+    printGarment(c, print);  // принт — на развёртку выкройки драпировки; шаблоны остаются в цвете
     return c;
-  }, [scene, color]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [scene, color, print?.image, print?.tileCm]);
 
   return (
     <GarmentOnBody
@@ -217,7 +220,7 @@ function AvatarWithGarment({ avatarUrl, garmentUrl }) {
  * GlbViewer
  *
  * Аватар: profile — тело из обмеров (файл не нужен); url — GLB-модель.
- * garments — [{ url, garmentType, layer, fit, size?, legs?, color? }]; size — обмеры выбранного
+ * garments — [{ url, garmentType, layer, fit, size?, legs?, color?, print? }]; size — обмеры выбранного
  * размера изделия ({ chest, waist, hips }, см), legs — подсказка 'split' | 'joined'.
  * onGarmentError(url) — файл вещи не загрузился: вещь не рисуется, остальная сцена цела.
  */
@@ -296,6 +299,7 @@ export default function GlbViewer({
                     legs={g.legs || null}
                     simFigure={g.simFigure || null}
                     color={g.color || null}
+                    print={g.print || null}
                   />
                 </GarmentErrorBoundary>
               ))}

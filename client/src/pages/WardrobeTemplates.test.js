@@ -10,7 +10,7 @@ import { findBestSize, sizeChartOf } from '../utils/fitCalculator';
 // щелчок по сцене-заглушке — «файлы вещей не загрузились»
 jest.mock('../components/GlbViewer', () => ({ garments, onGarmentError }) => (
   <p data-testid="worn" onClick={() => (garments || []).forEach((g) => onGarmentError?.(g.url))}>
-    {(garments || []).map((g) => `${g.url}|${g.size?.size || '-'}|${g.legs || '-'}`).join(',')}
+    {(garments || []).map((g) => `${g.url}|${g.size?.size || '-'}|${g.legs || '-'}${g.print ? `|print ${g.print.image} ${g.print.tileCm}` : ''}`).join(',')}
   </p>
 ));
 jest.mock('../utils/bodyProfileApi', () => ({
@@ -116,4 +116,15 @@ test('photo try-on is hidden: no "On my photo" mode and no photo limit note', as
   expect(screen.queryByRole('button', { name: /On my photo/ })).not.toBeInTheDocument();
   expect(screen.getByText('Avatar and camera are free')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /On my avatar/ })).toBeInTheDocument();
+});
+
+test('a printed product goes on the figure with its print tile and repeat', async () => {
+  global.fetch = jest.fn().mockResolvedValue({ ok: true, status: 200, json: async () => [
+    { ...CATALOG[0], print: { image: '/uploads/images/check.jpg', tileCm: 4 } }, CATALOG[1],
+  ] });
+  render(<MemoryRouter><WardrobePage /></MemoryRouter>);
+  const [wearSkirt] = await screen.findAllByRole('button', { name: 'Wear' });
+  fireEvent.click(wearSkirt);
+  await waitFor(() => expect(screen.getByTestId('worn'))
+    .toHaveTextContent('|print http://localhost:5050/uploads/images/check.jpg 4'));
 });

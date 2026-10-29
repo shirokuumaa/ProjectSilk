@@ -27,6 +27,7 @@ jest.mock('three/examples/jsm/loaders/GLTFLoader.js', () => {
         if (url.includes('missing')) { setTimeout(() => onError(new Error('404')), 0); return; }
         const scene = new Group();
         const mesh = new Mesh(new BoxGeometry(), new MeshStandardMaterial({ color: '#9fc5e8' }));
+        if (url.includes('drape')) mesh.userData.uvMetres = true;   // драпировка с развёрткой выкройки
         scene.add(mesh);
         meshes.push(mesh);
         setTimeout(() => onLoad({ scene }), 0);
@@ -116,4 +117,34 @@ test('the garment on the figure is painted in the product colour', async () => {
   fireEvent.click(await screen.findByRole('button', { name: 'Wear' }));
   await waitFor(() => expect(meshes).toHaveLength(1));
   await waitFor(() => expect(`#${meshes[0].material.color.getHexString()}`).toBe('#c81e28'));
+});
+
+describe('a printed product', () => {
+  const PRINT = { image: '/uploads/images/check.jpg', tileCm: 5 };
+  let textures;
+  beforeEach(() => {
+    const THREE = jest.requireActual('three');
+    textures = jest.spyOn(THREE.TextureLoader.prototype, 'load').mockImplementation(() => new THREE.Texture());
+  });
+  afterEach(() => textures.mockRestore());
+
+  test('its drape wears the tile, one repeat every tileCm of the pattern', async () => {
+    open([{ _id: 'dress', title: 'Check Dress', garmentType: 'dress', color: '#c81e28', print: PRINT,
+      model3d: '/uploads/models/drape_S.glb', sizeChart: [] }]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Wear' }));
+    await waitFor(() => expect(meshes).toHaveLength(1));
+    await waitFor(() => expect(meshes[0].material.map).toBeTruthy());
+    expect(textures).toHaveBeenCalledWith('http://localhost:5050/uploads/images/check.jpg');
+    expect(meshes[0].material.map.repeat.x).toBe(20);
+    expect(meshes[0].material.color.getHexString()).toBe('ffffff');
+  });
+
+  test('a generic shape (no pattern unwrap) stays in the product colour', async () => {
+    open([{ _id: 'dress', title: 'Check Dress', garmentType: 'dress', color: '#c81e28', print: PRINT, sizeChart: [] }]);
+    fireEvent.click(await screen.findByRole('button', { name: 'Wear' }));
+    await waitFor(() => expect(meshes).toHaveLength(1));
+    await waitFor(() => expect(`#${meshes[0].material.color.getHexString()}`).toBe('#c81e28'));
+    expect(meshes[0].material.map).toBeNull();
+    expect(textures).not.toHaveBeenCalled();
+  });
 });
