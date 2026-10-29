@@ -22,6 +22,9 @@ DEVICE="${DEVICE:-cpu}"
 PARALLEL="${PARALLEL:-7}"
 MAX_FRAMES="${MAX_FRAMES:-2400}"
 MU="${MU:-0.2}"          # cloth-body friction; GarmentCode's config uses 0.5
+# optional pod/newton_case.py settings (empty: its defaults): attachment spring, frames after release, speed limit,
+# snapshots every N frames
+EXTRA="${ATTACH_KE:+--attach-ke $ATTACH_KE} ${SETTLE:+--settle-frames $SETTLE} ${MAX_SPEED:+--max-speed $MAX_SPEED} ${SNAPSHOTS:+--snapshots $SNAPSHOTS}"
 ONLY="${ONLY:-}"         # e.g. ONLY="04_skirt_S 04_skirt_L" to run a subset
 mkdir -p "$OUT/logs" "$OUT/results"
 START=$(date +%s)
@@ -37,12 +40,12 @@ run_case() {
   bdir="$INPUTS/bodies_mpfb"; [ "$bodies" = gc ] && bdir="$GC_BODIES"
   local s; s=$(date +%s)
   "$PY" "$HERE/newton_case.py" --box-dir "$BOXES/$case" --case "$case" --body-obj "$bdir/$body.obj" \
-    --body-yaml "$bdir/$body.yaml" --out "$OUT/results" --max-frames "$MAX_FRAMES" --device "$DEVICE" --mu "$MU" \
+    --body-yaml "$bdir/$body.yaml" --out "$OUT/results" --max-frames "$MAX_FRAMES" --device "$DEVICE" --mu "$MU" $EXTRA \
     > "$OUT/logs/$case.log" 2>&1
   echo "[$(date +%T)] $case: exit $? ($(( $(date +%s) - s )) s)"
 }
 export -f run_case
-export HERE INPUTS GC_BODIES BOXES OUT PY MAX_FRAMES DEVICE MU
+export HERE INPUTS GC_BODIES BOXES OUT PY MAX_FRAMES DEVICE MU EXTRA
 if [ -n "$ONLY" ]; then grep -E "^($(echo $ONLY | tr ' ' '|')) " "$OUT/cases.txt" > "$OUT/cases_run.txt"; else cp "$OUT/cases.txt" "$OUT/cases_run.txt"; fi
 xargs -P "$PARALLEL" -L 1 bash -c 'run_case "$0" "$1" "$2"' < "$OUT/cases_run.txt"
 

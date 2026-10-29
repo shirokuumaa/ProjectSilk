@@ -17,7 +17,11 @@ Solver: SolverStyle3D (cloth for garments: anisotropic stretch/bending from pane
 body contacts from Newton's collision pipeline), parameters of Newton's garment-on-avatar example.
 
 Usage: python newton_case.py --box-dir <dir> --case <case> --body-obj <obj> --body-yaml <yaml> --out <dir>
-           [--max-frames 2400] [--device cpu|cuda:0]
+           [--max-frames 2400] [--device cpu|cuda:0] [--attach-ke 0.5] [--settle-frames 5] [--max-speed 1.0]
+           [--snapshots N]  (every N frames <case>_f<frame>.obj, to see when cloth goes wrong)
+  --attach-ke: 0.5 N/m per vertex held a skirt's waist only with the hips' help — it slid 3.5-6.7 cm while still
+  attached (a spring alone would sag 12-25 cm under the skirt's or trousers' weight); 20 N/m sags <= 0.6 cm.
+  --settle-frames: frames after the attachments are released before the stop-when-static check may end the run.
 Writes <out>/<case>/{<case>_sim.obj (cm, box mesh faces), <case>_boxmesh.obj, case_result.json}.
 """
 import argparse
@@ -122,6 +126,11 @@ def main():
     ap.add_argument("--max-frames", type=int, default=2400)
     ap.add_argument("--device", default=None)
     ap.add_argument("--mu", type=float, default=0.2, help="cloth-body friction (Newton example 0.2; GarmentCode 0.5)")
+    ap.add_argument("--attach-ke", type=float, default=ATTACH_KE, help="attachment plane spring, N/m per vertex")
+    ap.add_argument("--attach-kd", type=float, default=ATTACH_KD)
+    ap.add_argument("--settle-frames", type=int, default=5, help="frames after release before the static check")
+    ap.add_argument("--max-speed", type=float, default=MAX_SPEED, help="cloth speed limit, m/s")
+    ap.add_argument("--snapshots", type=int, default=0, help="write the cloth every N frames (0: never)")
     a = ap.parse_args()
     t0 = time.time()
     import newton
@@ -181,17 +190,20 @@ def main():
             if frame < ATTACH_FRAMES and len(a_idx):
                 wp.launch(plane_springs, dim=len(a_idx), device=device,
                           inputs=[state_0.particle_q, state_0.particle_qd, a_idx_w, a_pts_w, a_nrm_w,
-                                  ATTACH_KE, ATTACH_KD, state_0.particle_f])
+                                  a.attach_ke, a.attach_kd, state_0.particle_f])
             solver.step(state_0, state_1, control, contacts, dt)
             state_0, state_1 = state_1, state_0
-            wp.launch(clamp_speed, dim=model.particle_count, device=device, inputs=[state_0.particle_qd, MAX_SPEED])
+            wp.launch(clamp_speed, dim=model.particle_count, device=device, inputs=[state_0.particle_qd, a.max_speed])
         q = state_0.particle_q.numpy()
         if not np.isfinite(q).all():
             nan = True
             break
+        if a.snapshots and frame % a.snapshots == 0:
+            with open(out / f"{a.case}_f{frame:04d}.obj", "w") as f:
+                f.write("".join(f"v {x:.4f} {y:.4f} {z:.4f}\n" for x, y, z in q * 100.0))
         move = np.linalg.norm(q - q_prev, axis=1)
         q_prev = q.copy()
-        if frame >= max(ATTACH_FRAMES + 5, ZERO_GRAVITY_FRAMES) and (move < STATIC_MOVE_M).mean() >= STATIC_SHARE:
+        if frame >= max(ATTACH_FRAMES + a.settle_frames, ZERO_GRAVITY_FRAMES) and (move < STATIC_MOVE_M).mean() >= STATIC_SHARE:
             static = True
             break
     t_sim = time.time() - t2
@@ -205,7 +217,8 @@ def main():
     shutil.copy(box_dir / f"{a.case}_boxmesh.obj", out / f"{a.case}_boxmesh.obj")
     d = np.linalg.norm(q - V, axis=1)
     fails = ([] if static else ["static_equilibrium"]) + (["nan"] if nan else [])
-    res = {"case": a.case, "solver": "newton.SolverStyle3D", "max_speed": MAX_SPEED, "contact_gap": CONTACT_GAP, "mu": a.mu, "newton": newton.__version__,
+    res = {"case": a.case, "solver": "newton.SolverStyle3D", "max_speed": a.max_speed, "contact_gap": CONTACT_GAP, "mu": a.mu,
+           "attach_ke": a.attach_ke, "settle_frames": a.settle_frames, "newton": newton.__version__,
            "warp": wp.config.version, "device": str(device), "import_s": round(t_import, 1),
            "boxmesh_s": round(t_build, 1), "sim_wall_s": round(t_sim, 1), "frames": frames,
            "s_per_frame": t_sim / frames, "fails": fails, "vertices": len(V), "triangles": len(F),

@@ -12,7 +12,7 @@ The research code does the work (research/patterns/, see its README, "day 7" and
   -> GarmentCode's box mesh, the start of the Newton simulation (pod/box_case.py, in the gcsim environment).
 
 Usage: <research env python> scripts/garments/patterns_job.py --job job.json --out <dir>
-  job.json: {"product", "garmentType", "stretch", "silhouette": {"template", "sleeve"?, "length"},
+  job.json: {"product", "garmentType", "stretch", "silhouette": {"template", "sleeve"?, "length", "design"?},
              "sizeChart": [{"size", "chest"?, "waist"?, "hips"?, "length"?, "shoulder"?, "sleeve"?, "fit"?}]}
   -> <dir>/result.json: {"sizes": [{"size", "body", "target", "measured", "within_1cm", "box"}],
                          "failed": [{"size", "error"}]}  (errors are for the seller, in English)
@@ -87,6 +87,10 @@ def drafter_class():
             self.gcbody = yaml.safe_load(open(self.body_file))["body"]
             knobs = {k: silhouette[k] for k in ("sleeve", "length") if silhouette.get(k)}
             self.design = design(GC, self.template, **knobs)
+            # research jobs only (the server's silhouettes never carry it): GarmentCode parameters to try,
+            # e.g. {"sleeve.end_width": 1.0} — research/patterns/demo/sleeve_test_*.json
+            for k, v in (silhouette.get("design") or {}).items():
+                self.set(("design", k), v)
             self.ease = {"bust": 1.0, "waist": 1.0, "hips": 1.0}
             # dresses and skirts: length over all panels; tops: the back length, as most stores measure it
             self.length_panels = "back" if self.kind in ("top", "outerwear") else "all"
