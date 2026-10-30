@@ -1,26 +1,23 @@
 // client/src/pages/HomePage.jsx
 //
-// Витрина. Гостю и покупателю без обмеров — первый экран с обещанием магазина
-// («узнай свой размер до покупки») и три шага; с обмерами — строка «ваша фигура».
-// Ниже — каталог: раздел (тип вещи, ?type=), поиск (?q=, из шапки), сортировка (?sort=).
+// Витрина: слева — аватар покупателя (закреплён при прокрутке; у гостя — стандартная фигура),
+// справа — каталог в 3 колонки: раздел (тип вещи, ?type=), поиск (?q=, из шапки), фильтры,
+// сортировка (?sort=). «Try on» на карточке надевает вещь на этот аватар в рекомендованном размере.
 // Шапка — общая для сайта (components/TopBar.jsx в App).
 
 import React, { useEffect, useMemo, useState } from 'react';
-import { Link, useSearchParams } from 'react-router-dom';
+import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 
 import ProductCardTall from '../components/ProductCardTall';
 import CatalogFilters from '../components/CatalogFilters';
+import HomeAvatar, { useHomeOutfit } from '../components/HomeAvatar';
 import { SHOP_SECTIONS } from '../components/TopBar';
-import { ArrowRightIcon } from '../components/Icons';
-import { BRAND } from '../brand';
 import { loadBodyProfile, isProfileComplete } from '../utils/bodyProfileApi';
-import { garmentTypeOf } from '../utils/garmentTemplates';
 import { activeFilterCount, filterCatalog, filtersFromParams, sizesOf } from '../utils/catalogFilter';
 import styles from './HomePage.module.css';
 
 const API_BASE = process.env.REACT_APP_API || 'http://localhost:5050';
-const toPublicUrl = (s = '') => (String(s).startsWith('/uploads') ? `${API_BASE}${s}` : s);
 
 const SORTS = [
   ['new', 'Newest'],
@@ -73,19 +70,15 @@ export default function HomePage({ addToCart }) {
   const setParam = (key, value) => setParams2({ [key]: value });
   const clearFilters = () => setParams2({ min: '', max: '', size: '', fits: '', stock: '' });
 
-  const hasBody = isProfileComplete(profile);
+  const outfit = useHomeOutfit(allProducts, profile === undefined ? null : profile);
   const sectionLabel = SHOP_SECTIONS.find(([t]) => t === type)?.[1];
   const heading = q ? `Results for “${q}”` : filters.fitsMe && !sectionLabel ? 'Fits me' : sectionLabel || 'New in';
-  // на первом экране — платье (если есть): вещь целиком лучше объясняет примерку
-  const heroProduct = allProducts.find((p) => garmentTypeOf(p) === 'dress') || allProducts[0];
-  const heroImage = heroProduct ? toPublicUrl(heroProduct.image) : null;
 
   return (
-    <main className={styles.page}>
-      {profile !== undefined && !hasBody && !q && !type && <Hero image={heroImage} />}
-      {hasBody && <FigureStrip profile={profile} />}
+    <main className={`ui-container ${styles.page} ${styles.shop}`}>
+      <HomeAvatar profile={profile === undefined ? null : profile} outfit={outfit} />
 
-      <section id="catalogue" className={`ui-container ${styles.catalogue}`}>
+      <section id="catalogue" className={styles.catalogue}>
         <div className={styles.head}>
           <div>
             <h1 className={styles.title}>{heading}</h1>
@@ -140,74 +133,12 @@ export default function HomePage({ addToCart }) {
                 product={product}
                 addToCart={addToCart}
                 profile={profile === undefined ? null : profile}
+                onAvatar={outfit.wear}
               />
             ))}
           </div>
         )}
       </section>
     </main>
-  );
-}
-
-/** Первый экран для покупателя без обмеров: что за магазин и как он работает. */
-function Hero({ image }) {
-  return (
-    <section className={styles.hero}>
-      <div className={`ui-container ${styles.heroRow}`}>
-        <div className={styles.heroText}>
-          <span className="ui-eyebrow">Virtual fitting room</span>
-          <h1 className={styles.heroTitle}>{BRAND.tagline}.</h1>
-          <p className={styles.heroPitch}>{BRAND.pitch}</p>
-          <div className={styles.heroCtas}>
-            <Link to="/avatar/create" className="ui-btn ui-btn--primary ui-btn--lg">
-              Create my avatar <ArrowRightIcon size={18} />
-            </Link>
-            <a href="#catalogue" className="ui-btn ui-btn--ghost ui-btn--lg">Browse new in</a>
-          </div>
-          <ol className={styles.steps}>
-            <li><b>1</b><span>Add four measurements — height, bust, waist, hips</span></li>
-            <li><b>2</b><span>Try items on your avatar, in every size</span></li>
-            <li><b>3</b><span>Order the size that fits and keep it</span></li>
-          </ol>
-        </div>
-
-        {/* иллюстрация: вещь и разбор размера по зонам — то, чего нет у обычных магазинов */}
-        <div className={styles.heroVisual} aria-hidden="true">
-          <div className={styles.heroPhoto}>{image && <img src={image} alt="" />}</div>
-          <div className={styles.fitCard}>
-            <div className={styles.fitHead}>
-              <span>Your size</span>
-              <b>S</b>
-              <span className="ui-chip ui-chip--good">good fit</span>
-            </div>
-            {[['Bust', 72, 'snug'], ['Waist', 58, 'good'], ['Hips', 64, 'good']].map(([zone, w, note]) => (
-              <div key={zone} className={styles.fitRow}>
-                <span>{zone}</span>
-                <i><em style={{ width: `${w}%` }} /></i>
-                <span>{note}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </section>
-  );
-}
-
-/** Строка для покупателя с обмерами: каталог показывает размер под его фигуру. */
-function FigureStrip({ profile }) {
-  return (
-    <div className={styles.strip}>
-      <div className={`ui-container ${styles.stripRow}`}>
-        <span className={styles.stripText}>
-          Sizes below are picked for your figure ·{' '}
-          <b>{profile.heightCm} · {profile.chest} · {profile.waist} · {profile.hips} cm</b>
-        </span>
-        <span className={styles.stripLinks}>
-          <Link to="/avatar/create">Edit measurements</Link>
-          <Link to="/wardrobe">Open fitting room →</Link>
-        </span>
-      </div>
-    </div>
   );
 }

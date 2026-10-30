@@ -2,82 +2,18 @@
 
 .page { padding-bottom: var(--sp-8); }
 
-/* ── первый экран ─────────────────────────────────────── */
-.hero {
-  background: linear-gradient(180deg, var(--surface) 0%, var(--bg) 100%);
-  border-bottom: 1px solid var(--line-2);
-}
-.heroRow {
+/* ── витрина: аватар слева (закреплён), каталог справа ─── */
+.shop {
   display: grid;
-  grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr);
-  gap: var(--sp-7);
-  align-items: center;
-  padding-top: var(--sp-8);
-  padding-bottom: var(--sp-8);
+  grid-template-columns: 300px minmax(0, 1fr);
+  gap: var(--sp-6);
+  align-items: start;
+  padding-top: var(--sp-6);
 }
-.heroText { display: grid; gap: var(--sp-4); justify-items: start; }
-.heroTitle {
-  font-size: var(--fs-3xl);
-  line-height: 1.08;
-  letter-spacing: -.02em;
-  margin: 0;
-  max-width: 13em;
-}
-.heroPitch { margin: 0; font-size: var(--fs-lg); line-height: 1.55; color: var(--muted); max-width: 32em; }
-.heroCtas { display: flex; gap: var(--sp-3); flex-wrap: wrap; margin-top: var(--sp-2); }
-
-.steps { list-style: none; padding: 0; margin: var(--sp-5) 0 0; display: grid; gap: var(--sp-3); }
-.steps li { display: flex; align-items: center; gap: var(--sp-3); color: var(--ink-2); }
-.steps b {
-  width: 28px;
-  height: 28px;
-  display: grid;
-  place-items: center;
-  border-radius: 50%;
-  border: 1px solid var(--line-strong);
-  font-size: var(--fs-sm);
-  flex-shrink: 0;
-}
-
-.heroVisual { position: relative; justify-self: center; width: min(100%, 420px); }
-.heroPhoto {
-  aspect-ratio: 3 / 4;
-  border-radius: var(--r-lg);
-  overflow: hidden;
-  background: var(--surface-3);
-  box-shadow: var(--shadow-hover);
-}
-.heroPhoto img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.fitCard {
-  position: absolute;
-  left: -48px;
-  bottom: 36px;
-  width: 250px;
-  padding: var(--sp-4);
-  border-radius: var(--r-md);
-  background: var(--surface);
-  box-shadow: var(--shadow-pop);
-  display: grid;
-  gap: var(--sp-2);
-  font-size: var(--fs-sm);
-}
-.fitHead { display: flex; align-items: center; gap: var(--sp-2); color: var(--muted); }
-.fitHead b { font-family: var(--font-display); font-size: 22px; color: var(--ink); margin-right: auto; }
-.fitRow { display: grid; grid-template-columns: 44px 1fr 36px; align-items: center; gap: var(--sp-2); color: var(--muted); }
-.fitRow i { height: 6px; border-radius: 3px; background: var(--surface-2); overflow: hidden; }
-.fitRow em { display: block; height: 100%; border-radius: 3px; background: var(--fit-good); }
-
-/* ── строка «ваша фигура» ──────────────────────────────── */
-.strip { background: var(--accent-soft); border-bottom: 1px solid var(--line-2); }
-.stripRow { display: flex; justify-content: space-between; align-items: center; gap: var(--sp-4); min-height: 46px; font-size: var(--fs-sm); }
-.stripText { color: var(--ink-2); }
-.stripText b { font-family: var(--font-mono); font-weight: 500; }
-.stripLinks { display: flex; gap: var(--sp-5); }
-.stripLinks a { color: var(--accent); font-weight: 500; }
-.stripLinks a:hover { text-decoration: underline; }
 
 /* ── каталог ──────────────────────────────────────────── */
-.catalogue { padding-top: var(--sp-7); }
+.catalogue { min-width: 0; }
+.listPage { padding-top: var(--sp-7); }   /* страницы-списки без аватара (избранное) */
 .head { display: flex; justify-content: space-between; align-items: flex-end; gap: var(--sp-4); }
 .title { font-size: var(--fs-2xl); margin: 0; display: inline; }
 .count { margin-left: var(--sp-3); color: var(--muted); font-size: var(--fs-sm); }
@@ -107,15 +43,10 @@
 
 .grid {
   display: grid;
-  grid-template-columns: repeat(4, minmax(0, 1fr));
+  grid-template-columns: repeat(3, minmax(0, 1fr));
   gap: var(--sp-7) var(--sp-5);
 }
-@media (max-width: 1180px) { .grid { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
-@media (max-width: 860px) {
-  .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
-  .heroRow { grid-template-columns: 1fr; }
-  .fitCard { left: 12px; }
-}
+@media (max-width: 1100px) { .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
 
 .state { color: var(--muted); }
 .empty { display: grid; justify-items: start; gap: var(--sp-3); padding: var(--sp-7) 0; }

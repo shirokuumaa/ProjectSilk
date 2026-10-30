@@ -38,7 +38,7 @@ export default function FavoritesPage({ addToCart }) {
   );
 
   return (
-    <main className={`ui-container ${styles.catalogue}`}>
+    <main className={`ui-container ${styles.catalogue} ${styles.listPage}`}>
       <div className={styles.head}>
         <div>
           <h1 className={styles.title}>Wishlist</h1>

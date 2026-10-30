@@ -1,0 +1,76 @@
+/* client/src/components/HomeAvatar.module.css — аватар на витрине; цвета только из tokens.css */
+
+.panel {
+  position: sticky;
+  /* под липкой шапкой: строка сверху 30 px + шапка */
+  top: calc(30px + var(--header-h) + var(--sp-4));
+  align-self: start;
+  display: grid;
+  gap: var(--sp-3);
+  padding: var(--sp-4);
+  border-radius: var(--r-lg);
+  border: 1px solid var(--line);
+  background: var(--surface);
+  box-shadow: var(--shadow-card);
+  max-height: calc(100vh - 30px - var(--header-h) - var(--sp-6));
+  overflow-y: auto;
+}
+
+.head { display: flex; justify-content: space-between; align-items: baseline; gap: var(--sp-2); }
+.measures { font-family: var(--font-mono); font-size: var(--fs-xs); color: var(--muted); }
+
+.stage {
+  position: relative;
+  height: min(52vh, 460px);
+  border-radius: var(--r-md);
+  overflow: hidden;
+  background: var(--surface-4);
+  outline: 2px dashed transparent;
+  outline-offset: -2px;
+  transition: outline-color var(--t-fast) var(--ease), background var(--t-fast) var(--ease);
+}
+.stageReady { outline-color: var(--accent); background: var(--accent-soft); }
+.stageOver { outline-style: solid; outline-color: var(--accent); }
+.loading { height: 100%; display: grid; place-items: center; color: var(--muted); font-size: var(--fs-sm); }
+.dropHint {
+  position: absolute;
+  left: 50%;
+  bottom: var(--sp-3);
+  transform: translateX(-50%);
+  padding: 6px 14px;
+  border-radius: var(--r-pill);
+  background: var(--accent);
+  color: var(--surface);
+  font-size: var(--fs-sm);
+  font-weight: 600;
+  pointer-events: none;
+  white-space: nowrap;
+}
+
+.guest { display: grid; gap: var(--sp-2); justify-items: start; font-size: var(--fs-sm); color: var(--muted); }
+
+.note {
+  margin: 0;
+  padding: var(--sp-2) var(--sp-3);
+  border-radius: var(--r-sm);
+  background: var(--fit-warn-bg);
+  color: var(--ink-2);
+  font-size: var(--fs-sm);
+  line-height: 1.45;
+}
+.empty { margin: 0; font-size: var(--fs-sm); color: var(--muted); text-align: center; }
+
+.worn { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--sp-2); }
+.wornItem { display: flex; align-items: center; gap: var(--sp-2); font-size: var(--fs-sm); }
+.wornName { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; color: var(--ink); }
+.remove {
+  width: 24px; height: 24px; flex-shrink: 0; border-radius: 50%;
+  border: 1px solid var(--line); background: var(--surface); color: var(--muted); line-height: 1;
+}
+.remove:hover { color: var(--fit-bad); border-color: var(--fit-bad); }
+
+.verdict { margin: 0; padding: var(--sp-2) var(--sp-3); border-radius: var(--r-sm); background: var(--fit-good-bg); color: var(--ink-2); font-size: var(--fs-sm); }
+.verdictWarn { background: var(--fit-warn-bg); }
+.small { margin: 0; font-size: var(--fs-xs); color: var(--muted); }
+.open { font-size: var(--fs-sm); font-weight: 600; color: var(--accent); }
+.open:hover { text-decoration: underline; }
