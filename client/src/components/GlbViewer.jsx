@@ -14,8 +14,8 @@
 //
 // 3. Светлая сцена и мягкая сетка по макету v11 вместо серого блока с рамкой.
 
-import React, { Suspense, useLayoutEffect, useMemo, useRef } from 'react';
-import { Canvas } from '@react-three/fiber';
+import React, { Suspense, useEffect, useLayoutEffect, useMemo, useRef } from 'react';
+import { Canvas, useThree } from '@react-three/fiber';
 import { OrbitControls, useGLTF, Html } from '@react-three/drei';
 import * as THREE from 'three';
 import AvatarBody from './AvatarBody';
@@ -224,6 +224,27 @@ function AvatarWithGarment({ avatarUrl, garmentUrl }) {
  * размера изделия ({ chest, waist, hips }, см), legs — подсказка 'split' | 'joined'.
  * onGarmentError(url) — файл вещи не загрузился: вещь не рисуется, остальная сцена цела.
  */
+/**
+ * Режим «рисовать по требованию» (frameloop="demand"): после смены фигуры, вещей или вида
+ * сцена рисуется ещё SETTLE_MS — успевают загрузиться модели и FitCamera подстроить кадр;
+ * дальше кадры только при вращении мышью. Так закреплённая сцена не грузит прокрутку страницы.
+ */
+const SETTLE_MS = 4000;
+function SettleFrames({ watch }) {
+  const invalidate = useThree((st) => st.invalidate);
+  useEffect(() => {
+    let raf = 0;
+    const until = performance.now() + SETTLE_MS;
+    const tick = () => {
+      invalidate();
+      if (performance.now() < until) raf = requestAnimationFrame(tick);
+    };
+    tick();
+    return () => cancelAnimationFrame(raf);
+  }, [watch, invalidate]);
+  return null;
+}
+
 export default function GlbViewer({
   url,
   profile = null,
@@ -239,6 +260,8 @@ export default function GlbViewer({
   resetKey = '',
   showBody = true, // false — «Hide body»: одежда садится по фигуре, но тело не рисуется
   onGarmentError = null,
+  frameloop = 'always', // 'demand' — рисовать только после изменений и при вращении (SettleFrames)
+  dpr = [1, 2],
 }) {
   const controlsRef = useRef(null);
 
@@ -261,7 +284,8 @@ export default function GlbViewer({
 
   return (
     <div style={{ width: '100%', height, borderRadius: 12, overflow: 'hidden', background }}>
-      <Canvas dpr={[1, 2]} camera={{ position: [0, 1, 3], fov: 40 }}>
+      <Canvas dpr={dpr} frameloop={frameloop} camera={{ position: [0, 1, 3], fov: 40 }}>
+        {frameloop === 'demand' && <SettleFrames watch={`${fitKey}-${resetKey}-${back}-${showBody}`} />}
         <color attach="background" args={[background]} />
         {hasBody ? (
           <BodyStage />
