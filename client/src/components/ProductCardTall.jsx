@@ -102,11 +102,18 @@ export default function ProductCardTall({ product, addToCart, onAvatar, profile 
       onKeyDown={(e) => e.key === 'Enter' && e.target === e.currentTarget && open()}
       onMouseLeave={() => setPicking(false)}
       aria-label={displayName}
+      // карточку можно бросить на аватар витрины (components/HomeAvatar.jsx) — вещь наденется
+      draggable={Boolean(sku)}
+      onDragStart={(e) => {
+        e.dataTransfer.effectAllowed = 'copy';
+        e.dataTransfer.setData('application/x-product-id', String(sku));
+        e.dataTransfer.setData('text/plain', String(sku));
+      }}
     >
       <div className={styles.media}>
-        <img className={styles.image} src={main} alt={displayName} loading="lazy"
+        <img className={styles.image} src={main} alt={displayName} loading="lazy" draggable={false}
           onError={(e) => { e.currentTarget.src = NO_IMAGE; }} />
-        {second && <img className={`${styles.image} ${styles.imageAlt}`} src={second} alt="" loading="lazy" />}
+        {second && <img className={`${styles.image} ${styles.imageAlt}`} src={second} alt="" loading="lazy" draggable={false} />}
 
         {badgeText && <span className={`${styles.badge} ${soldOut ? styles.badgeOut : ''}`}>{badgeText}</span>}
 

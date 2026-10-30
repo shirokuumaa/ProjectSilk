@@ -71,12 +71,38 @@ export default function HomePage({ addToCart }) {
   const clearFilters = () => setParams2({ min: '', max: '', size: '', fits: '', stock: '' });
 
   const outfit = useHomeOutfit(allProducts, profile === undefined ? null : profile);
+
+  // карточку тащат — аватар подсвечен как место, куда бросить (всё время перетаскивания)
+  const [dragging, setDragging] = useState(false);
+  useEffect(() => {
+    const start = (e) => {
+      if (Array.from(e.dataTransfer?.types || []).includes('application/x-product-id')) setDragging(true);
+    };
+    const stop = () => setDragging(false);
+    document.addEventListener('dragstart', start);
+    document.addEventListener('dragend', stop);
+    document.addEventListener('drop', stop);
+    return () => {
+      document.removeEventListener('dragstart', start);
+      document.removeEventListener('dragend', stop);
+      document.removeEventListener('drop', stop);
+    };
+  }, []);
+  const dropProduct = (id) => {
+    const product = allProducts.find((p) => String(p._id || p.id) === String(id));
+    if (product) outfit.wear(product);
+  };
   const sectionLabel = SHOP_SECTIONS.find(([t]) => t === type)?.[1];
   const heading = q ? `Results for “${q}”` : filters.fitsMe && !sectionLabel ? 'Fits me' : sectionLabel || 'New in';
 
   return (
     <main className={`ui-container ${styles.page} ${styles.shop}`}>
-      <HomeAvatar profile={profile === undefined ? null : profile} outfit={outfit} />
+      <HomeAvatar
+        profile={profile === undefined ? null : profile}
+        outfit={outfit}
+        dragging={dragging}
+        onDropProduct={dropProduct}
+      />
 
       <section id="catalogue" className={styles.catalogue}>
         <div className={styles.head}>

@@ -95,3 +95,35 @@ test('a search with no results says so', async () => {
   fireEvent.click(screen.getByRole('button', { name: 'Show everything' }));
   expect(await screen.findByText('3 items')).toBeInTheDocument();
 });
+
+test('dragging a card lights up the avatar; dropping it there puts the item on in the recommended size', async () => {
+  loadBodyProfile.mockResolvedValue(BODY);
+  renderHome();
+  await screen.findByText('3 items');
+  const card = screen.getByRole('button', { name: 'Midi Dress' });
+  const data = {};
+  const dataTransfer = {
+    setData: (k, v) => { data[k] = v; },
+    getData: (k) => data[k] || '',
+    get types() { return Object.keys(data); },
+    effectAllowed: 'none',
+    dropEffect: 'none',
+  };
+  expect(card).toHaveAttribute('draggable', 'true');
+  fireEvent.dragStart(card, { dataTransfer });
+  expect(screen.getByText('Drop to try it on')).toBeInTheDocument();
+  const zone = screen.getByTestId('avatar-drop');
+  fireEvent.dragOver(zone, { dataTransfer });
+  fireEvent.drop(zone, { dataTransfer });
+  expect(screen.queryByText('Drop to try it on')).not.toBeInTheDocument();
+  expect(screen.getByTestId('scene')).toHaveTextContent('d.glb|M');
+  expect(within(screen.getByRole('list', { name: 'Wearing now' })).getByText('Midi Dress')).toBeInTheDocument();
+});
+
+test('dropping an item that cannot be shown gives a clear hint', async () => {
+  loadBodyProfile.mockResolvedValue(BODY);
+  renderHome();
+  await screen.findByText('3 items');
+  fireEvent.drop(screen.getByTestId('avatar-drop'), { dataTransfer: { getData: (k) => (k === 'application/x-product-id' ? 'c' : '') } });
+  expect(screen.getByRole('status')).toHaveTextContent(/Wool Coat has no 3D model yet/);
+});
