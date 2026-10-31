@@ -4,13 +4,17 @@
 // крепит модель к телу и масштабирует её (utils/accessoryPlacement.js).
 // Показывается только у типов shoes и accessory; у обуви вид не выбирается.
 //
+// Под полями — правила фото (из него делается 3D-модель) и предупреждения проверки фото товара
+// (utils/accessoryPhoto.js); проверка ничего не запрещает.
+//
 // Использование:
-//   <AccessoryField garmentType={type} value={accessory} onChange={setAccessory} />
+//   <AccessoryField garmentType={type} value={accessory} onChange={setAccessory} photo={url} />
 //   value — null или { kind?, lengthCm?, widthCm?, …, size?, sizeSystem?, side?, level? } (строки из полей).
 //   serializeAccessory(type, value) — что отправить на сервер (JSON-строка или '' — карточки нет).
 
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { ACCESSORY_KINDS, FIELD_LABELS } from '../utils/accessoryKinds';
+import { PHOTO_TIPS, checkAccessoryPhotoUrl } from '../utils/accessoryPhoto';
 
 const HINTS = {
   earrings: 'From the top of the hook to the lowest point.',
@@ -49,9 +53,19 @@ export function accessoryFromProduct(product) {
 
 const labelFor = (field, kind) => FIELD_LABELS[field][kind] || FIELD_LABELS[field].default;
 
-export default function AccessoryField({ garmentType, value, onChange }) {
-  if (garmentType !== 'shoes' && garmentType !== 'accessory') return null;
+export default function AccessoryField({ garmentType, value, onChange, photo = null }) {
+  const shown = garmentType === 'shoes' || garmentType === 'accessory';
   const kind = garmentType === 'shoes' ? 'shoes' : value?.kind || '';
+  const [warnings, setWarnings] = useState([]);
+
+  useEffect(() => {
+    let alive = true;
+    setWarnings([]);
+    if (shown && photo) checkAccessoryPhotoUrl(photo, { kind }).then((w) => { if (alive && w) setWarnings(w); });
+    return () => { alive = false; };
+  }, [shown, photo, kind]);
+
+  if (!shown) return null;
   const spec = ACCESSORY_KINDS[kind];
   const set = (key) => (e) => onChange({ ...value, [key]: e.target.value });
 
@@ -116,6 +130,21 @@ export default function AccessoryField({ garmentType, value, onChange }) {
         )}
       </div>
       {spec && <p style={styles.hint}>{HINTS[kind]}</p>}
+
+      <div style={styles.tips}>
+        <p style={styles.tipsTitle}>Photo tips — the 3D model is made from your product photo:</p>
+        <ul style={styles.list}>
+          {PHOTO_TIPS.map((t) => <li key={t}>{t}</li>)}
+        </ul>
+      </div>
+      {warnings.length > 0 && (
+        <div role="status" style={styles.warn}>
+          <p style={styles.tipsTitle}>Check your photo:</p>
+          <ul style={styles.list}>
+            {warnings.map((w) => <li key={w}>{w}</li>)}
+          </ul>
+        </div>
+      )}
     </fieldset>
   );
 }
@@ -131,4 +160,11 @@ const styles = {
   row: { display: 'flex', gap: 12, flexWrap: 'wrap' },
   label: { display: 'flex', flexDirection: 'column', gap: 4, fontSize: 13, fontWeight: 500, minWidth: 140 },
   input: { padding: '8px 10px', borderRadius: 8, border: '1px solid var(--line-strong)', fontSize: 14, background: 'var(--surface)' },
+  tips: { marginTop: 12, fontSize: 12, color: 'var(--muted)', lineHeight: 1.45 },
+  tipsTitle: { margin: '0 0 4px', fontSize: 12, fontWeight: 600, color: 'var(--ink)' },
+  list: { margin: 0, paddingLeft: 18, fontSize: 12, lineHeight: 1.45 },
+  warn: {
+    marginTop: 10, padding: '8px 10px', borderRadius: 8,
+    border: '1px solid var(--fit-warn)', background: 'var(--fit-warn-bg)', color: 'var(--ink)',
+  },
 };

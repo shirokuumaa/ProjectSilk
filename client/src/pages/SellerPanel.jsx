@@ -563,7 +563,7 @@ function SellerDashboard() {
               />
               <StockField rows={sizeChart} onChange={setSizeChart} />
               <SilhouettePicker garmentType={garmentType} value={silhouette} onChange={setSilhouette} />
-              <AccessoryField garmentType={garmentType} value={accessory} onChange={setAccessory} />
+              <AccessoryField garmentType={garmentType} value={accessory} onChange={setAccessory} photo={processedUrl} />
               <ProductDetailsField value={details} onChange={setDetails} stretch={stretch} onStretchChange={setStretch} />
 
               <div style={{ marginTop: 4 }}>
@@ -860,7 +860,7 @@ export function EditProductForm({ product, onCancel, onSaved }) {
         <p style={ui.meta}>Saved measurements are shown as full circumferences.</p>
         <StockField rows={sizeChart} onChange={setSizeChart} />
         <SilhouettePicker garmentType={garmentType} value={silhouette} onChange={setSilhouette} />
-        <AccessoryField garmentType={garmentType} value={accessory} onChange={setAccessory} />
+        <AccessoryField garmentType={garmentType} value={accessory} onChange={setAccessory} photo={photo} />
         <ProductDetailsField value={details} onChange={setDetails} stretch={stretch} onStretchChange={setStretch} />
         <ColorField value={color} onChange={setColor} />
         <PrintField photo={photo} value={print} onChange={setPrint} />

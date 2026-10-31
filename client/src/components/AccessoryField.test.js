@@ -41,3 +41,10 @@ test('an accessory shows the fields of its kind; changing the kind starts afresh
   expect(screen.queryByLabelText('Width, cm')).toBeNull();
   expect(JSON.parse(screen.getByTestId('sent').textContent)).toEqual({ kind: 'earrings' });
 });
+
+test('photo tips are always there for accessories and shoes', () => {
+  render(<Harness type="shoes" />);
+  expect(screen.getByText(/the 3D model is made from your product photo/)).toBeInTheDocument();
+  expect(screen.getByText('No hands, model or mannequin in the photo.')).toBeInTheDocument();
+  expect(screen.queryByText('Check your photo:')).toBeNull();
+});
