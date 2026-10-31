@@ -1,22 +1,23 @@
 """Before anything is installed: does HF_TOKEN open the gated weights the session needs? Exits 1 if not.
 
-TRELLIS.2 reads the photo with DINOv3 and cuts the background with RMBG-2.0; SF3D is behind the
-Stability AI Community License click-through. Access is granted per Hugging Face account on each page.
+TRELLIS.2 reads the photo with DINOv3; SF3D is behind the Stability AI Community License click-through.
+Access is granted per Hugging Face account on each page. The background is cut with BiRefNet (MIT, open)
+instead of the gated, non-commercial RMBG-2.0 from TRELLIS.2's pipeline.json (run_trellis2.py --rembg).
 """
 import os
 import sys
 
-from huggingface_hub import hf_hub_download
+from huggingface_hub import get_token, hf_hub_download
 
 NEEDED = [
     ("microsoft/TRELLIS.2-4B", "pipeline.json"),
     ("facebook/dinov3-vitl16-pretrain-lvd1689m", "config.json"),
-    ("briaai/RMBG-2.0", "config.json"),
     ("stabilityai/stable-fast-3d", "config.yaml"),
 ]
 
-if not os.environ.get("HF_TOKEN"):
-    sys.exit("HF_TOKEN is not set (RunPod: Environment Variables → HF_TOKEN = {{ RUNPOD_SECRET_hf_token }})")
+# токен — из HF_TOKEN (секрет RunPod) или из `hf auth login` на поде (~/.cache/huggingface/token)
+if not (os.environ.get("HF_TOKEN") or get_token()):
+    sys.exit("No Hugging Face token: set HF_TOKEN = {{ RUNPOD_SECRET_hf_token }} or run `hf auth login` on the pod")
 bad = []
 for repo, file in NEEDED:
     try:

@@ -29,6 +29,8 @@ def main():
     ap.add_argument("--types", default="512,1024_cascade")
     ap.add_argument("--faces", type=int, default=100000, help="decimation target of the exported GLB")
     ap.add_argument("--texture", type=int, default=2048)
+    ap.add_argument("--rembg", default="ZhengPeng7/BiRefNet",
+                    help="background model instead of pipeline.json's RMBG-2.0 (gated, CC BY-NC); same BiRefNet architecture, MIT")
     a = ap.parse_args()
     sys.path.insert(0, a.repo)
 
@@ -36,13 +38,22 @@ def main():
     from PIL import Image
     import o_voxel
     from trellis2.pipelines import Trellis2ImageTo3DPipeline
+    from trellis2.pipelines import rembg as t2_rembg
+
+    if a.rembg:                                     # pipeline.json просит briaai/RMBG-2.0 — подменяем веса
+        load = t2_rembg.BiRefNet.__init__
+
+        def init(self, model_name=None):
+            load(self, a.rembg)
+            self.model.float()                      # веса BiRefNet — fp16, а картинку TRELLIS.2 подаёт во float32
+        t2_rembg.BiRefNet.__init__ = init
 
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     t0 = time.time()
     pipe = Trellis2ImageTo3DPipeline.from_pretrained("microsoft/TRELLIS.2-4B")
     pipe.cuda()
-    results = {"gpu": torch.cuda.get_device_name(0), "load_s": round(time.time() - t0, 1), "items": []}
+    results = {"gpu": torch.cuda.get_device_name(0), "load_s": round(time.time() - t0, 1), "rembg": a.rembg, "items": []}
     print(f"pipeline loaded in {results['load_s']} s on {results['gpu']}", flush=True)
 
     for photo in photos_in(a.photos):

@@ -36,21 +36,24 @@ CAP=$(nvidia-smi --query-gpu=compute_cap --format=csv,noheader | head -1)
 export TORCH_CUDA_ARCH_LIST="$CAP" MAX_JOBS=$(nproc)
 export PATH="/usr/local/cuda/bin:$PATH" CUDA_HOME=/usr/local/cuda   # в образе RunPod nvcc не в PATH
 
+# доступ к закрытым весам проверяется сразу, но сборка окружений идёт и без него: прогоны моделей
+# ждут доступа до ACCESS_WAIT минут (токен можно ввести на поде: hf auth login); картинки Blender — в любом случае
 stamp "access to the gated weights"
 pip install -q "huggingface_hub>=0.34" uv
-python "$POD/check_access.py" || { echo "!! no access — stop the pod and request access on the pages above"; exit 1; }
+python "$POD/check_access.py" || echo "!! no access yet — the models will wait for it (hf auth login on the pod)"
 
 stamp "system packages"
 apt-get update -qq && apt-get install -y -qq libjpeg-dev libgl1 libxi6 libxrender1 libxkbcommon0 libsm6 libxxf86vm1 libxfixes3 >/dev/null
 
 # ── A1. TRELLIS.2: torch 2.6 (cu124) в своём окружении ──
 stamp "TRELLIS.2 environment"
-git clone -q https://github.com/microsoft/TRELLIS.2.git "$W/TRELLIS.2" && git -C "$W/TRELLIS.2" checkout -q "$TRELLIS2_COMMIT"
+git clone -q https://github.com/microsoft/TRELLIS.2.git "$W/TRELLIS.2" && git -C "$W/TRELLIS.2" checkout -q "$TRELLIS2_COMMIT" \
+  && git -C "$W/TRELLIS.2" submodule update -q --init --recursive   # Eigen для o-voxel
 uv venv -q "$W/venv_t2" --python 3.11
 T2="$W/venv_t2/bin/python"
 uv pip install -q -p "$T2" torch==2.6.0 torchvision==0.21.0 --index-url https://download.pytorch.org/whl/cu124
 uv pip install -q -p "$T2" setuptools wheel ninja imageio imageio-ffmpeg tqdm easydict opencv-python-headless trimesh \
-  transformers tensorboard pandas lpips zstandard kornia timm pillow "huggingface_hub>=0.34" \
+  "transformers==4.57.1" tensorboard pandas lpips zstandard kornia timm pillow "huggingface_hub>=0.34" \
   "git+https://github.com/EasternJournalist/utils3d.git@9a4eb15e4021b67b12c460c7057d642626897ec8"
 PYV=$("$T2" -c "import sys; print(f'cp{sys.version_info[0]}{sys.version_info[1]}')")
 uv pip install -q -p "$T2" "https://github.com/Dao-AILab/flash-attention/releases/download/v2.7.4.post1/flash_attn-2.7.4.post1+cu12torch2.6cxx11abiFALSE-${PYV}-${PYV}-linux_x86_64.whl" \
@@ -74,22 +77,38 @@ uv venv -q "$W/venv_sf3d" --python "$(command -v python3)" --system-site-package
 SF="$W/venv_sf3d/bin/python"
 uv pip install -q -p "$SF" setuptools==69.5.1 wheel
 (cd "$W/stable-fast-3d" && uv pip install -q -p "$SF" --no-build-isolation -r requirements.txt) || echo "!! SF3D requirements failed"
+# зависимости SF3D тянут в окружение свежий torch (2.15, cu132) поверх 2.4 из образа, а его расширения собраны
+# против другого — вернуть 2.4.1 и пересобрать их (сеанс 31.10: undefined symbol в uv_unwrapper)
+uv pip install -q -p "$SF" torch==2.4.1 torchvision==0.19.1 --index-url https://download.pytorch.org/whl/cu124
+(cd "$W/stable-fast-3d" && uv pip install -q -p "$SF" --no-build-isolation --reinstall --no-deps ./texture_baker/ ./uv_unwrapper/)
+"$SF" -c "import torch, uv_unwrapper, texture_baker; print('sf3d env ok', torch.__version__)"
 
 # ── Blender для превью и картинки каталога ──
 stamp "Blender"
 curl -sSfL "https://download.blender.org/release/Blender5.0/$BLENDER.tar.xz" | tar xJ -C "$W"
 BL="$W/$BLENDER/blender"
 
-# ── A3. прогоны ──
-stamp "TRELLIS.2 runs"
-"$T2" "$POD/run_trellis2.py" --repo "$W/TRELLIS.2" --photos "$PHOTOS" --out "$OUT/trellis2"
-stamp "SF3D runs"
-"$SF" "$POD/run_sf3d.py" --repo "$W/stable-fast-3d" --photos "$PHOTOS" --out "$OUT/sf3d"
+# ── A3. прогоны (после доступа к весам) ──
+stamp "waiting for access to the gated weights (up to ${ACCESS_WAIT:-30} min)"
+ACCESS=no
+for i in $(seq $(( ${ACCESS_WAIT:-30} * 2 ))); do
+  python "$POD/check_access.py" >/dev/null 2>&1 && { ACCESS=yes; break; }
+  sleep 30
+done
+python "$POD/check_access.py"
+if [ "$ACCESS" = yes ]; then
+  stamp "TRELLIS.2 runs"
+  "$T2" "$POD/run_trellis2.py" --repo "$W/TRELLIS.2" --photos "$PHOTOS" --out "$OUT/trellis2"
+  stamp "SF3D runs"
+  "$SF" "$POD/run_sf3d.py" --repo "$W/stable-fast-3d" --photos "$PHOTOS" --out "$OUT/sf3d"
 
-# ── B. превью и лист ──
-stamp "previews"
-for d in trellis2 sf3d; do "$BL" -b --factory-startup --python "$POD/render_previews.py" -- --glbs "$OUT/$d" --out "$OUT/previews" 2>&1 | grep -E "preview|Error"; done
-"$T2" "$POD/make_sheet.py" --session "$OUT" --out "$OUT/sheet.jpg"
+  # ── B. превью и лист ──
+  stamp "previews"
+  for d in trellis2 sf3d; do "$BL" -b --factory-startup --python "$POD/render_previews.py" -- --glbs "$OUT/$d" --out "$OUT/previews" 2>&1 | grep -E "preview|Error"; done
+  "$T2" "$POD/make_sheet.py" --session "$OUT" --out "$OUT/sheet.jpg"
+else
+  echo "!! no access to the gated weights — models skipped, Blender pictures only"
+fi
 
 # ── C. картинка каталога платья в клетку ──
 stamp "catalogue picture of the gingham dress"
