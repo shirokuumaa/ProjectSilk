@@ -24,6 +24,8 @@ import FitCamera from './FitCamera';
 import { drapeGarment, restoreGeometry, snapshotGeometry } from '../utils/garmentDrape';
 import GarmentErrorBoundary from './GarmentErrorBoundary';
 import { isDrapedType } from '../utils/garmentPlacement';
+import { accessoryKind } from '../utils/accessoryKinds';
+import { placeAccessory } from '../utils/accessoryPlacement';
 import { tintGarment } from '../utils/garmentColor';
 import { printGarment } from '../utils/fabricPrint';
 import { useAvatarBody } from '../utils/avatarBody';
@@ -62,6 +64,7 @@ function bodyWidthAt(profile, key) {
 function GarmentOnBody({
   garmentScene, profile, garmentType = 'top',
   layerOffset = 0, fit = 'regular', drape = true, size = null, legs = null, simFigure = null,
+  accessory = null, color = null,
 }) {
   const ref = useRef();
   // тело и его форма — те же, что у AvatarBody в этой сцене
@@ -80,6 +83,15 @@ function GarmentOnBody({
 
     ref.current.scale.setScalar(1);
     ref.current.position.set(0, 0, 0);
+    ref.current.quaternion.identity();
+
+    // обувь и аксессуар известного вида на болванке — к точке тела, в масштабе по карточке товара
+    // (utils/accessoryPlacement.js); на процедурной фигуре — как раньше, по правилам FIT_RULES
+    const kind = accessoryKind(garmentType, accessory);
+    if (kind) {
+      ref.current.updateWorldMatrix(true, true);
+      if (placeAccessory(ref.current, garmentScene, shape, kind, accessory || {}, { footLengthCm: profile?.footLength, color })) return;
+    }
 
     // ткань, просимулированная на фигуре размера: перенос на фигуру покупателя
     // (складки сохраняются) и страховка — что оказалось внутри тела, наружу на 4 мм
@@ -130,7 +142,7 @@ function GarmentOnBody({
         console.warn('[drape] could not fit garment to body:', e.message);
       }
     }
-  }, [garmentScene, profile, garmentType, layerOffset, fit, drape, shape, size, legs, simFigure, avatarKind, avatarBody]);
+  }, [garmentScene, profile, garmentType, layerOffset, fit, drape, shape, size, legs, simFigure, avatarKind, avatarBody, accessory, color]);
 
   if (!shape) return null;   // болванка ещё грузится
   return <group ref={ref}><primitive object={garmentScene} /></group>;
@@ -167,7 +179,7 @@ function GarmentFitter({ avatarScene, garmentScene }) {
   return <group ref={garmentRef}><primitive object={garmentScene} /></group>;
 }
 
-function GlbGarment({ url, profile, garmentType, layerOffset, fit, drape, size, legs, simFigure, color, print }) {
+function GlbGarment({ url, profile, garmentType, layerOffset, fit, drape, size, legs, simFigure, color, print, accessory }) {
   const { scene } = useGLTF(url);
 
   // Клон с копией геометрии: drape меняет вершины, без клона
@@ -177,11 +189,12 @@ function GlbGarment({ url, profile, garmentType, layerOffset, fit, drape, size, 
     c.traverse((child) => {
       if (child.isMesh && child.geometry) child.geometry = child.geometry.clone();
     });
-    tintGarment(c, color);   // цвет товара; материалы клонируются, кэш useGLTF не трогается
+    // цвет товара; материалы клонируются, кэш useGLTF не трогается; обувь и аксессуары — в своей текстуре
+    tintGarment(c, accessoryKind(garmentType, accessory) ? null : color);
     printGarment(c, print);  // принт — на развёртку выкройки драпировки; шаблоны остаются в цвете
     return c;
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [scene, color, print?.image, print?.tileCm]);
+  }, [scene, color, print?.image, print?.tileCm, garmentType, accessory?.kind]);
 
   return (
     <GarmentOnBody
@@ -194,6 +207,8 @@ function GlbGarment({ url, profile, garmentType, layerOffset, fit, drape, size, 
       size={size}
       legs={legs}
       simFigure={simFigure}
+      accessory={accessory}
+      color={color}
     />
   );
 }
@@ -220,7 +235,7 @@ function AvatarWithGarment({ avatarUrl, garmentUrl }) {
  * GlbViewer
  *
  * Аватар: profile — тело из обмеров (файл не нужен); url — GLB-модель.
- * garments — [{ url, garmentType, layer, fit, size?, legs?, color?, print? }]; size — обмеры выбранного
+ * garments — [{ url, garmentType, layer, fit, size?, legs?, color?, print?, accessory? }]; size — обмеры выбранного
  * размера изделия ({ chest, waist, hips }, см), legs — подсказка 'split' | 'joined'.
  * onGarmentError(url) — файл вещи не загрузился: вещь не рисуется, остальная сцена цела.
  */
@@ -324,6 +339,7 @@ export default function GlbViewer({
                     simFigure={g.simFigure || null}
                     color={g.color || null}
                     print={g.print || null}
+                    accessory={g.accessory || null}
                   />
                 </GarmentErrorBoundary>
               ))}

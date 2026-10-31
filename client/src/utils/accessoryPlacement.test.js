@@ -183,14 +183,15 @@ describe('placement scales by the card and sits on the anchor', () => {
     expect(extra.ringCm).toBeCloseTo(5.44, 2);
   });
 
-  test('watch face on the back of the wrist, strap along the arm', () => {
+  test('watch face on the back of the wrist, 3 o\'clock towards the hand, strap round the wrist', () => {
     const watch = new THREE.Box3(new THREE.Vector3(-0.02, -0.12, -0.004), new THREE.Vector3(0.02, 0.12, 0.004));
     const { items } = accessoryTransforms('watch', watch, medium, { widthCm: 4 });
     const m = items[0].matrix;
     const f = wristFrame(P, 'l');
     expect(at(m, 0.02, 0, 0).distanceTo(at(m, -0.02, 0, 0))).toBeCloseTo(0.04, 6);
     expect(at(m, 0, 0, 1).sub(at(m, 0, 0, 0)).normalize().dot(f.dorsal)).toBeCloseTo(1, 6);
-    expect(at(m, 0, 1, 0).sub(at(m, 0, 0, 0)).normalize().dot(f.axis)).toBeCloseTo(1, 6);
+    expect(at(m, 1, 0, 0).sub(at(m, 0, 0, 0)).normalize().dot(f.axis)).toBeCloseTo(1, 6);
+    expect(Math.abs(at(m, 0, 1, 0).sub(at(m, 0, 0, 0)).normalize().dot(f.axis))).toBeLessThan(1e-6);
     // плоская модель — задняя сторона корпуса на тыльной поверхности запястья
     expect(at(m, 0, 0, -0.004).sub(f.origin).dot(f.dorsal)).toBeGreaterThan(0.015);
   });

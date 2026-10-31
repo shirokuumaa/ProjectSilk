@@ -7,6 +7,7 @@ import fs from 'node:fs';
 import path from 'node:path';
 import { startTestServer, api, newUser, PNG, SERVER_DIR } from './helpers.js';
 import { ACCESSORY_KINDS, SIZE_SYSTEMS, parseAccessory } from '../utils/accessory.js';
+import { DEMO_ACCESSORIES, demoAccessories } from '../scripts/seedDemoAccessories.js';
 
 describe('accessory card', () => {
   let srv, seller;
@@ -87,5 +88,22 @@ describe('accessory card', () => {
     assert.deepEqual(parseAccessory('', 'accessory'), { accessory: null });
     assert.deepEqual(parseAccessory(undefined, 'shoes'), { accessory: null });
     assert.deepEqual(parseAccessory('{oops', 'accessory'), { error: 'Accessory details are not readable.' });
+  });
+
+  it('demo accessories: every prepared model becomes a product with a valid card; shoes are shoes', () => {
+    const prepared = [
+      { item: '01_earrings', kind: 'earrings', file: '01_earrings.glb', card: { lengthCm: 5.5 } },
+      { item: '07_sneakers', kind: 'shoes', file: '07_sneakers.glb', card: { size: '38', sizeSystem: 'EU' } },
+      { item: '05_belt', kind: 'belt', file: '05_belt.glb', card: { widthCm: 3.5, lengthCm: 95, level: 'waist' } },
+      { item: '03_ring', kind: 'ring', file: '03_ring.glb', card: { size: '7' } },   // кольца нет среди демо
+    ];
+    const docs = demoAccessories('x', prepared);
+    assert.deepEqual(docs.map((d) => d.title), ['Beaded Hoop Drop Earrings', 'Black Canvas Sneakers', 'Black Leather Belt']);
+    assert.deepEqual(docs.map((d) => d.garmentType), ['accessory', 'shoes', 'accessory']);
+    assert.deepEqual(docs[1].accessory, { kind: 'shoes', size: '38', sizeSystem: 'EU' });
+    assert.deepEqual(docs[2].accessory, { kind: 'belt', widthCm: 3.5, lengthCm: 95, level: 'waist' });
+    assert.equal(docs[0].model3d, '/models/demo-accessories/01_earrings.glb');
+    assert.equal(docs[2].color, '#1c1c1e');            // лента ремня — цвета товара
+    assert.equal(Object.keys(DEMO_ACCESSORIES).length, 9);
   });
 });

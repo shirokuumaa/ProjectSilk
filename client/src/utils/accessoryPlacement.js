@@ -10,7 +10,8 @@
 //  • Модель вещи — в своей системе: Y вверх, +Z — лицевая сторона (та, что видна при носке),
 //    X — поперёк. Обувь: носок к +Z, подошва внизу, модель — левая туфля (правая — зеркально).
 //    Кольцо и браслет: отверстие вдоль Z, камень или застёжка к +Y. Часы: циферблат к +Z,
-//    ремешок вдоль Y. Модели из «фото → 3D» нужно привести к этой системе до примерки.
+//    «12–6» вдоль Y (ремешок уходит вверх и вниз и обхватывает запястье), «3 часа» (+X) — к кисти.
+//    Модели из «фото → 3D» приводит к этой системе scripts/accessories/prepare_models.py.
 //
 // Без React; THREE — только для матриц.
 
@@ -356,9 +357,9 @@ export function accessoryTransforms(kind, box, shape, card = {}, opts = {}) {
       const f = wristFrame(P, side);
       const wristD = f.perimeter / Math.PI;
       if (kind === 'watch') {
-        // циферблат (Z) — к тылу, ремешок (Y) — вдоль руки; на 1,5 см выше сустава
+        // циферблат (Z) — к тылу, «3 часа» (X) — к кисти, ремешок (Y) обхватывает запястье; на 1,5 см выше сустава
         const s = cm(card.widthCm, 0.038) / size.x;
-        const { ex, ey, ez } = axesFrom(f.axis, f.dorsal);
+        const { ex, ey, ez } = axesFrom(f.dorsal.clone().cross(f.axis), f.dorsal);
         const closed = size.z * s > 0.6 * wristD;               // ремешок застёгнут кольцом
         const target = f.origin.clone().addScaledVector(f.axis, -0.015);
         const ref = closed ? c.clone() : v3([c.x, c.y, box.min.z]);
@@ -456,6 +457,7 @@ export function accessoryTransforms(kind, box, shape, card = {}, opts = {}) {
  * Посадка аксессуара в примерке: модель root (внутри group) ставится в первую точку,
  * для пары — копия во вторую (дочерний объект group с относительной матрицей).
  * Цепочка и ремень строятся трубкой по линии. Вызывается после сброса group к единичной матрице.
+ * opts.color — цвет товара ('#rrggbb'): им красится лента ремня и цепочка (сама модель — в своей текстуре).
  * @returns {object|null} extra из accessoryTransforms; null — вид неизвестен или у фигуры нет меша
  */
 export function placeAccessory(group, root, shape, kind, card = {}, opts = {}) {
@@ -488,7 +490,7 @@ export function placeAccessory(group, root, shape, kind, card = {}, opts = {}) {
     ? new THREE.TubeGeometry(new THREE.CatmullRomCurve3(extra.chain.points, true), extra.chain.points.length * 4, 0.0012, 6, true)
     : extra.belt && ribbonGeometry(extra.belt.points, extra.belt.widthCm / 100);
   if (line) {
-    const mesh = new THREE.Mesh(line, firstMaterial(root));
+    const mesh = new THREE.Mesh(line, lineMaterial(root, opts.color));
     mesh.userData.accessoryPart = 'line';
     mesh.userData.ownsGeometry = true;
     mesh.matrixAutoUpdate = false;
@@ -517,8 +519,13 @@ function ribbonGeometry(points, width) {
   return g;
 }
 
-function firstMaterial(root) {
-  let mat = null;
-  root.traverse((o) => { if (!mat && o.isMesh) mat = o.material; });
-  return mat || new THREE.MeshStandardMaterial({ color: 0x999999, metalness: 0.8, roughness: 0.3 });
+/** Материал ленты или цепочки: как у модели, но без её текстуры; цвет — цвет товара, если он есть. */
+function lineMaterial(root, color) {
+  let base = null;
+  root.traverse((o) => { if (!base && o.isMesh) base = Array.isArray(o.material) ? o.material[0] : o.material; });
+  const mat = base ? base.clone() : new THREE.MeshStandardMaterial();
+  mat.map = null;
+  if (typeof color === 'string' && /^#[0-9a-f]{6}$/i.test(color)) mat.color?.set(color);
+  mat.needsUpdate = true;
+  return mat;
 }

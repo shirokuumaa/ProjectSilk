@@ -43,6 +43,7 @@ import BodyToggle from '../../components/BodyToggle';
 import { restoreGeometry, snapshotGeometry } from '../../utils/garmentDrape';
 import { useAvatarBody } from '../../utils/avatarBody';
 import { seatGarment } from '../../utils/garmentPlacement';
+import { accessoryKind } from '../../utils/accessoryKinds';
 import { loadBodyProfile, isProfileComplete } from '../../utils/bodyProfileApi';
 import { findBestSize, getStressMap, sizeChartOf } from '../../utils/fitCalculator';
 import { addToWardrobe, getWardrobe, pruneWardrobe, WARDROBE_EVENT } from '../../utils/wardrobeStorage';
@@ -155,7 +156,8 @@ function Garment({
       (gltf) => {
         if (!alive) { disposeTree(gltf.scene); return; }
         loaded = gltf.scene;
-        tintGarment(loaded, color);   // цвет товара вместо макетного и чужих текстур шаблонов
+        // цвет товара вместо макетного и чужих текстур шаблонов; у обуви и аксессуаров — своя текстура
+        tintGarment(loaded, accessoryKind(garmentType, accessory) ? null : color);
         printGarment(loaded, print);  // принт — на развёртку выкройки драпировки; шаблоны остаются в цвете
         snapshotGeometry(loaded);
         setRoot(loaded);
@@ -192,10 +194,10 @@ function Garment({
       garmentType, fit, layer, size, legs,
       from: simFigure ? figureShape(simFigure, avatar) : null,
       transferOnly: simFitMode() === 'transfer',
-      accessory, footLengthCm: profile?.footLength,
+      accessory, footLengthCm: profile?.footLength, color,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [root, garmentType, fit, layer, shape, size, legs, simFigure, accessory, profile?.footLength]);
+  }, [root, garmentType, fit, layer, shape, size, legs, simFigure, accessory, profile?.footLength, color]);
 
   return <group ref={groupRef}>{root && shape && <primitive object={root} />}</group>;
 }

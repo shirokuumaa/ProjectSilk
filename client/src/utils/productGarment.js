@@ -25,6 +25,7 @@ export function productGarment(product, sizeRow, { broken = false, toPublicUrl =
     size: sizeRow || null,
     color: product.color || null,
     print: product.print ? { ...product.print, image: toPublicUrl(product.print.image) } : null,
+    accessory: product.accessory || null,   // вид и размеры аксессуара или обуви — точка на теле и масштаб
   };
 
   if (!broken) {

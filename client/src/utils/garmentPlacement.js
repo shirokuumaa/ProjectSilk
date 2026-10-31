@@ -63,17 +63,17 @@ export function placeByHeight(group, garmentType, landmarks) {
  *  • from — форма фигуры, на которой просимулирована ткань: перенос на фигуру покупателя
  *    (складки сохраняются); transferOnly — дальше только страховка pushOutOfBody;
  *  • обувь и аксессуар известного вида на фигуре-болванке — к точке тела, в масштабе по карточке
- *    товара (accessory) и длине стопы покупателя (utils/accessoryPlacement.js);
+ *    товара (accessory) и длине стопы покупателя (utils/accessoryPlacement.js); color — цвет ленты ремня;
  *  • иначе — масштаб по росту; ткань прижимается к телу, твёрдые вещи (обувь, аксессуары) — нет.
  * Перед вызовом геометрия вещи должна быть откачена к исходной (restoreGeometry),
  * а group — к единичной матрице.
  * @returns {'transfer' | 'anchored' | 'rigid' | 'draped' | null} null — у вещи нулевая высота
  */
 export function seatGarment(group, root, shape, {
-  garmentType, from = null, transferOnly = true, fit, layer, size, legs, accessory = null, footLengthCm,
+  garmentType, from = null, transferOnly = true, fit, layer, size, legs, accessory = null, footLengthCm, color = null,
 } = {}) {
   const kind = accessoryKind(garmentType, accessory);
-  if (kind && placeAccessory(group, root, shape, kind, accessory || {}, { footLengthCm })) return 'anchored';
+  if (kind && placeAccessory(group, root, shape, kind, accessory || {}, { footLengthCm, color })) return 'anchored';
   if (from) transferToFigure(root, from, shape);
   else if (!placeByHeight(group, garmentType, shape.landmarks)) return null;
 

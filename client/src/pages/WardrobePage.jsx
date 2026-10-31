@@ -136,6 +136,7 @@ export default function WardrobePage({ addToCart }) {
         legs: c.legs || it.legs || null,
         color: c.color || null,             // основной цвет с фото товара
         print: c.print ? { ...c.print, image: toPublicUrl(c.print.image) } : null,   // принт ткани
+        accessory: c.accessory || null,     // вид и размеры аксессуара или обуви
       };
     });
   }, [items, catalog]);
@@ -158,7 +159,7 @@ export default function WardrobePage({ addToCart }) {
   // вещи на фигуре — в своём размере: у выбранной вещи выбранный, у остальных рекомендованный
   const garments = useMemo(() => worn.map((w) => {
     const item = view.find((i) => i.id === w.id);
-    let g = { ...w, color: item?.color || null, print: item?.print || null };
+    let g = { ...w, color: item?.color || null, print: item?.print || null, accessory: item?.accessory || null };
     if (item?.sizeChart?.length && ready) {
       const result = findBestSize(profile, item.sizeChart, w.id === activeId ? chosenSize : null);
       const name = (result.chosen || result.recommended)?.size;
