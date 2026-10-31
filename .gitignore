@@ -62,3 +62,6 @@ research/patterns/data/
 
 # Аксессуары: прогоны на поде и входы сеанса (модели из чужих фото — не публикуем)
 research/accessories/runs/
+
+# Демо-аксессуары из моделей TRELLIS.2 по фото Wikimedia — внутренний тест, не публикуем
+client/public/models/demo-accessories/

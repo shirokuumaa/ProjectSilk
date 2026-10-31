@@ -4,6 +4,7 @@ The model is shown as the generator left it: no rotation, so the views also show
 oriented (glTF +Z = front view, +Y up). Cycles on the GPU when there is one.
 
 Run: blender -b --factory-startup --python render_previews.py -- --glbs <dir> --out <dir> [--size 384 --samples 48]
+     [--engine BLENDER_EEVEE]
 Writes <out>/<glb stem>_{front,34,side}.png.
 """
 import argparse
@@ -32,7 +33,7 @@ def use_gpu(scene):
             return
 
 
-def render(glb, out, size, samples):
+def render(glb, out, size, samples, engine="CYCLES"):
     bpy.ops.wm.read_factory_settings(use_empty=True)
     scene = bpy.context.scene
     bpy.ops.import_scene.gltf(filepath=str(glb))
@@ -57,10 +58,11 @@ def render(glb, out, size, samples):
     sun.rotation_euler = (math.radians(50), 0, math.radians(-30))
     scene.collection.objects.link(sun)
 
-    scene.render.engine = "CYCLES"
-    use_gpu(scene)
-    scene.cycles.samples = samples
-    scene.cycles.use_denoising = True
+    scene.render.engine = engine
+    if engine == "CYCLES":
+        use_gpu(scene)
+        scene.cycles.samples = samples
+        scene.cycles.use_denoising = True
     scene.render.resolution_x = scene.render.resolution_y = size
     scene.view_settings.view_transform = "Standard"
     for name, ang in VIEWS.items():
@@ -78,12 +80,13 @@ def main():
     ap.add_argument("--out", required=True)
     ap.add_argument("--size", type=int, default=384)
     ap.add_argument("--samples", type=int, default=48)
+    ap.add_argument("--engine", default="CYCLES", help="BLENDER_EEVEE for a quick look on the Mac")
     a = ap.parse_args(sys.argv[sys.argv.index("--") + 1:])
     out = Path(a.out)
     out.mkdir(parents=True, exist_ok=True)
     for glb in sorted(Path(a.glbs).glob("*.glb")):
         try:
-            render(glb, out, a.size, a.samples)
+            render(glb, out, a.size, a.samples, a.engine)
             print("preview", glb.name, flush=True)
         except Exception as e:  # noqa: BLE001 — одна сломанная модель не останавливает остальные
             print("preview FAILED", glb.name, e, flush=True)
