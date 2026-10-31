@@ -49,6 +49,16 @@ describe('демо-товары: платье, юбка, футболка, бр�
     assert.equal(all.filter((p) => p.print).length, 1);
   });
 
+  it('у каждого товара галерея: вид сзади и сбоку (рендер на поде), картинки лежат на сайте', () => {
+    for (const p of demoProducts('x')) {
+      const id = p.image.match(/demo-garments\/(\w+)\.jpg$/)[1];
+      assert.deepEqual(p.images, [`/models/demo-garments/${id}_back.jpg`, `/models/demo-garments/${id}_side.jpg`], p.title);
+      for (const url of p.images) {
+        assert.ok(fs.statSync(path.join(SERVER_DIR, '..', 'client', 'public', url)).size > 5000, url);
+      }
+    }
+  });
+
   it('сетки из дня 7: платье Zara (× 2, stretchy), юбка, футболка Uniqlo (рукав от плечевого шва)', () => {
     const [dress, skirt, tee] = demoProducts('x');
     const S = (p) => p.sizeChart.find((r) => r.size === 'S');

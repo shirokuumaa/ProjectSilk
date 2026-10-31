@@ -56,6 +56,9 @@ ITEMS = {
     "tee":   {"case": "09_tee",   "store": "uniqlo", "color": CLOTH},
 }
 SIZES = {"03_dress": ("S", "L"), "04_skirt": ("S", "L"), "09_tee": ("S", "L")}
+# картинки каталога, отрендеренные на поде с принтом (research/accessories/pod/render_catalogue.py):
+# экспорт их не перезаписывает — рендер Newton голубой, без клетки
+RENDERED_PICTURES = {"dress"}
 
 
 def z_offset(mp, u, obj):
@@ -290,7 +293,8 @@ def main():
                            "triangles": int(len(mesh.faces)), "zOffsetM": round(dz[body], 5), "uv": uv_info,
                            "body": {"heightCm": HEIGHT, "chest": bust, "waist": waist, "hips": hips}})
             print(f"{item}_{size}: {mb:.2f} MB, {len(mesh.faces)} tris, body {body}, dz {dz[body] * 100:.2f} cm, uv {uv_info}")
-        img_mb = product_image(cfg["case"], OUT / f"{item}.jpg")
+        jpg = OUT / f"{item}.jpg"
+        img_mb = jpg.stat().st_size / 1e6 if item in RENDERED_PICTURES and jpg.exists() else product_image(cfg["case"], jpg)
         manifest["items"][item] = {"case": cfg["case"], "image": f"/models/demo-garments/{item}.jpg",
                                    "imageMb": round(img_mb, 3), "models": models}
     for item, job in job_items(a.jobs).items():

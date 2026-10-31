@@ -4,7 +4,7 @@
   "dress": {
    "case": "03_dress",
    "image": "/models/demo-garments/dress.jpg",
-   "imageMb": 0.031,
+   "imageMb": 0.062,
    "models": [
     {
      "size": "XS",

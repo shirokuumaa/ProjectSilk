@@ -152,7 +152,14 @@ export const DETAILS = {
   },
 };
 
-/** Документы товаров для продавца ownerId: сетка, модели размеров, картинка. */
+/** Виды сзади и сбоку (галерея страницы товара), если их картинки лежат рядом с манифестом. */
+export function galleryOf(id, dir = path.dirname(MANIFEST)) {
+  return ['back', 'side']
+    .filter((view) => fs.existsSync(path.join(dir, `${id}_${view}.jpg`)))
+    .map((view) => `/models/demo-garments/${id}_${view}.jpg`);
+}
+
+/** Документы товаров для продавца ownerId: сетка, модели размеров, картинка, галерея. */
 export function demoProducts(ownerId, manifest = JSON.parse(fs.readFileSync(MANIFEST, 'utf8'))) {
   return Object.entries(DEMO).map(([id, p]) => {
     const item = manifest.items[id];
@@ -165,6 +172,7 @@ export function demoProducts(ownerId, manifest = JSON.parse(fs.readFileSync(MANI
       name: p.title,
       category: 'Clothes',
       image: item.image,
+      images: galleryOf(id),
       // «есть 3D» для старых страниц — модель S (или первая, если S нет)
       model3d: (sizeModels.find((m) => m.size === 'S') || sizeModels[0]).model3d,
       sizeModels,
